@@ -69,10 +69,14 @@ impl BaseElement {
         let z = mul(value, R2);
         BaseElement(z)
     }
+
+    pub fn as_int(self) -> <Self as FieldElement>::Representation {
+        self.to_repr()
+    }
 }
 
 impl FieldElement for BaseElement {
-    type PositiveInteger = u64;
+    type Representation = u64;
     type BaseField = Self;
 
     const ZERO: Self = BaseElement::new(0);
@@ -81,7 +85,7 @@ impl FieldElement for BaseElement {
     const ELEMENT_BYTES: usize = ELEMENT_BYTES;
     const IS_CANONICAL: bool = false;
 
-    fn exp(self, power: Self::PositiveInteger) -> Self {
+    fn exp(self, power: Self::Representation) -> Self {
         let mut b = self;
 
         if power == 0 {
@@ -154,6 +158,11 @@ impl FieldElement for BaseElement {
     fn as_base_elements(elements: &[Self]) -> &[Self::BaseField] {
         elements
     }
+
+    #[inline(always)]
+    fn normalize(&mut self) {
+        self.0 = normalize(self.0)
+    }
 }
 
 impl StarkField for BaseElement {
@@ -164,7 +173,7 @@ impl StarkField for BaseElement {
     /// True \
     /// sage: GF(MODULUS).order() \
     /// 4611624995532046337
-    const MODULUS: Self::PositiveInteger = M;
+    const MODULUS: Self::Representation = M;
     const MODULUS_BITS: u32 = 62;
 
     /// sage: GF(MODULUS).primitive_element() \
@@ -180,11 +189,22 @@ impl StarkField for BaseElement {
     /// 4421547261963328785
     const TWO_ADIC_ROOT_OF_UNITY: Self = BaseElement::new(G);
 
+    fn get_root_of_unity(n: u32) -> Self {
+        assert!(n != 0, "cannot get root of unity for n = 0");
+        assert!(
+            n <= Self::TWO_ADICITY,
+            "order cannot exceed 2^{}",
+            Self::TWO_ADICITY
+        );
+        let power = Self::Representation::from(1u32) << (Self::TWO_ADICITY - n);
+        Self::TWO_ADIC_ROOT_OF_UNITY.exp(power)
+    }
+
     fn get_modulus_le_bytes() -> Vec<u8> {
         Self::MODULUS.to_le_bytes().to_vec()
     }
 
-    fn as_int(&self) -> Self::PositiveInteger {
+    fn to_repr(&self) -> Self::Representation {
         // convert from Montgomery representation by multiplying by 1
         let result = mul(self.0, 1);
         // since the result of multiplication can be in [0, 2M), we need to normalize it
@@ -202,7 +222,7 @@ impl Randomizable for BaseElement {
 
 impl Display for BaseElement {
     fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
-        write!(f, "{}", self.as_int())
+        write!(f, "{}", self.to_repr())
     }
 }
 
@@ -400,7 +420,7 @@ impl AsBytes for BaseElement {
 impl Serializable for BaseElement {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         // convert from Montgomery representation into canonical representation
-        target.write_u8_slice(&self.as_int().to_le_bytes());
+        target.write_u8_slice(&self.to_repr().to_le_bytes());
     }
 }
 

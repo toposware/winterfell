@@ -6,10 +6,7 @@
 use core::{
     convert::TryFrom,
     fmt::{Debug, Display},
-    ops::{
-        Add, AddAssign, BitAnd, Div, DivAssign, Mul, MulAssign, Neg, Shl, Shr, ShrAssign, Sub,
-        SubAssign,
-    },
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
 use utils::{
     collections::Vec, AsBytes, Deserializable, DeserializationError, Randomizable, Serializable,
@@ -60,16 +57,7 @@ pub trait FieldElement:
 {
     /// A type defining positive integers big enough to describe a field modulus for
     /// `Self::BaseField` with no loss of precision.
-    type PositiveInteger: Debug
-        + Copy
-        + PartialEq
-        + PartialOrd
-        + ShrAssign
-        + Shl<u32, Output = Self::PositiveInteger>
-        + Shr<u32, Output = Self::PositiveInteger>
-        + BitAnd<Output = Self::PositiveInteger>
-        + From<u32>
-        + From<u64>;
+    type Representation: Debug + Copy + PartialEq + PartialOrd + From<u32> + From<u64>;
 
     /// Base field type for this finite field. For prime fields, `BaseField` should be set
     /// to `Self`.
@@ -106,30 +94,7 @@ pub trait FieldElement:
     }
 
     /// Exponentiates this field element by `power` parameter.
-    fn exp(self, power: Self::PositiveInteger) -> Self {
-        let mut r = Self::ONE;
-        let mut b = self;
-        let mut p = power;
-
-        let int_zero = Self::PositiveInteger::from(0u32);
-        let int_one = Self::PositiveInteger::from(1u32);
-
-        if p == int_zero {
-            return Self::ONE;
-        } else if b == Self::ZERO {
-            return Self::ZERO;
-        }
-
-        while p > int_zero {
-            if p & int_one == int_one {
-                r *= b;
-            }
-            p >>= int_one;
-            b = b.square();
-        }
-
-        r
-    }
+    fn exp(self, power: Self::Representation) -> Self;
 
     /// Returns a multiplicative inverse of this field element. If this element is ZERO, ZERO is
     /// returned.
@@ -180,6 +145,12 @@ pub trait FieldElement:
     /// output list will contain decompositions of each extension element into underlying base
     /// elements.
     fn as_base_elements(elements: &[Self]) -> &[Self::BaseField];
+
+    /// Normalizes internal representation of this element.
+    ///
+    /// Normalization is applicable only to malleable field elements; for non-malleable elements
+    /// this is a no-op.
+    fn normalize(&mut self);
 }
 
 // STARK FIELD
@@ -196,7 +167,7 @@ pub trait StarkField: FieldElement<BaseField = Self> {
 
     /// Prime modulus of the field. Must be of the form `k` * 2^`n` + 1 (a Proth prime).
     /// This ensures that the field has high 2-adicity.
-    const MODULUS: Self::PositiveInteger;
+    const MODULUS: Self::Representation;
 
     /// The number of bits needed to represents `Self::MODULUS`.
     const MODULUS_BITS: u32;
@@ -215,20 +186,11 @@ pub trait StarkField: FieldElement<BaseField = Self> {
     ///
     /// # Panics
     /// Panics if the root of unity for the specified order does not exist in this field.
-    fn get_root_of_unity(n: u32) -> Self {
-        assert!(n != 0, "cannot get root of unity for n = 0");
-        assert!(
-            n <= Self::TWO_ADICITY,
-            "order cannot exceed 2^{}",
-            Self::TWO_ADICITY
-        );
-        let power = Self::PositiveInteger::from(1u32) << (Self::TWO_ADICITY - n);
-        Self::TWO_ADIC_ROOT_OF_UNITY.exp(power)
-    }
+    fn get_root_of_unity(n: u32) -> Self;
 
     /// Returns byte representation of the field modulus in little-endian byte order.
     fn get_modulus_le_bytes() -> Vec<u8>;
 
     /// Returns a canonical integer representation of the field element.
-    fn as_int(&self) -> Self::PositiveInteger;
+    fn to_repr(&self) -> Self::Representation;
 }

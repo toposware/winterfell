@@ -116,7 +116,7 @@ fn get_boundary_constraints() {
         if g1.degree_adjustment() == g2.degree_adjustment() {
             let n1 = &g1.divisor().numerator()[0].1;
             let n2 = &g2.divisor().numerator()[0].1;
-            n1.as_int().partial_cmp(&n2.as_int()).unwrap()
+            n1.to_repr().partial_cmp(&n2.to_repr()).unwrap()
         } else {
             g1.degree_adjustment()
                 .partial_cmp(&g2.degree_adjustment())

@@ -5,7 +5,7 @@
 
 use super::{Digest, DIGEST_SIZE};
 use core::slice;
-use math::{fields::f62::BaseElement, StarkField};
+use math::fields::f62::BaseElement;
 use utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
 // DIGEST TRAIT IMPLEMENTATIONS

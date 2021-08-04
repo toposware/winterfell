@@ -220,8 +220,8 @@ impl Air for LamportThresholdAir {
         result.push(powers_of_two);
 
         // build message bit columns m0 and m1
-        let m0 = self.message[0].as_int();
-        let m1 = self.message[1].as_int();
+        let m0 = self.message[0].to_repr();
+        let m1 = self.message[1].to_repr();
         let mut m0_bits = Vec::with_capacity(SIG_CYCLE_LEN);
         let mut m1_bits = Vec::with_capacity(SIG_CYCLE_LEN);
         for i in 0..SIG_CYCLE_LEN {

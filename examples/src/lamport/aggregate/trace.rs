@@ -213,8 +213,8 @@ fn update_pub_key_hash(
 // ================================================================================================
 
 fn build_sig_info(msg: &[BaseElement; 2], sig: &Signature) -> SignatureInfo {
-    let m0 = msg[0].as_int();
-    let m1 = msg[1].as_int();
+    let m0 = msg[0].to_repr();
+    let m1 = msg[1].to_repr();
     let key_schedule = build_key_schedule(m0, m1, sig);
     SignatureInfo {
         m0,
