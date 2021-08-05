@@ -92,6 +92,7 @@ pub mod fields {
     //! of these field.
 
     pub use super::field::f128;
+    pub use super::field::f252;
     pub use super::field::f62;
     pub use super::field::QuadExtensionA;
 }

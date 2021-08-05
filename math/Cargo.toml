@@ -33,6 +33,7 @@ std = ["utils/std"]
 
 [dependencies]
 utils = { version = "0.2", path = "../utils/core", package = "winter-utils", default-features = false }
+stark-curve = { git = "https://github.com/ToposWare/stark-curve.git", default-features = false }
 
 [dev-dependencies]
 criterion = "0.3"

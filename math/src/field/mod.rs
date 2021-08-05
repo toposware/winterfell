@@ -7,6 +7,7 @@ mod traits;
 pub use traits::{FieldElement, StarkField};
 
 pub mod f128;
+pub mod f252;
 pub mod f62;
 
 mod extensions;
