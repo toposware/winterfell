@@ -26,7 +26,7 @@ fn rescue(c: &mut Criterion) {
     );
 
     for &size in SIZES.iter() {
-        let resc = rescue::RescueExample::new(size, options.clone());
+        let resc = rescue::rescue_128::RescueExample::new(size, options.clone());
         group.bench_function(BenchmarkId::from_parameter(size), |bench| {
             bench.iter(|| resc.prove());
         });
