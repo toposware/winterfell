@@ -448,6 +448,14 @@ impl DivAssign for BaseElement {
 // TYPE CONVERSIONS
 // ================================================================================================
 
+impl From<BaseElementInner> for BaseElement {
+    /// Converts a 128-bit value into a field element. If the value is greater than or equal to
+    /// the field modulus, modular reduction is silently preformed.
+    fn from(value: BaseElementInner) -> Self {
+        BaseElement(value)
+    }
+}
+
 impl From<u128> for BaseElement {
     /// Converts a 128-bit value into a field element. If the value is greater than or equal to
     /// the field modulus, modular reduction is silently preformed.

@@ -32,6 +32,7 @@ default = ["std"]
 std = ["utils/std"]
 
 [dependencies]
+bitvec = { version = "0.22", default-features = false }
 utils = { version = "0.2", path = "../utils/core", package = "winter-utils", default-features = false }
 stark-curve = { git = "https://github.com/ToposWare/stark-curve.git", default-features = false }
 

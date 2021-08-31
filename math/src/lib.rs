@@ -80,6 +80,8 @@
 #[macro_use]
 extern crate alloc;
 
+pub mod curve;
+
 pub mod fft;
 pub mod polynom;
 
