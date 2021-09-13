@@ -9,8 +9,8 @@ use std::{convert::TryInto, time::Duration};
 use utils::AsBytes;
 use winter_math::{
     batch_inversion,
-    fields::{f128, f62, QuadExtensionA},
-    FieldElement,
+    fields::{f128, f252, f62, QuadExtensionA},
+    FieldElement, StarkField,
 };
 
 const SIZES: [usize; 3] = [262_144, 524_288, 1_048_576];
@@ -111,6 +111,49 @@ pub fn f62_extension_ops(c: &mut Criterion) {
     });
 }
 
+pub fn f252_ops(c: &mut Criterion) {
+    let mut group = c.benchmark_group("f252");
+
+    group.bench_function("add", |bench| {
+        let x = rand_value::<f252::BaseElement>();
+        let y = rand_value::<f252::BaseElement>();
+        bench.iter(|| black_box(x) + black_box(y))
+    });
+
+    group.bench_function("sub", |bench| {
+        let x = rand_value::<f252::BaseElement>();
+        let y = rand_value::<f252::BaseElement>();
+        bench.iter(|| black_box(x) - black_box(y))
+    });
+
+    group.bench_function("mul", |bench| {
+        let x = rand_value::<f252::BaseElement>();
+        let y = rand_value::<f252::BaseElement>();
+        bench.iter(|| black_box(x) * black_box(y))
+    });
+
+    group.bench_function("square", |bench| {
+        let x = rand_value::<f252::BaseElement>();
+        bench.iter(|| black_box(x).square())
+    });
+
+    group.bench_function("square_from_mul", |bench| {
+        let x = rand_value::<f252::BaseElement>();
+        bench.iter(|| black_box(x) * black_box(x))
+    });
+
+    group.bench_function("exp", |bench| {
+        let x = rand_value::<f252::BaseElement>();
+        let y = rand_value::<f252::BaseElement>().to_repr();
+        bench.iter(|| f252::BaseElement::exp(black_box(x), black_box(y)))
+    });
+
+    group.bench_function("inv", |bench| {
+        let x = rand_value::<f252::BaseElement>();
+        bench.iter(|| f252::BaseElement::inv(black_box(x)))
+    });
+}
+
 pub fn batch_inv(c: &mut Criterion) {
     let mut group = c.benchmark_group("batch_inv");
     group.sample_size(10);
@@ -130,6 +173,7 @@ pub fn batch_inv(c: &mut Criterion) {
 criterion_group!(
     field_group,
     batch_inv,
+    f252_ops,
     f128_ops,
     f128_extension_ops,
     f62_ops,

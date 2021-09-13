@@ -100,7 +100,7 @@ fn inv() {
 fn element_as_int() {
     let v = u64::MAX;
     let e = BaseElement::new(v);
-    assert_eq!(v % super::M, e.as_int());
+    assert_eq!(v % super::M, e.to_repr());
 }
 
 #[test]
@@ -110,7 +110,7 @@ fn equals() {
 
     // elements are equal
     assert_eq!(a, b);
-    assert_eq!(a.as_int(), b.as_int());
+    assert_eq!(a.to_repr(), b.to_repr());
     assert_eq!(a.to_bytes(), b.to_bytes());
 
     // but their internal representation is not
@@ -140,7 +140,7 @@ fn get_root_of_unity() {
 fn from_u128() {
     let v = u128::MAX;
     let e = BaseElement::from(v);
-    assert_eq!((v % super::M as u128) as u64, e.as_int());
+    assert_eq!((v % super::M as u128) as u64, e.to_repr());
 }
 
 #[test]
@@ -148,7 +148,7 @@ fn try_from_slice() {
     let bytes = vec![1, 0, 0, 0, 0, 0, 0, 0];
     let result = BaseElement::try_from(bytes.as_slice());
     assert!(result.is_ok());
-    assert_eq!(1, result.unwrap().as_int());
+    assert_eq!(1, result.unwrap().to_repr());
 
     let bytes = vec![1, 0, 0, 0, 0, 0, 0];
     let result = BaseElement::try_from(bytes.as_slice());
@@ -232,7 +232,7 @@ proptest! {
         let result = v1 + v2;
 
         let expected = (a % super::M + b % super::M) % super::M;
-        prop_assert_eq!(expected, result.as_int());
+        prop_assert_eq!(expected, result.to_repr());
     }
 
     #[test]
@@ -245,7 +245,7 @@ proptest! {
         let b = b % super::M;
         let expected = if a < b { super::M - b + a } else { a - b };
 
-        prop_assert_eq!(expected, result.as_int());
+        prop_assert_eq!(expected, result.to_repr());
     }
 
     #[test]
@@ -255,7 +255,7 @@ proptest! {
         let result = v1 * v2;
 
         let expected = (((a as u128) * (b as u128)) % super::M as u128) as u64;
-        prop_assert_eq!(expected, result.as_int());
+        prop_assert_eq!(expected, result.to_repr());
     }
 
     #[test]
@@ -265,7 +265,7 @@ proptest! {
         let b = BigUint::from(b);
         let m = BigUint::from(super::M);
         let expected = BigUint::from(a).modpow(&b, &m).to_u64_digits()[0];
-        prop_assert_eq!(expected, result.as_int());
+        prop_assert_eq!(expected, result.to_repr());
     }
 
     #[test]
@@ -280,12 +280,12 @@ proptest! {
     #[test]
     fn element_as_int_proptest(a in any::<u64>()) {
         let e = BaseElement::new(a);
-        prop_assert_eq!(a % super::M, e.as_int());
+        prop_assert_eq!(a % super::M, e.to_repr());
     }
 
     #[test]
     fn from_u128_proptest(v in any::<u128>()) {
         let e = BaseElement::from(v);
-        assert_eq!((v % super::M as u128) as u64, e.as_int());
+        assert_eq!((v % super::M as u128) as u64, e.to_repr());
     }
 }

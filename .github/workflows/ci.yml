@@ -22,6 +22,16 @@ jobs:
         with:
           toolchain: ${{matrix.toolchain}}
           override: true
+
+      - name: Set git credentials
+        uses: fusion-engineering/setup-git-credentials@v2
+        with:
+          credentials: https://robot-toposware:${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}@github.com
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{matrix.toolchain}}
+          override: true
       - name: Test
         uses: actions-rs/cargo@v1
         with:
@@ -34,6 +44,18 @@ jobs:
       - uses: actions/checkout@main
       - name: Install minimal nightly with clippy
         uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          components: clippy
+          override: true
+
+      - name: Set git credentials
+        uses: fusion-engineering/setup-git-credentials@v2
+        with:
+          credentials: https://robot-toposware:${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}@github.com
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: nightly
@@ -53,6 +75,18 @@ jobs:
       - uses: actions/checkout@main
       - name: Install minimal nightly with rustfmt
         uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          components: rustfmt
+          override: true
+
+      - name: Set git credentials
+        uses: fusion-engineering/setup-git-credentials@v2
+        with:
+          credentials: https://robot-toposware:${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}@github.com
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: nightly
@@ -81,6 +115,17 @@ jobs:
         with:
           toolchain: ${{matrix.toolchain}}
           override: true
+
+      - name: Set git credentials
+        uses: fusion-engineering/setup-git-credentials@v2
+        with:
+          credentials: https://robot-toposware:${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}@github.com
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{matrix.toolchain}}
+          override: true
+
       - run: rustup target add wasm32-unknown-unknown
       - name: Build
         uses: actions-rs/cargo@v1

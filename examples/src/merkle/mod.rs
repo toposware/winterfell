@@ -47,7 +47,7 @@ impl MerkleExample {
         );
         let value = [BaseElement::new(42), BaseElement::new(43)];
         let index =
-            (rand_value::<BaseElement>().as_int() % u128::pow(2, tree_depth as u32)) as usize;
+            (rand_value::<BaseElement>().to_repr() % u128::pow(2, tree_depth as u32)) as usize;
 
         // build Merkle tree of the specified depth
         let now = Instant::now();

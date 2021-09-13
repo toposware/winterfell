@@ -296,8 +296,8 @@ fn build_sig_info(
     pub_key: &AggPublicKey,
     sig_count: u64,
 ) -> SignatureInfo {
-    let m0 = msg[0].as_int();
-    let m1 = msg[1].as_int();
+    let m0 = msg[0].to_repr();
+    let m1 = msg[1].to_repr();
     // we verify that the individual public key exists in the aggregated public key after
     // we've verified the signature; thus, the key index is offset by 1. That is, when
     // we verify signature for pub key 1, we verify Merkle path for pub key 0; the last
