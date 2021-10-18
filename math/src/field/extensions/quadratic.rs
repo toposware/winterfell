@@ -3,7 +3,10 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-use crate::fields::{f128::BaseElement as BaseElement128, f62::BaseElement as BaseElement62};
+use crate::fields::{
+    f128::BaseElement as BaseElement128, f62::BaseElement as BaseElement62,
+    f64::BaseElement as BaseElement64,
+};
 
 use super::{FieldElement, StarkField};
 use core::{
@@ -129,6 +132,102 @@ impl FieldElement for QuadExtensionA<BaseElement62> {
     fn zeroed_vector(n: usize) -> Vec<Self> {
         // get twice the number of base elements, and re-interpret them as quad field elements
         let result = BaseElement62::zeroed_vector(n * 2);
+        Self::base_to_quad_vector(result)
+    }
+
+    fn as_base_elements(elements: &[Self]) -> &[Self::BaseField] {
+        let ptr = elements.as_ptr();
+        let len = elements.len() * 2;
+        unsafe { slice::from_raw_parts(ptr as *const Self::BaseField, len) }
+    }
+
+    fn normalize(&mut self) {
+        self.0.normalize();
+        self.1.normalize();
+    }
+}
+
+impl FieldElement for QuadExtensionA<BaseElement64> {
+    type Representation = <BaseElement64 as FieldElement>::Representation;
+    type BaseField = BaseElement64;
+
+    const ELEMENT_BYTES: usize = BaseElement64::ELEMENT_BYTES * 2;
+    const IS_CANONICAL: bool = BaseElement64::IS_CANONICAL;
+    const ZERO: Self = Self(BaseElement64::ZERO, BaseElement64::ZERO);
+    const ONE: Self = Self(BaseElement64::ONE, BaseElement64::ZERO);
+
+    fn exp(self, power: Self::Representation) -> Self {
+        let mut r = Self::ONE;
+        let mut b = self;
+        let mut p = power;
+
+        let int_zero = Self::Representation::from(0u32);
+        let int_one = Self::Representation::from(1u32);
+
+        if p == int_zero {
+            return Self::ONE;
+        } else if b == Self::ZERO {
+            return Self::ZERO;
+        }
+
+        while p > int_zero {
+            if p & int_one == int_one {
+                r *= b;
+            }
+            p >>= int_one;
+            b = b.square();
+        }
+
+        r
+    }
+
+    fn inv(self) -> Self {
+        if self == Self::ZERO {
+            return Self::ZERO;
+        }
+        #[allow(clippy::suspicious_operation_groupings)]
+        let denom = (self.0 * self.0) + (self.0 * self.1) - (self.1 * self.1);
+        let denom_inv = denom.inv();
+        Self((self.0 + self.1) * denom_inv, self.1.neg() * denom_inv)
+    }
+
+    fn conjugate(&self) -> Self {
+        Self(self.0 + self.1, BaseElement64::ZERO - self.1)
+    }
+
+    fn elements_as_bytes(elements: &[Self]) -> &[u8] {
+        unsafe {
+            slice::from_raw_parts(
+                elements.as_ptr() as *const u8,
+                elements.len() * Self::ELEMENT_BYTES,
+            )
+        }
+    }
+
+    unsafe fn bytes_as_elements(bytes: &[u8]) -> Result<&[Self], DeserializationError> {
+        if bytes.len() % Self::ELEMENT_BYTES != 0 {
+            return Err(DeserializationError::InvalidValue(format!(
+                "number of bytes ({}) does not divide into whole number of field elements",
+                bytes.len(),
+            )));
+        }
+
+        let p = bytes.as_ptr();
+        let len = bytes.len() / Self::ELEMENT_BYTES;
+
+        // make sure the bytes are aligned on the boundary consistent with base element alignment
+        if (p as usize) % Self::BaseField::ELEMENT_BYTES != 0 {
+            return Err(DeserializationError::InvalidValue(
+                "slice memory alignment is not valid for this field element type".to_string(),
+            ));
+        }
+
+        Ok(slice::from_raw_parts(p as *const Self, len))
+    }
+
+    fn zeroed_vector(n: usize) -> Vec<Self> {
+        // get twice the number of base elements, and re-interpret them as quad field elements
+        let result = BaseElement64::zeroed_vector(n * 2);
         Self::base_to_quad_vector(result)
     }
 
@@ -304,6 +403,21 @@ impl<B: StarkField> MulAssign for QuadExtensionA<B> {
 }
 
 impl Div for QuadExtensionA<BaseElement62> {
+    type Output = Self;
+
+    #[allow(clippy::suspicious_arithmetic_impl)]
+    fn div(self, rhs: Self) -> Self {
+        self * rhs.inv()
+    }
+}
+
+impl DivAssign for QuadExtensionA<BaseElement64> {
+    fn div_assign(&mut self, rhs: Self) {
+        *self = *self / rhs
+    }
+}
+
+impl Div for QuadExtensionA<BaseElement64> {
     type Output = Self;
 
     #[allow(clippy::suspicious_arithmetic_impl)]
