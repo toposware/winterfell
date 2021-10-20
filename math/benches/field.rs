@@ -8,13 +8,8 @@ use rand_utils::{rand_value, rand_vector};
 use std::time::Duration;
 use winter_math::{
     batch_inversion,
-<<<<<<< HEAD
-    fields::{f128, f252, f62, f64, QuadExtensionA},
-    FieldElement,
-=======
-    fields::{f128, f62, f64},
+    fields::{f128, f252, f62, f64},
     FieldElement, StarkField,
->>>>>>> 84ff6e8... refactored handling of extension fields
 };
 
 const SIZES: [usize; 3] = [262_144, 524_288, 1_048_576];

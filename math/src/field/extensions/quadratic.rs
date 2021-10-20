@@ -86,13 +86,8 @@ impl FieldElement for QuadExtension<BaseElement62> {
     }
 
     fn inv(self) -> Self {
-        if self == Self::ZERO {
-            return Self::ZERO;
-        }
-        #[allow(clippy::suspicious_operation_groupings)]
-        let denom = (self.0 * self.0) + (self.0 * self.1) - (self.1 * self.1);
-        let denom_inv = denom.inv();
-        Self((self.0 + self.1) * denom_inv, self.1.neg() * denom_inv)
+        let result = <BaseElement62 as ExtensibleField<2>>::inv([self.0, self.1]);
+        Self(result[0], result[1])
     }
 
     fn conjugate(&self) -> Self {
@@ -182,13 +177,8 @@ impl FieldElement for QuadExtension<BaseElement64> {
     }
 
     fn inv(self) -> Self {
-        if self == Self::ZERO {
-            return Self::ZERO;
-        }
-        #[allow(clippy::suspicious_operation_groupings)]
-        let denom = (self.0 * self.0) + (self.0 * self.1) - (self.1 * self.1);
-        let denom_inv = denom.inv();
-        Self((self.0 + self.1) * denom_inv, self.1.neg() * denom_inv)
+        let result = <BaseElement64 as ExtensibleField<2>>::inv([self.0, self.1]);
+        Self(result[0], result[1])
     }
 
     fn conjugate(&self) -> Self {

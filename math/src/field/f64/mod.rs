@@ -72,6 +72,20 @@ impl FieldElement for BaseElement {
     const ELEMENT_BYTES: usize = ELEMENT_BYTES;
     const IS_CANONICAL: bool = false;
 
+    #[inline]
+    fn double(self) -> Self {
+        // this is similar to mod_reduce() function but here we know that we can overflow
+        // by at most one bit
+        let (ab, c) = self.0.overflowing_add(self.0);
+
+        // compute c * 2^32 - c; since we know that c is either 0 or 1 we can compute it like so
+        let tmp = 0u32.wrapping_sub(c as u32) as u64;
+
+        let (result, over) = ab.overflowing_add(tmp);
+        Self(result.wrapping_add(0u32.wrapping_sub(over as u32) as u64))
+    }
+
+    #[inline]
     fn exp(self, power: Self::Representation) -> Self {
         let mut b = self;
 
@@ -372,8 +386,6 @@ impl ExtensibleField<2> for BaseElement {
             z - (a[1] * b[1]).double(),
             (a[0] + a[1]) * (b[0] + b[1]) - z,
         ]
-
-        //[a[0] * b[0] + Self::GENERATOR * a[1] * b[1], a[0]*b[1] + b[0] * a[1]]
     }
 
     #[inline(always)]
@@ -381,14 +393,14 @@ impl ExtensibleField<2> for BaseElement {
         if x[0] == Self::ZERO && x[1] == Self::ZERO {
             return x;
         }
-        let denom = x[0].square() + (x[0] * x[1]) - x[1].square();
+        let denom = x[0].square() + (x[0] * x[1]) + x[1].square().double();
         let denom_inv = denom.inv();
         [(x[0] + x[1]) * denom_inv, -x[1] * denom_inv]
     }
 
     #[inline(always)]
     fn conjugate(x: [Self; 2]) -> [Self; 2] {
-        [x[0] + x[1], Self::ZERO - x[1]]
+        [x[0] + x[1], -x[1]]
     }
 }
 
