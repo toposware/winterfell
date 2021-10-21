@@ -90,12 +90,28 @@ impl FieldElement for QuadExtension<BaseElement62> {
     }
 
     fn inv(self) -> Self {
-        let result = <BaseElement62 as ExtensibleField<2>>::inv([self.0, self.1]);
-        Self(result[0], result[1])
+        if self == Self::ZERO {
+            return self;
+        }
+
+        let x = [self.0, self.1];
+        let numerator = <BaseElement62 as ExtensibleField<2>>::frobenius(x);
+
+        let norm = <BaseElement62 as ExtensibleField<2>>::mul(x, numerator);
+        debug_assert_eq!(
+            norm[1],
+            BaseElement62::ZERO,
+            "norm must be in the base field"
+        );
+        let denom_inv = norm[0].inv();
+
+        Self(numerator[0] * denom_inv, numerator[1] * denom_inv)
     }
 
+    #[inline]
     fn conjugate(&self) -> Self {
-        Self(self.0 + self.1, BaseElement62::ZERO - self.1)
+        let result = <BaseElement62 as ExtensibleField<2>>::frobenius([self.0, self.1]);
+        Self(result[0], result[1])
     }
 
     fn elements_as_bytes(elements: &[Self]) -> &[u8] {
@@ -181,12 +197,28 @@ impl FieldElement for QuadExtension<BaseElement64> {
     }
 
     fn inv(self) -> Self {
-        let result = <BaseElement64 as ExtensibleField<2>>::inv([self.0, self.1]);
-        Self(result[0], result[1])
+        if self == Self::ZERO {
+            return self;
+        }
+
+        let x = [self.0, self.1];
+        let numerator = <BaseElement64 as ExtensibleField<2>>::frobenius(x);
+
+        let norm = <BaseElement64 as ExtensibleField<2>>::mul(x, numerator);
+        debug_assert_eq!(
+            norm[1],
+            BaseElement64::ZERO,
+            "norm must be in the base field"
+        );
+        let denom_inv = norm[0].inv();
+
+        Self(numerator[0] * denom_inv, numerator[1] * denom_inv)
     }
 
+    #[inline]
     fn conjugate(&self) -> Self {
-        Self(self.0 + self.1, BaseElement64::ZERO - self.1)
+        let result = <BaseElement64 as ExtensibleField<2>>::frobenius([self.0, self.1]);
+        Self(result[0], result[1])
     }
 
     fn elements_as_bytes(elements: &[Self]) -> &[u8] {
@@ -273,13 +305,27 @@ impl FieldElement for QuadExtension<BaseElement128> {
 
     #[inline]
     fn inv(self) -> Self {
-        let result = <BaseElement128 as ExtensibleField<2>>::inv([self.0, self.1]);
-        Self(result[0], result[1])
+        if self == Self::ZERO {
+            return self;
+        }
+
+        let x = [self.0, self.1];
+        let numerator = <BaseElement128 as ExtensibleField<2>>::frobenius(x);
+
+        let norm = <BaseElement128 as ExtensibleField<2>>::mul(x, numerator);
+        debug_assert_eq!(
+            norm[1],
+            BaseElement128::ZERO,
+            "norm must be in the base field"
+        );
+        let denom_inv = norm[0].inv();
+
+        Self(numerator[0] * denom_inv, numerator[1] * denom_inv)
     }
 
     #[inline]
     fn conjugate(&self) -> Self {
-        let result = <BaseElement128 as ExtensibleField<2>>::conjugate([self.0, self.1]);
+        let result = <BaseElement128 as ExtensibleField<2>>::frobenius([self.0, self.1]);
         Self(result[0], result[1])
     }
 

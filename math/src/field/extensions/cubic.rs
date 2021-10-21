@@ -3,6 +3,11 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
+use crate::fields::{
+    f128::BaseElement as BaseElement128, f62::BaseElement as BaseElement62,
+    f64::BaseElement as BaseElement64,
+};
+
 use super::{ExtensibleField, FieldElement};
 use core::{
     convert::TryFrom,
@@ -50,24 +55,78 @@ impl<B: ExtensibleField<3>> CubeExtension<B> {
     }
 }
 
-impl<B: ExtensibleField<3>> FieldElement for CubeExtension<B> {
-    type PositiveInteger = B::PositiveInteger;
-    type BaseField = B;
+impl FieldElement for CubeExtension<BaseElement62> {
+    type Representation = <BaseElement62 as FieldElement>::Representation;
+    type BaseField = BaseElement62;
 
-    const ELEMENT_BYTES: usize = B::ELEMENT_BYTES * 3;
-    const IS_CANONICAL: bool = B::IS_CANONICAL;
-    const ZERO: Self = Self(B::ZERO, B::ZERO, B::ZERO);
-    const ONE: Self = Self(B::ONE, B::ZERO, B::ZERO);
+    const ELEMENT_BYTES: usize = BaseElement62::ELEMENT_BYTES * 3;
+    const IS_CANONICAL: bool = BaseElement62::IS_CANONICAL;
+    const ZERO: Self = Self(
+        BaseElement62::ZERO,
+        BaseElement62::ZERO,
+        BaseElement62::ZERO,
+    );
+    const ONE: Self = Self(BaseElement62::ONE, BaseElement62::ZERO, BaseElement62::ZERO);
+
+    fn exp(self, power: Self::Representation) -> Self {
+        let mut r = Self::ONE;
+        let mut b = self;
+        let mut p = power;
+
+        let int_zero = Self::Representation::from(0u32);
+        let int_one = Self::Representation::from(1u32);
+
+        if p == int_zero {
+            return Self::ONE;
+        } else if b == Self::ZERO {
+            return Self::ZERO;
+        }
+
+        while p > int_zero {
+            if p & int_one == int_one {
+                r *= b;
+            }
+            p >>= int_one;
+            b = b.square();
+        }
+
+        r
+    }
 
     #[inline]
     fn inv(self) -> Self {
-        let result = <B as ExtensibleField<3>>::inv([self.0, self.1, self.2]);
-        Self(result[0], result[1], result[2])
+        if self == Self::ZERO {
+            return self;
+        }
+
+        let x = [self.0, self.1, self.2];
+        let c1 = <BaseElement62 as ExtensibleField<3>>::frobenius(x);
+        let c2 = <BaseElement62 as ExtensibleField<3>>::frobenius(c1);
+        let numerator = <BaseElement62 as ExtensibleField<3>>::mul(c1, c2);
+
+        let norm = <BaseElement62 as ExtensibleField<3>>::mul(x, numerator);
+        debug_assert_eq!(
+            norm[1],
+            BaseElement62::ZERO,
+            "norm must be in the base field"
+        );
+        debug_assert_eq!(
+            norm[2],
+            BaseElement62::ZERO,
+            "norm must be in the base field"
+        );
+        let denom_inv = norm[0].inv();
+
+        Self(
+            numerator[0] * denom_inv,
+            numerator[1] * denom_inv,
+            numerator[2] * denom_inv,
+        )
     }
 
     #[inline]
     fn conjugate(&self) -> Self {
-        let result = <B as ExtensibleField<3>>::conjugate([self.0, self.1, self.2]);
+        let result = <BaseElement62 as ExtensibleField<3>>::frobenius([self.0, self.1, self.2]);
         Self(result[0], result[1], result[2])
     }
 
@@ -103,7 +162,7 @@ impl<B: ExtensibleField<3>> FieldElement for CubeExtension<B> {
 
     fn zeroed_vector(n: usize) -> Vec<Self> {
         // get twice the number of base elements, and re-interpret them as quad field elements
-        let result = B::zeroed_vector(n * 2);
+        let result = BaseElement62::zeroed_vector(n * 2);
         Self::base_to_quad_vector(result)
     }
 
@@ -112,10 +171,268 @@ impl<B: ExtensibleField<3>> FieldElement for CubeExtension<B> {
         let len = elements.len() * 3;
         unsafe { slice::from_raw_parts(ptr as *const Self::BaseField, len) }
     }
+
+    fn normalize(&mut self) {
+        self.0.normalize();
+        self.1.normalize();
+        self.2.normalize();
+    }
+}
+
+impl FieldElement for CubeExtension<BaseElement64> {
+    type Representation = <BaseElement64 as FieldElement>::Representation;
+    type BaseField = BaseElement64;
+
+    const ELEMENT_BYTES: usize = BaseElement64::ELEMENT_BYTES * 3;
+    const IS_CANONICAL: bool = BaseElement64::IS_CANONICAL;
+    const ZERO: Self = Self(
+        BaseElement64::ZERO,
+        BaseElement64::ZERO,
+        BaseElement64::ZERO,
+    );
+    const ONE: Self = Self(BaseElement64::ONE, BaseElement64::ZERO, BaseElement64::ZERO);
+
+    fn exp(self, power: Self::Representation) -> Self {
+        let mut r = Self::ONE;
+        let mut b = self;
+        let mut p = power;
+
+        let int_zero = Self::Representation::from(0u32);
+        let int_one = Self::Representation::from(1u32);
+
+        if p == int_zero {
+            return Self::ONE;
+        } else if b == Self::ZERO {
+            return Self::ZERO;
+        }
+
+        while p > int_zero {
+            if p & int_one == int_one {
+                r *= b;
+            }
+            p >>= int_one;
+            b = b.square();
+        }
+
+        r
+    }
+
+    #[inline]
+    fn inv(self) -> Self {
+        if self == Self::ZERO {
+            return self;
+        }
+
+        let x = [self.0, self.1, self.2];
+        let c1 = <BaseElement64 as ExtensibleField<3>>::frobenius(x);
+        let c2 = <BaseElement64 as ExtensibleField<3>>::frobenius(c1);
+        let numerator = <BaseElement64 as ExtensibleField<3>>::mul(c1, c2);
+
+        let norm = <BaseElement64 as ExtensibleField<3>>::mul(x, numerator);
+        debug_assert_eq!(
+            norm[1],
+            BaseElement64::ZERO,
+            "norm must be in the base field"
+        );
+        debug_assert_eq!(
+            norm[2],
+            BaseElement64::ZERO,
+            "norm must be in the base field"
+        );
+        let denom_inv = norm[0].inv();
+
+        Self(
+            numerator[0] * denom_inv,
+            numerator[1] * denom_inv,
+            numerator[2] * denom_inv,
+        )
+    }
+
+    #[inline]
+    fn conjugate(&self) -> Self {
+        let result = <BaseElement64 as ExtensibleField<3>>::frobenius([self.0, self.1, self.2]);
+        Self(result[0], result[1], result[2])
+    }
+
+    fn elements_as_bytes(elements: &[Self]) -> &[u8] {
+        unsafe {
+            slice::from_raw_parts(
+                elements.as_ptr() as *const u8,
+                elements.len() * Self::ELEMENT_BYTES,
+            )
+        }
+    }
+
+    unsafe fn bytes_as_elements(bytes: &[u8]) -> Result<&[Self], DeserializationError> {
+        if bytes.len() % Self::ELEMENT_BYTES != 0 {
+            return Err(DeserializationError::InvalidValue(format!(
+                "number of bytes ({}) does not divide into whole number of field elements",
+                bytes.len(),
+            )));
+        }
+
+        let p = bytes.as_ptr();
+        let len = bytes.len() / Self::ELEMENT_BYTES;
+
+        // make sure the bytes are aligned on the boundary consistent with base element alignment
+        if (p as usize) % Self::BaseField::ELEMENT_BYTES != 0 {
+            return Err(DeserializationError::InvalidValue(
+                "slice memory alignment is not valid for this field element type".to_string(),
+            ));
+        }
+
+        Ok(slice::from_raw_parts(p as *const Self, len))
+    }
+
+    fn zeroed_vector(n: usize) -> Vec<Self> {
+        // get twice the number of base elements, and re-interpret them as quad field elements
+        let result = BaseElement64::zeroed_vector(n * 2);
+        Self::base_to_quad_vector(result)
+    }
+
+    fn as_base_elements(elements: &[Self]) -> &[Self::BaseField] {
+        let ptr = elements.as_ptr();
+        let len = elements.len() * 3;
+        unsafe { slice::from_raw_parts(ptr as *const Self::BaseField, len) }
+    }
+
+    fn normalize(&mut self) {
+        self.0.normalize();
+        self.1.normalize();
+        self.2.normalize();
+    }
+}
+
+impl FieldElement for CubeExtension<BaseElement128> {
+    type Representation = <BaseElement128 as FieldElement>::Representation;
+    type BaseField = BaseElement128;
+
+    const ELEMENT_BYTES: usize = BaseElement128::ELEMENT_BYTES * 3;
+    const IS_CANONICAL: bool = BaseElement128::IS_CANONICAL;
+    const ZERO: Self = Self(
+        BaseElement128::ZERO,
+        BaseElement128::ZERO,
+        BaseElement128::ZERO,
+    );
+    const ONE: Self = Self(
+        BaseElement128::ONE,
+        BaseElement128::ZERO,
+        BaseElement128::ZERO,
+    );
+
+    fn exp(self, power: Self::Representation) -> Self {
+        let mut r = Self::ONE;
+        let mut b = self;
+        let mut p = power;
+
+        let int_zero = Self::Representation::from(0u32);
+        let int_one = Self::Representation::from(1u32);
+
+        if p == int_zero {
+            return Self::ONE;
+        } else if b == Self::ZERO {
+            return Self::ZERO;
+        }
+
+        while p > int_zero {
+            if p & int_one == int_one {
+                r *= b;
+            }
+            p >>= int_one;
+            b = b.square();
+        }
+
+        r
+    }
+
+    #[inline]
+    fn inv(self) -> Self {
+        if self == Self::ZERO {
+            return self;
+        }
+
+        let x = [self.0, self.1, self.2];
+        let c1 = <BaseElement128 as ExtensibleField<3>>::frobenius(x);
+        let c2 = <BaseElement128 as ExtensibleField<3>>::frobenius(c1);
+        let numerator = <BaseElement128 as ExtensibleField<3>>::mul(c1, c2);
+
+        let norm = <BaseElement128 as ExtensibleField<3>>::mul(x, numerator);
+        debug_assert_eq!(
+            norm[1],
+            BaseElement128::ZERO,
+            "norm must be in the base field"
+        );
+        debug_assert_eq!(
+            norm[2],
+            BaseElement128::ZERO,
+            "norm must be in the base field"
+        );
+        let denom_inv = norm[0].inv();
+
+        Self(
+            numerator[0] * denom_inv,
+            numerator[1] * denom_inv,
+            numerator[2] * denom_inv,
+        )
+    }
+
+    #[inline]
+    fn conjugate(&self) -> Self {
+        let result = <BaseElement128 as ExtensibleField<3>>::frobenius([self.0, self.1, self.2]);
+        Self(result[0], result[1], result[2])
+    }
+
+    fn elements_as_bytes(elements: &[Self]) -> &[u8] {
+        unsafe {
+            slice::from_raw_parts(
+                elements.as_ptr() as *const u8,
+                elements.len() * Self::ELEMENT_BYTES,
+            )
+        }
+    }
+
+    unsafe fn bytes_as_elements(bytes: &[u8]) -> Result<&[Self], DeserializationError> {
+        if bytes.len() % Self::ELEMENT_BYTES != 0 {
+            return Err(DeserializationError::InvalidValue(format!(
+                "number of bytes ({}) does not divide into whole number of field elements",
+                bytes.len(),
+            )));
+        }
+
+        let p = bytes.as_ptr();
+        let len = bytes.len() / Self::ELEMENT_BYTES;
+
+        // make sure the bytes are aligned on the boundary consistent with base element alignment
+        if (p as usize) % Self::BaseField::ELEMENT_BYTES != 0 {
+            return Err(DeserializationError::InvalidValue(
+                "slice memory alignment is not valid for this field element type".to_string(),
+            ));
+        }
+
+        Ok(slice::from_raw_parts(p as *const Self, len))
+    }
+
+    fn zeroed_vector(n: usize) -> Vec<Self> {
+        // get twice the number of base elements, and re-interpret them as quad field elements
+        let result = BaseElement128::zeroed_vector(n * 2);
+        Self::base_to_quad_vector(result)
+    }
+
+    fn as_base_elements(elements: &[Self]) -> &[Self::BaseField] {
+        let ptr = elements.as_ptr();
+        let len = elements.len() * 3;
+        unsafe { slice::from_raw_parts(ptr as *const Self::BaseField, len) }
+    }
+
+    fn normalize(&mut self) {
+        self.0.normalize();
+        self.1.normalize();
+        self.2.normalize();
+    }
 }
 
 impl<B: ExtensibleField<3>> Randomizable for CubeExtension<B> {
-    const VALUE_SIZE: usize = Self::ELEMENT_BYTES;
+    const VALUE_SIZE: usize = B::ELEMENT_BYTES * 3;
 
     fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
         Self::try_from(bytes).ok()
@@ -181,7 +498,7 @@ impl<B: ExtensibleField<3>> MulAssign for CubeExtension<B> {
     }
 }
 
-impl<B: ExtensibleField<3>> Div for CubeExtension<B> {
+impl Div for CubeExtension<BaseElement62> {
     type Output = Self;
 
     #[inline]
@@ -191,7 +508,41 @@ impl<B: ExtensibleField<3>> Div for CubeExtension<B> {
     }
 }
 
-impl<B: ExtensibleField<3>> DivAssign for CubeExtension<B> {
+impl DivAssign for CubeExtension<BaseElement62> {
+    #[inline]
+    fn div_assign(&mut self, rhs: Self) {
+        *self = *self / rhs
+    }
+}
+
+impl Div for CubeExtension<BaseElement64> {
+    type Output = Self;
+
+    #[inline]
+    #[allow(clippy::suspicious_arithmetic_impl)]
+    fn div(self, rhs: Self) -> Self {
+        self * rhs.inv()
+    }
+}
+
+impl DivAssign for CubeExtension<BaseElement64> {
+    #[inline]
+    fn div_assign(&mut self, rhs: Self) {
+        *self = *self / rhs
+    }
+}
+
+impl Div for CubeExtension<BaseElement128> {
+    type Output = Self;
+
+    #[inline]
+    #[allow(clippy::suspicious_arithmetic_impl)]
+    fn div(self, rhs: Self) -> Self {
+        self * rhs.inv()
+    }
+}
+
+impl DivAssign for CubeExtension<BaseElement128> {
     #[inline]
     fn div_assign(&mut self, rhs: Self) {
         *self = *self / rhs
@@ -252,17 +603,17 @@ impl<'a, B: ExtensibleField<3>> TryFrom<&'a [u8]> for CubeExtension<B> {
     /// Converts a slice of bytes into a field element; returns error if the value encoded in bytes
     /// is not a valid field element. The bytes are assumed to be in little-endian byte order.
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
-        if bytes.len() < Self::ELEMENT_BYTES {
+        if bytes.len() < B::ELEMENT_BYTES * 3 {
             return Err(DeserializationError::InvalidValue(format!(
                 "not enough bytes for a full field element; expected {} bytes, but was {} bytes",
-                Self::ELEMENT_BYTES,
+                B::ELEMENT_BYTES * 3,
                 bytes.len(),
             )));
         }
-        if bytes.len() > Self::ELEMENT_BYTES {
+        if bytes.len() > B::ELEMENT_BYTES * 3 {
             return Err(DeserializationError::InvalidValue(format!(
                 "too many bytes for a field element; expected {} bytes, but was {} bytes",
-                Self::ELEMENT_BYTES,
+                B::ELEMENT_BYTES * 3,
                 bytes.len(),
             )));
         }
@@ -275,7 +626,7 @@ impl<B: ExtensibleField<3>> AsBytes for CubeExtension<B> {
     fn as_bytes(&self) -> &[u8] {
         // TODO: take endianness into account
         let self_ptr: *const Self = self;
-        unsafe { slice::from_raw_parts(self_ptr as *const u8, Self::ELEMENT_BYTES) }
+        unsafe { slice::from_raw_parts(self_ptr as *const u8, B::ELEMENT_BYTES * 3) }
     }
 }
 
