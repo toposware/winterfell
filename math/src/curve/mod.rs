@@ -341,7 +341,12 @@ impl AffinePoint {
 
     /// Attempts to deserialize a compressed element.
     pub fn from_compressed(bytes: &[u8; 32]) -> Option<Self> {
-        AffinePointInner::from_compressed(bytes).map(AffinePoint)
+        let tmp = AffinePointInner::from_compressed(bytes);
+        if tmp.is_some().into() {
+            Some(AffinePoint(tmp.unwrap()))
+        } else {
+            None
+        }
     }
 
     /// Constructs an `AffinePoint` element without checking that it is a valid point.

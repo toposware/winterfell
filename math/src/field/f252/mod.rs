@@ -180,7 +180,12 @@ impl BaseElement {
 
     /// Computes the square root of this element, if it exists.
     pub fn sqrt(&self) -> Option<Self> {
-        self.0.sqrt_vartime().map(BaseElement)
+        let tmp = self.0.sqrt();
+        if bool::from(tmp.is_none()) {
+            None
+        } else {
+            Some(BaseElement(tmp.unwrap()))
+        }
     }
 }
 
@@ -302,7 +307,7 @@ impl StarkField for BaseElement {
     }
 
     fn to_repr(&self) -> Self::Representation {
-        Repr(self.0.to_repr())
+        Repr(self.0.output_reduced_limbs())
     }
 }
 
