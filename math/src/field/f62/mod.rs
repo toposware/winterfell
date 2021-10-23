@@ -69,10 +69,6 @@ impl BaseElement {
         let z = mul(value, R2);
         BaseElement(z)
     }
-
-    pub fn as_int(self) -> <Self as FieldElement>::Representation {
-        self.to_repr()
-    }
 }
 
 impl FieldElement for BaseElement {
@@ -203,6 +199,7 @@ impl Display for BaseElement {
 // ================================================================================================
 
 impl PartialEq for BaseElement {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         // since either of the elements can be in [0, 2M) range, we normalize them first to be
         // in [0, M) range and then compare them.
