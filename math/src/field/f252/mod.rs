@@ -267,8 +267,6 @@ impl FieldElement for BaseElement {
 }
 
 impl StarkField for BaseElement {
-    type QuadExtension = Self;
-
     /// sage: MODULUS = 2^251 + 17 * 2^192 + 1 \
     /// sage: GF(MODULUS).is_prime_field() \
     /// True \

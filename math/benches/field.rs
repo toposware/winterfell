@@ -169,7 +169,9 @@ pub fn f252_ops(c: &mut Criterion) {
 
     group.bench_function("exp", |bench| {
         let x = rand_value::<f252::BaseElement>();
-        let y = rand_value::<f252::BaseElement>().to_repr();
+        let y = rand_value::<f252::BaseElement>()
+            .output_reduced_limbs()
+            .into();
         bench.iter(|| f252::BaseElement::exp(black_box(x), black_box(y)))
     });
 
