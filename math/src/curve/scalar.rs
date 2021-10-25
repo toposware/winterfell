@@ -117,7 +117,7 @@ impl Scalar {
 
     /// Convert a little-endian bit sequence into a Scalar element
     pub fn from_bits(bit_slice: &BitSlice<Lsb0, u8>) -> Scalar {
-        Scalar(ScalarInner::from_bits_vartime(bit_slice))
+        Scalar(ScalarInner::from_bits(bit_slice))
     }
 
     pub fn to_bytes(&self) -> [u8; 32] {
@@ -418,9 +418,15 @@ mod tests {
     }
 
     #[test]
-    fn test_to_repr() {
-        assert_eq!(format!("{:?}", Scalar::zero().to_repr()), "[0, 0, 0, 0]");
-        assert_eq!(format!("{:?}", Scalar::one().to_repr()), "[1, 0, 0, 0]");
+    fn test_output_reduced_limbs() {
+        assert_eq!(
+            format!("{:?}", Scalar::zero().output_reduced_limbs()),
+            "[0, 0, 0, 0]"
+        );
+        assert_eq!(
+            format!("{:?}", Scalar::one().output_reduced_limbs()),
+            "[1, 0, 0, 0]"
+        );
     }
 
     // BASIC ALGEBRA
