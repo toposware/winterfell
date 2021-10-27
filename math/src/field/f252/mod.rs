@@ -90,6 +90,9 @@ impl BitAnd for Repr {
 impl Shl<u32> for Repr {
     type Output = Self;
 
+    /// Performs a left shift on a value represented as 4 u64 limbs,
+    /// ordered in little-endian. The result may not be correct for
+    /// shifts greater than 64u32.
     fn shl(self, rhs: u32) -> Self::Output {
         let (res0, carry) = shl32_with_carry(self.0[0], rhs, 0);
         let (res1, carry) = shl32_with_carry(self.0[1], rhs, carry);
@@ -103,6 +106,9 @@ impl Shl<u32> for Repr {
 impl Shr<u32> for Repr {
     type Output = Self;
 
+    /// Performs a right shift on a value represented as 4 u64 limbs,
+    /// ordered in little-endian. The result may not be correct for
+    /// shifts greater than 64u32.
     fn shr(self, rhs: u32) -> Self::Output {
         let (res3, carry) = shr32_with_carry(self.0[3], rhs, 0);
         let (res2, carry) = shr32_with_carry(self.0[2], rhs, carry);
