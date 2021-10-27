@@ -85,26 +85,6 @@ impl FieldElement for BaseElement {
     const ELEMENT_BYTES: usize = ELEMENT_BYTES;
     const IS_CANONICAL: bool = false;
 
-    fn exp(self, power: Self::Representation) -> Self {
-        let mut b = self;
-
-        if power == 0 {
-            return Self::ONE;
-        } else if b == Self::ZERO {
-            return Self::ZERO;
-        }
-
-        let mut r = if power & 1 == 1 { b } else { Self::ONE };
-        for i in 1..64 - power.leading_zeros() {
-            b = b.square();
-            if (power >> i) & 1 == 1 {
-                r *= b;
-            }
-        }
-
-        r
-    }
-
     fn inv(self) -> Self {
         BaseElement(inv(self.0))
     }
@@ -157,11 +137,6 @@ impl FieldElement for BaseElement {
 
     fn as_base_elements(elements: &[Self]) -> &[Self::BaseField] {
         elements
-    }
-
-    #[inline(always)]
-    fn normalize(&mut self) {
-        self.0 = normalize(self.0)
     }
 }
 

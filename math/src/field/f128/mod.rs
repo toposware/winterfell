@@ -73,31 +73,6 @@ impl FieldElement for BaseElement {
 
     const IS_CANONICAL: bool = true;
 
-    fn exp(self, power: Self::Representation) -> Self {
-        let mut r = Self::ONE;
-        let mut b = self;
-        let mut p = power;
-
-        let int_zero = Self::Representation::from(0u32);
-        let int_one = Self::Representation::from(1u32);
-
-        if p == int_zero {
-            return Self::ONE;
-        } else if b == Self::ZERO {
-            return Self::ZERO;
-        }
-
-        while p > int_zero {
-            if p & int_one == int_one {
-                r *= b;
-            }
-            p >>= int_one;
-            b = b.square();
-        }
-
-        r
-    }
-
     fn inv(self) -> Self {
         BaseElement(inv(self.0))
     }
@@ -151,10 +126,6 @@ impl FieldElement for BaseElement {
 
     fn as_base_elements(elements: &[Self]) -> &[Self::BaseField] {
         elements
-    }
-
-    fn normalize(&mut self) {
-        // do nothing since the internal and canonical representations are the same
     }
 }
 
