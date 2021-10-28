@@ -231,6 +231,30 @@ fn test_shl_repr() {
         a = a << 64;
         assert_eq!(a, Repr([0, u64::MAX, 1, 0]));
     }
+    {
+        // 2^128 x (2^64 - 1 + 1.2^64 + 0.2^128 + 0.2^192) = 0 + 0 + (2^64 - 1).2^128 + 1.2^192
+        let mut a = <BaseElement as FieldElement>::Representation::from([u64::MAX, 1, 0, 0]);
+        a = a << 128;
+        assert_eq!(a, Repr([0, 0, u64::MAX, 1]));
+    }
+    {
+        // 2^255 x (2^64 - 1 + 1.2^64 + 0.2^128 + 0.2^192) = 0 + 0 + 0 + 2^63.2^192
+        let mut a = <BaseElement as FieldElement>::Representation::from([u64::MAX, 1, 0, 0]);
+        a = a << 255;
+        // 9223372036854775808 = 2^63
+        assert_eq!(a, Repr([0, 0, 0, 9223372036854775808]));
+    }
+    {
+        // from 256, any left shift will result in 0
+        let mut a = <BaseElement as FieldElement>::Representation::from([
+            u64::MAX,
+            u64::MAX,
+            u64::MAX,
+            u64::MAX,
+        ]);
+        a = a << 256;
+        assert_eq!(a, Repr([0, 0, 0, 0]));
+    }
 }
 
 #[test]
@@ -259,6 +283,34 @@ fn test_shr_repr() {
         let mut a = <BaseElement as FieldElement>::Representation::from([0, u64::MAX, u64::MAX, 0]);
         a = a >> 64;
         assert_eq!(a, Repr([u64::MAX, u64::MAX, 0, 0]));
+    }
+    {
+        // (0 + (2^64 - 1).2^64 + (2^64 - 1).2^128 + 0.2^192) / 2^128 = (2^64 - 1) + 0 + 0 + 0
+        let mut a = <BaseElement as FieldElement>::Representation::from([0, u64::MAX, u64::MAX, 0]);
+        a = a >> 128;
+        assert_eq!(a, Repr([u64::MAX, 0, 0, 0]));
+    }
+    {
+        // (2^64 - 1 + (2^64 - 1).2^64 + (2^64 - 1).2^128 + (2^64 - 1).2^192) / 2^255 = 1 + 0 + 0 + 0
+        let mut a = <BaseElement as FieldElement>::Representation::from([
+            u64::MAX,
+            u64::MAX,
+            u64::MAX,
+            u64::MAX,
+        ]);
+        a = a >> 255;
+        assert_eq!(a, Repr([1, 0, 0, 0]));
+    }
+    {
+        // from 256, any right shift will result in 0
+        let mut a = <BaseElement as FieldElement>::Representation::from([
+            u64::MAX,
+            u64::MAX,
+            u64::MAX,
+            u64::MAX,
+        ]);
+        a = a >> 256;
+        assert_eq!(a, Repr([0, 0, 0, 0]));
     }
 }
 

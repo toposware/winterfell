@@ -91,15 +91,24 @@ impl Shl<u32> for Repr {
     type Output = Self;
 
     /// Performs a left shift on a value represented as 4 u64 limbs,
-    /// ordered in little-endian. The result may not be correct for
-    /// shifts greater than 64u32.
+    /// ordered in little-endian.
     fn shl(self, rhs: u32) -> Self::Output {
-        let (res0, carry) = shl32_with_carry(self.0[0], rhs, 0);
-        let (res1, carry) = shl32_with_carry(self.0[1], rhs, carry);
-        let (res2, carry) = shl32_with_carry(self.0[2], rhs, carry);
-        let (res3, _carry) = shl32_with_carry(self.0[3], rhs, carry);
+        if rhs > 255 {
+            return Self([0, 0, 0, 0]);
+        }
+        let mut rhs = rhs % 256;
+        let mut array = self.0;
+        while rhs > 0 {
+            let shift = if rhs > 64 { 64 } else { rhs % 65 };
+            let (res0, carry) = shl32_with_carry(array[0], shift, 0);
+            let (res1, carry) = shl32_with_carry(array[1], shift, carry);
+            let (res2, carry) = shl32_with_carry(array[2], shift, carry);
+            let (res3, _carry) = shl32_with_carry(array[3], shift, carry);
+            array = [res0, res1, res2, res3];
+            rhs = rhs.saturating_sub(shift);
+        }
 
-        Self([res0, res1, res2, res3])
+        Self(array)
     }
 }
 
@@ -107,15 +116,24 @@ impl Shr<u32> for Repr {
     type Output = Self;
 
     /// Performs a right shift on a value represented as 4 u64 limbs,
-    /// ordered in little-endian. The result may not be correct for
-    /// shifts greater than 64u32.
+    /// ordered in little-endian.
     fn shr(self, rhs: u32) -> Self::Output {
-        let (res3, carry) = shr32_with_carry(self.0[3], rhs, 0);
-        let (res2, carry) = shr32_with_carry(self.0[2], rhs, carry);
-        let (res1, carry) = shr32_with_carry(self.0[1], rhs, carry);
-        let (res0, _carry) = shr32_with_carry(self.0[0], rhs, carry);
+        if rhs > 255 {
+            return Self([0, 0, 0, 0]);
+        }
+        let mut rhs = rhs % 256;
+        let mut array = self.0;
+        while rhs > 0 {
+            let shift = if rhs > 64 { 64 } else { rhs % 65 };
+            let (res3, carry) = shr32_with_carry(array[3], shift, 0);
+            let (res2, carry) = shr32_with_carry(array[2], shift, carry);
+            let (res1, carry) = shr32_with_carry(array[1], shift, carry);
+            let (res0, _carry) = shr32_with_carry(array[0], shift, carry);
+            array = [res0, res1, res2, res3];
+            rhs = rhs.saturating_sub(shift);
+        }
 
-        Self([res0, res1, res2, res3])
+        Self(array)
     }
 }
 
