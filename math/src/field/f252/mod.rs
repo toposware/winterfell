@@ -10,12 +10,15 @@
 //!
 //! Implementation is clearly not optimal!
 
-use super::traits::{FieldElement, StarkField};
+use super::traits::{ExtensibleField, FieldElement, StarkField};
 use core::{
     convert::{TryFrom, TryInto},
     fmt::{self, Debug, Display, Formatter},
     mem,
-    ops::{Add, AddAssign, Deref, DerefMut, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+    ops::{
+        Add, AddAssign, BitAnd, Deref, DerefMut, Div, DivAssign, Mul, MulAssign, Neg, Shl, Shr,
+        ShrAssign, Sub, SubAssign,
+    },
     slice,
 };
 use stark_curve::FieldElement as BaseElementInner;
@@ -23,6 +26,20 @@ use utils::{
     collections::Vec, string::ToString, AsBytes, ByteReader, ByteWriter, Deserializable,
     DeserializationError, Randomizable, Serializable,
 };
+
+/// Compute (a << b) + carry, returning the result and the new carry over.
+#[inline(always)]
+const fn shl32_with_carry(a: u64, b: u32, carry: u64) -> (u64, u64) {
+    let ret = ((a as u128) << (b as u128)) + (carry as u128);
+    (ret as u64, (ret >> 64) as u64)
+}
+
+/// Compute (a >> b) + carry, returning the result and the new carry over.
+#[inline(always)]
+const fn shr32_with_carry(a: u64, b: u32, carry: u64) -> (u64, u64) {
+    let ret = ((a as u128) << 64) >> (b as u128);
+    (((ret >> 64) + (carry as u128)) as u64, ret as u64)
+}
 
 #[cfg(test)]
 mod tests;
@@ -53,6 +70,76 @@ impl Deref for Repr {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl BitAnd for Repr {
+    type Output = Self;
+
+    // rhs is the "right-hand side" of the expression `a & b`
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self([
+            self.0[0] & rhs.0[0],
+            self.0[1] & rhs.0[1],
+            self.0[2] & rhs.0[2],
+            self.0[3] & rhs.0[3],
+        ])
+    }
+}
+
+impl Shl<u32> for Repr {
+    type Output = Self;
+
+    /// Performs a left shift on a value represented as 4 u64 limbs,
+    /// ordered in little-endian.
+    fn shl(self, rhs: u32) -> Self::Output {
+        if rhs > 255 {
+            return Self([0, 0, 0, 0]);
+        }
+        let mut rhs = rhs % 256;
+        let mut array = self.0;
+        while rhs > 0 {
+            let shift = if rhs > 64 { 64 } else { rhs % 65 };
+            let (res0, carry) = shl32_with_carry(array[0], shift, 0);
+            let (res1, carry) = shl32_with_carry(array[1], shift, carry);
+            let (res2, carry) = shl32_with_carry(array[2], shift, carry);
+            let (res3, _carry) = shl32_with_carry(array[3], shift, carry);
+            array = [res0, res1, res2, res3];
+            rhs = rhs.saturating_sub(shift);
+        }
+
+        Self(array)
+    }
+}
+
+impl Shr<u32> for Repr {
+    type Output = Self;
+
+    /// Performs a right shift on a value represented as 4 u64 limbs,
+    /// ordered in little-endian.
+    fn shr(self, rhs: u32) -> Self::Output {
+        if rhs > 255 {
+            return Self([0, 0, 0, 0]);
+        }
+        let mut rhs = rhs % 256;
+        let mut array = self.0;
+        while rhs > 0 {
+            let shift = if rhs > 64 { 64 } else { rhs % 65 };
+            let (res3, carry) = shr32_with_carry(array[3], shift, 0);
+            let (res2, carry) = shr32_with_carry(array[2], shift, carry);
+            let (res1, carry) = shr32_with_carry(array[1], shift, carry);
+            let (res0, _carry) = shr32_with_carry(array[0], shift, carry);
+            array = [res0, res1, res2, res3];
+            rhs = rhs.saturating_sub(shift);
+        }
+
+        Self(array)
+    }
+}
+
+impl ShrAssign for Repr {
+    fn shr_assign(&mut self, rhs: Self) {
+        *self = *self >> (rhs[0] as u32);
     }
 }
 
@@ -201,10 +288,6 @@ impl FieldElement for BaseElement {
 
     const IS_CANONICAL: bool = true;
 
-    fn exp(self, power: Self::Representation) -> Self {
-        BaseElement(self.0.exp(&power))
-    }
-
     fn inv(self) -> Self {
         BaseElement(self.invert().unwrap_or(BaseElementInner::zero()))
     }
@@ -258,17 +341,9 @@ impl FieldElement for BaseElement {
     fn as_base_elements(elements: &[Self]) -> &[Self::BaseField] {
         elements
     }
-
-    fn normalize(&mut self) {
-        let mut tmp = self.0;
-        tmp.normalize();
-        *self = BaseElement(tmp);
-    }
 }
 
 impl StarkField for BaseElement {
-    type QuadExtension = Self;
-
     /// sage: MODULUS = 2^251 + 17 * 2^192 + 1 \
     /// sage: GF(MODULUS).is_prime_field() \
     /// True \
@@ -447,6 +522,44 @@ impl Div for BaseElement {
 impl DivAssign for BaseElement {
     fn div_assign(&mut self, rhs: Self) {
         *self = *self / rhs
+    }
+}
+
+// QUADRATIC EXTENSION
+// ================================================================================================
+
+/// Quadratic extension for this field is not implemented as
+/// it already provides a sufficient security level.
+impl ExtensibleField<2> for BaseElement {
+    fn mul(_a: [Self; 2], _b: [Self; 2]) -> [Self; 2] {
+        unimplemented!()
+    }
+
+    fn frobenius(_x: [Self; 2]) -> [Self; 2] {
+        unimplemented!()
+    }
+
+    fn is_supported() -> bool {
+        false
+    }
+}
+
+// CUBIC EXTENSION
+// ================================================================================================
+
+/// Cubic extension for this field is not implemented as
+/// it already provides a sufficient security level.
+impl ExtensibleField<3> for BaseElement {
+    fn mul(_a: [Self; 3], _b: [Self; 3]) -> [Self; 3] {
+        unimplemented!()
+    }
+
+    fn frobenius(_x: [Self; 3]) -> [Self; 3] {
+        unimplemented!()
+    }
+
+    fn is_supported() -> bool {
+        false
     }
 }
 

@@ -3,7 +3,9 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-use super::{AsBytes, BaseElement, DeserializationError, FieldElement, Serializable, StarkField};
+use super::{
+    AsBytes, BaseElement, DeserializationError, FieldElement, Serializable, StarkField, E, M,
+};
 use crate::field::{CubeExtension, QuadExtension};
 use core::convert::TryFrom;
 use num_bigint::BigUint;
@@ -21,14 +23,19 @@ fn add() {
 
     // test addition within bounds
     assert_eq!(
-        BaseElement::from(5u8),
-        BaseElement::from(2u8) + BaseElement::from(3u8)
+        BaseElement::new(5),
+        BaseElement::new(2) + BaseElement::new(3)
     );
 
     // test overflow
-    let t = BaseElement::from(BaseElement::MODULUS - 1);
+    let t = BaseElement::new(M - 1);
     assert_eq!(BaseElement::ZERO, t + BaseElement::ONE);
-    assert_eq!(BaseElement::ONE, t + BaseElement::from(2u8));
+    assert_eq!(BaseElement::ONE, t + BaseElement::new(2));
+
+    // test non-canonical representation
+    let a = BaseElement::new(M - 1) + BaseElement::new(E);
+    let expected = ((((M - 1 + E) as u128) * 2) % (M as u128)) as u64;
+    assert_eq!(expected, (a + a).to_repr());
 }
 
 #[test]
@@ -39,13 +46,22 @@ fn sub() {
 
     // test subtraction within bounds
     assert_eq!(
-        BaseElement::from(2u8),
-        BaseElement::from(5u8) - BaseElement::from(3u8)
+        BaseElement::new(2),
+        BaseElement::new(5) - BaseElement::new(3)
     );
 
     // test underflow
-    let expected = BaseElement::from(BaseElement::MODULUS - 2);
-    assert_eq!(expected, BaseElement::from(3u8) - BaseElement::from(5u8));
+    let expected = BaseElement::new(M - 2);
+    assert_eq!(expected, BaseElement::new(3) - BaseElement::new(5));
+}
+
+#[test]
+fn neg() {
+    assert_eq!(BaseElement::ZERO, -BaseElement::ZERO);
+    assert_eq!(BaseElement::from(super::M - 1), -BaseElement::ONE);
+
+    let r: BaseElement = rand_value();
+    assert_eq!(r, -(-r));
 }
 
 #[test]
@@ -98,7 +114,7 @@ fn inv() {
 }
 
 #[test]
-fn element_as_int() {
+fn element_to_repr() {
     let v = u64::MAX;
     let e = BaseElement::new(v);
     assert_eq!(v % super::M, e.to_repr());
@@ -119,85 +135,19 @@ fn equals() {
     assert_ne!(a.as_bytes(), b.as_bytes());
 }
 
-// CUBIC EXTENSION
-// ------------------------------------------------------------------------------------------------
-#[test]
-fn cube_mul() {
-    // identity
-    let r: CubeExtension<BaseElement> = rand_value();
-    assert_eq!(
-        <CubeExtension<BaseElement>>::ZERO,
-        r * <CubeExtension<BaseElement>>::ZERO
-    );
-    assert_eq!(r, r * <CubeExtension<BaseElement>>::ONE);
-
-    // test multiplication within bounds
-    let a = <CubeExtension<BaseElement>>::new(
-        BaseElement::new(15),
-        BaseElement::new(22),
-        BaseElement::new(8),
-    );
-    let b = <CubeExtension<BaseElement>>::new(
-        BaseElement::new(20),
-        BaseElement::new(22),
-        BaseElement::new(6),
-    );
-    let expected = <CubeExtension<BaseElement>>::new(
-        BaseElement::new(4611624995532046021),
-        BaseElement::new(58),
-        BaseElement::new(638),
-    );
-    assert_eq!(expected, a * b);
-
-    // test multiplication with overflow
-    let a = <CubeExtension<BaseElement>>::new(
-        BaseElement::new(4611624995532046322),
-        BaseElement::new(1390),
-        BaseElement::new(4611624995532037737),
-    );
-    let b = <CubeExtension<BaseElement>>::new(
-        BaseElement::new(4611624995532046117),
-        BaseElement::new(2305812497766022990),
-        BaseElement::new(4611624995532046335),
-    );
-    let expected = <CubeExtension<BaseElement>>::new(
-        BaseElement::new(4611624995528984997),
-        BaseElement::new(2305812497762621006),
-        BaseElement::new(1609515),
-    );
-    assert_eq!(expected, a * b);
-
-    let a = <CubeExtension<BaseElement>>::new(
-        BaseElement::new(4611624995532046319),
-        BaseElement::new(4611624995532045209),
-        BaseElement::new(4611624995532030347),
-    );
-    let b = <CubeExtension<BaseElement>>::new(
-        BaseElement::new(4611624995532046117),
-        BaseElement::new(200000476),
-        BaseElement::new(4611624995077500937),
-    );
-    let expected = <CubeExtension<BaseElement>>::new(
-        BaseElement::new(5370560804040),
-        BaseElement::new(4611615826131194009),
-        BaseElement::new(4611610241754952409),
-    );
-    assert_eq!(expected, a * b);
-}
-
 // ROOTS OF UNITY
 // ------------------------------------------------------------------------------------------------
 
 #[test]
 fn get_root_of_unity() {
-    let root_39 = BaseElement::get_root_of_unity(39);
-    assert_eq!(BaseElement::TWO_ADIC_ROOT_OF_UNITY, root_39);
-    assert_eq!(BaseElement::ONE, root_39.exp(1u64 << 39));
+    let root_32 = BaseElement::get_root_of_unity(32);
+    assert_eq!(BaseElement::TWO_ADIC_ROOT_OF_UNITY, root_32);
+    assert_eq!(BaseElement::ONE, root_32.exp(1u64 << 32));
 
-    let root_38 = BaseElement::get_root_of_unity(38);
-    let expected = root_39.exp(2);
-    assert_eq!(expected, root_38);
-    assert_eq!(BaseElement::ONE, root_38.exp(1u64 << 38));
+    let root_31 = BaseElement::get_root_of_unity(31);
+    let expected = root_32.exp(2);
+    assert_eq!(expected, root_31);
+    assert_eq!(BaseElement::ONE, root_31.exp(1u64 << 31));
 }
 
 // SERIALIZATION AND DESERIALIZATION
@@ -287,6 +237,132 @@ fn zeroed_vector() {
     }
 }
 
+// QUADRATIC EXTENSION
+// ------------------------------------------------------------------------------------------------
+#[test]
+fn quad_mul() {
+    // identity
+    let r: QuadExtension<BaseElement> = rand_value();
+    assert_eq!(
+        <QuadExtension<BaseElement>>::ZERO,
+        r * <QuadExtension<BaseElement>>::ZERO
+    );
+    assert_eq!(r, r * <QuadExtension<BaseElement>>::ONE);
+
+    // test multiplication within bounds
+    let a = <QuadExtension<BaseElement>>::new(BaseElement::new(3), BaseElement::ONE);
+    let b = <QuadExtension<BaseElement>>::new(BaseElement::new(4), BaseElement::new(2));
+    let expected = <QuadExtension<BaseElement>>::new(BaseElement::new(8), BaseElement::new(12));
+    assert_eq!(expected, a * b);
+
+    // test multiplication with overflow
+    let m = BaseElement::MODULUS;
+    let a = <QuadExtension<BaseElement>>::new(BaseElement::new(3), BaseElement::new(m - 1));
+    let b = <QuadExtension<BaseElement>>::new(BaseElement::new(m - 3), BaseElement::new(5));
+    let expected = <QuadExtension<BaseElement>>::new(BaseElement::ONE, BaseElement::new(13));
+    assert_eq!(expected, a * b);
+
+    let a = <QuadExtension<BaseElement>>::new(BaseElement::new(3), BaseElement::new(m - 1));
+    let b = <QuadExtension<BaseElement>>::new(BaseElement::new(10), BaseElement::new(m - 2));
+    let expected = <QuadExtension<BaseElement>>::new(
+        BaseElement::new(26),
+        BaseElement::new(18446744069414584307),
+    );
+    assert_eq!(expected, a * b);
+}
+
+#[test]
+fn quad_conjugate() {
+    let m = BaseElement::MODULUS;
+
+    let a = <QuadExtension<BaseElement>>::new(BaseElement::new(m - 1), BaseElement::new(3));
+    let expected = <QuadExtension<BaseElement>>::new(
+        BaseElement::new(2),
+        BaseElement::new(18446744069414584318),
+    );
+    assert_eq!(expected, a.conjugate());
+
+    let a = <QuadExtension<BaseElement>>::new(BaseElement::new(m - 3), BaseElement::new(m - 2));
+    let expected = <QuadExtension<BaseElement>>::new(
+        BaseElement::new(18446744069414584316),
+        BaseElement::new(2),
+    );
+    assert_eq!(expected, a.conjugate());
+
+    let a = <QuadExtension<BaseElement>>::new(BaseElement::new(4), BaseElement::new(7));
+    let expected = <QuadExtension<BaseElement>>::new(
+        BaseElement::new(11),
+        BaseElement::new(18446744069414584314),
+    );
+    assert_eq!(expected, a.conjugate());
+}
+
+// CUBIC EXTENSION
+// ------------------------------------------------------------------------------------------------
+#[test]
+fn cube_mul() {
+    // identity
+    let r: CubeExtension<BaseElement> = rand_value();
+    assert_eq!(
+        <CubeExtension<BaseElement>>::ZERO,
+        r * <CubeExtension<BaseElement>>::ZERO
+    );
+    assert_eq!(r, r * <CubeExtension<BaseElement>>::ONE);
+
+    // test multiplication within bounds
+    let a = <CubeExtension<BaseElement>>::new(
+        BaseElement::new(3),
+        BaseElement::new(5),
+        BaseElement::new(2),
+    );
+    let b = <CubeExtension<BaseElement>>::new(
+        BaseElement::new(320),
+        BaseElement::new(68),
+        BaseElement::new(3),
+    );
+    let expected = <CubeExtension<BaseElement>>::new(
+        BaseElement::new(1111),
+        BaseElement::new(1961),
+        BaseElement::new(995),
+    );
+    assert_eq!(expected, a * b);
+
+    // test multiplication with overflow
+    let a = <CubeExtension<BaseElement>>::new(
+        BaseElement::new(18446744069414584267),
+        BaseElement::new(18446744069414584309),
+        BaseElement::new(9223372034707292160),
+    );
+    let b = <CubeExtension<BaseElement>>::new(
+        BaseElement::new(18446744069414584101),
+        BaseElement::new(420),
+        BaseElement::new(18446744069414584121),
+    );
+    let expected = <CubeExtension<BaseElement>>::new(
+        BaseElement::new(14070),
+        BaseElement::new(18446744069414566571),
+        BaseElement::new(5970),
+    );
+    assert_eq!(expected, a * b);
+
+    let a = <CubeExtension<BaseElement>>::new(
+        BaseElement::new(18446744069414584266),
+        BaseElement::new(18446744069412558094),
+        BaseElement::new(5268562),
+    );
+    let b = <CubeExtension<BaseElement>>::new(
+        BaseElement::new(18446744069414583589),
+        BaseElement::new(1226),
+        BaseElement::new(5346),
+    );
+    let expected = <CubeExtension<BaseElement>>::new(
+        BaseElement::new(18446744065041672051),
+        BaseElement::new(25275910656),
+        BaseElement::new(21824696736),
+    );
+    assert_eq!(expected, a * b);
+}
+
 // RANDOMIZED TESTS
 // ================================================================================================
 
@@ -298,7 +374,7 @@ proptest! {
         let v2 = BaseElement::from(b);
         let result = v1 + v2;
 
-        let expected = (a % super::M + b % super::M) % super::M;
+        let expected = (((a as u128) + (b as u128)) % (super::M as u128)) as u64;
         prop_assert_eq!(expected, result.to_repr());
     }
 
@@ -316,12 +392,29 @@ proptest! {
     }
 
     #[test]
+    fn neg_proptest(a in any::<u64>()) {
+        let v = BaseElement::from(a);
+        let expected = super::M - (a % super::M);
+
+        prop_assert_eq!(expected, (-v).to_repr());
+    }
+
+    #[test]
     fn mul_proptest(a in any::<u64>(), b in any::<u64>()) {
         let v1 = BaseElement::from(a);
         let v2 = BaseElement::from(b);
         let result = v1 * v2;
 
         let expected = (((a as u128) * (b as u128)) % super::M as u128) as u64;
+        prop_assert_eq!(expected, result.to_repr());
+    }
+
+    #[test]
+    fn double_proptest(x in any::<u64>()) {
+        let v = BaseElement::from(x);
+        let result = v.double();
+
+        let expected = (((x as u128) * 2) % super::M as u128) as u64;
         prop_assert_eq!(expected, result.to_repr());
     }
 
@@ -345,7 +438,7 @@ proptest! {
     }
 
     #[test]
-    fn element_as_int_proptest(a in any::<u64>()) {
+    fn element_to_repr_proptest(a in any::<u64>()) {
         let e = BaseElement::new(a);
         prop_assert_eq!(a % super::M, e.to_repr());
     }

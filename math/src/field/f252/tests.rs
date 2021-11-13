@@ -198,6 +198,123 @@ fn test_invert_is_pow() {
 }
 
 #[test]
+fn test_bitand_repr() {
+    {
+        let a = <BaseElement as FieldElement>::Representation::from([7, 7, 7, 7]);
+        let b = <BaseElement as FieldElement>::Representation::from([5, 5, 5, 5]);
+        assert_eq!(a & b, Repr([5, 5, 5, 5]));
+    }
+    {
+        let a = <BaseElement as FieldElement>::Representation::from([8, 8, 8, 8]);
+        let b = <BaseElement as FieldElement>::Representation::from([5, 5, 5, 5]);
+        assert_eq!(a & b, Repr([0, 0, 0, 0]));
+    }
+}
+
+#[test]
+fn test_shl_repr() {
+    {
+        // 2^3 x (2 + 2.2^64 + 2.2^128 + 2.2^192) = 16 + 16.2^64 + 16.2^128 + 16.2^192
+        let mut a = <BaseElement as FieldElement>::Representation::from([2, 2, 2, 2]);
+        a = a << 3;
+        assert_eq!(a, Repr([16, 16, 16, 16]));
+    }
+    {
+        // 2^64 x (2^64 - 1 + 0.2^64 + 0.2^128 + 0.2^192) = 0 + (2^64 - 1).2^64 + 0 + 0
+        let mut a = <BaseElement as FieldElement>::Representation::from([u64::MAX, 0, 0, 0]);
+        a = a << 64;
+        assert_eq!(a, Repr([0, u64::MAX, 0, 0]));
+    }
+    {
+        // 2^64 x (2^64 - 1 + 1.2^64 + 0.2^128 + 0.2^192) = 0 + (2^64 - 1).2^64 + 1.2^128
+        let mut a = <BaseElement as FieldElement>::Representation::from([u64::MAX, 1, 0, 0]);
+        a = a << 64;
+        assert_eq!(a, Repr([0, u64::MAX, 1, 0]));
+    }
+    {
+        // 2^128 x (2^64 - 1 + 1.2^64 + 0.2^128 + 0.2^192) = 0 + 0 + (2^64 - 1).2^128 + 1.2^192
+        let mut a = <BaseElement as FieldElement>::Representation::from([u64::MAX, 1, 0, 0]);
+        a = a << 128;
+        assert_eq!(a, Repr([0, 0, u64::MAX, 1]));
+    }
+    {
+        // 2^255 x (2^64 - 1 + 1.2^64 + 0.2^128 + 0.2^192) = 0 + 0 + 0 + 2^63.2^192
+        let mut a = <BaseElement as FieldElement>::Representation::from([u64::MAX, 1, 0, 0]);
+        a = a << 255;
+        // 9223372036854775808 = 2^63
+        assert_eq!(a, Repr([0, 0, 0, 9223372036854775808]));
+    }
+    {
+        // from 256, any left shift will result in 0
+        let mut a = <BaseElement as FieldElement>::Representation::from([
+            u64::MAX,
+            u64::MAX,
+            u64::MAX,
+            u64::MAX,
+        ]);
+        a = a << 256;
+        assert_eq!(a, Repr([0, 0, 0, 0]));
+    }
+}
+
+#[test]
+fn test_shr_repr() {
+    {
+        // (16 + 16.2^64 + 16.2^128 + 16.2^192) / 2^3 = 2 + 2.2^64 + 2.2^128 + 2.2^192
+        let mut a = <BaseElement as FieldElement>::Representation::from([16, 16, 16, 16]);
+        a = a >> 3;
+        assert_eq!(a, Repr([2, 2, 2, 2]));
+    }
+    {
+        // (2^64 - 2 + 1.2^64 + 0.2^128 + 0.2^192) / 2 = (2^65 - 2) / 2
+        //                                             = (2^64 - 1) + 0 + 0 + 0
+        let mut a = <BaseElement as FieldElement>::Representation::from([u64::MAX - 1, 1, 0, 0]);
+        a = a >> 1;
+        assert_eq!(a, Repr([u64::MAX, 0, 0, 0]));
+    }
+    {
+        // (0 + (2^64 - 1).2^64 + 0.2^128 + 1.2^192) / 2^64 = (2^64 - 1) + 0.2^64 + 1.2^128 + 0
+        let mut a = <BaseElement as FieldElement>::Representation::from([0, u64::MAX, 0, 1]);
+        a = a >> 64;
+        assert_eq!(a, Repr([u64::MAX, 0, 1, 0]));
+    }
+    {
+        // (0 + (2^64 - 1).2^64 + (2^64 - 1).2^128 + 0.2^192) / 2^64 = (2^64 - 1) + (2^64 - 1).2^64 + 0 + 0
+        let mut a = <BaseElement as FieldElement>::Representation::from([0, u64::MAX, u64::MAX, 0]);
+        a = a >> 64;
+        assert_eq!(a, Repr([u64::MAX, u64::MAX, 0, 0]));
+    }
+    {
+        // (0 + (2^64 - 1).2^64 + (2^64 - 1).2^128 + 0.2^192) / 2^128 = (2^64 - 1) + 0 + 0 + 0
+        let mut a = <BaseElement as FieldElement>::Representation::from([0, u64::MAX, u64::MAX, 0]);
+        a = a >> 128;
+        assert_eq!(a, Repr([u64::MAX, 0, 0, 0]));
+    }
+    {
+        // (2^64 - 1 + (2^64 - 1).2^64 + (2^64 - 1).2^128 + (2^64 - 1).2^192) / 2^255 = 1 + 0 + 0 + 0
+        let mut a = <BaseElement as FieldElement>::Representation::from([
+            u64::MAX,
+            u64::MAX,
+            u64::MAX,
+            u64::MAX,
+        ]);
+        a = a >> 255;
+        assert_eq!(a, Repr([1, 0, 0, 0]));
+    }
+    {
+        // from 256, any right shift will result in 0
+        let mut a = <BaseElement as FieldElement>::Representation::from([
+            u64::MAX,
+            u64::MAX,
+            u64::MAX,
+            u64::MAX,
+        ]);
+        a = a >> 256;
+        assert_eq!(a, Repr([0, 0, 0, 0]));
+    }
+}
+
+#[test]
 fn test_conjugate() {
     let a: BaseElement = rand_value();
     let b = a.conjugate();

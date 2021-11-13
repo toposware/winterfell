@@ -6,7 +6,10 @@
 use core::{
     convert::TryFrom,
     fmt::{Debug, Display},
-    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+    ops::{
+        Add, AddAssign, BitAnd, Div, DivAssign, Mul, MulAssign, Neg, Shl, Shr, ShrAssign, Sub,
+        SubAssign,
+    },
 };
 use utils::{
     collections::Vec, AsBytes, Deserializable, DeserializationError, Randomizable, Serializable,
@@ -57,7 +60,16 @@ pub trait FieldElement:
 {
     /// A type defining positive integers big enough to describe a field modulus for
     /// `Self::BaseField` with no loss of precision.
-    type Representation: Debug + Copy + PartialEq + PartialOrd + From<u32> + From<u64>;
+    type Representation: Debug
+        + Copy
+        + PartialEq
+        + ShrAssign
+        + Shl<u32, Output = Self::Representation>
+        + Shr<u32, Output = Self::Representation>
+        + BitAnd<Output = Self::Representation>
+        + PartialOrd
+        + From<u32>
+        + From<u64>;
 
     /// Base field type for this finite field. For prime fields, `BaseField` should be set
     /// to `Self`.
@@ -79,22 +91,48 @@ pub trait FieldElement:
     // --------------------------------------------------------------------------------------------
 
     /// Returns this field element added to itself.
+    #[inline]
     fn double(self) -> Self {
         self + self
     }
 
     /// Returns this field element raised to power 2.
+    #[inline]
     fn square(self) -> Self {
         self * self
     }
 
     /// Returns this field element raised to power 3.
+    #[inline]
     fn cube(self) -> Self {
         self * self * self
     }
 
     /// Exponentiates this field element by `power` parameter.
-    fn exp(self, power: Self::Representation) -> Self;
+    fn exp(self, power: Self::Representation) -> Self {
+        let mut r = Self::ONE;
+        let mut b = self;
+        let mut p = power;
+
+        let int_zero = Self::Representation::from(0u32);
+        let int_one = Self::Representation::from(1u32);
+
+        if p == int_zero {
+            return Self::ONE;
+        } else if b == Self::ZERO {
+            return Self::ZERO;
+        }
+
+        while p > int_zero {
+            if p & int_one == int_one {
+                r *= b;
+            }
+            p >>= int_one;
+            b = b.square();
+        }
+
+        r
+    }
 
     /// Returns a multiplicative inverse of this field element. If this element is ZERO, ZERO is
     /// returned.
@@ -145,12 +183,6 @@ pub trait FieldElement:
     /// output list will contain decompositions of each extension element into underlying base
     /// elements.
     fn as_base_elements(elements: &[Self]) -> &[Self::BaseField];
-
-    /// Normalizes internal representation of this element.
-    ///
-    /// Normalization is applicable only to malleable field elements; for non-malleable elements
-    /// this is a no-op.
-    fn normalize(&mut self);
 }
 
 // STARK FIELD
@@ -162,9 +194,6 @@ pub trait FieldElement:
 /// the modulus of the field should be a prime number of the form `k` * 2^`n` + 1 (a Proth prime),
 /// where `n` is relatively larger (e.g., greater than 32).
 pub trait StarkField: FieldElement<BaseField = Self> {
-    /// Type describing quadratic extension of this StarkField.
-    type QuadExtension: FieldElement<BaseField = Self>;
-
     /// Prime modulus of the field. Must be of the form `k` * 2^`n` + 1 (a Proth prime).
     /// This ensures that the field has high 2-adicity.
     const MODULUS: Self::Representation;
@@ -193,4 +222,28 @@ pub trait StarkField: FieldElement<BaseField = Self> {
 
     /// Returns a canonical integer representation of the field element.
     fn to_repr(&self) -> Self::Representation;
+}
+
+// EXTENSIBLE FIELD
+// ================================================================================================
+
+/// Defined basic arithmetic in an extension of a StarkField of a given degree.
+///
+/// This trait defines how to perform multiplication and compute a Frobenius automorphisms of an
+/// element in an extension of degree N for a given [StarkField]. It as assumed that an element in
+/// degree N extension field can be represented by N field elements in the base field.
+///
+/// Implementation of this trait implicitly defines the irreducible polynomial over which the
+/// extension field is defined.
+pub trait ExtensibleField<const N: usize>: StarkField {
+    /// Returns a product of `a` and `b` in the field defined by this extension.
+    fn mul(a: [Self; N], b: [Self; N]) -> [Self; N];
+
+    /// Returns Frobenius automorphisms for `x` in the field defined by this extension.
+    fn frobenius(x: [Self; N]) -> [Self; N];
+
+    /// Returns true if this extension is supported for the underlying base field.
+    fn is_supported() -> bool {
+        true
+    }
 }

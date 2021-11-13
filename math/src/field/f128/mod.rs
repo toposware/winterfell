@@ -3,7 +3,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-//! An implementation of a 128-bit STARK-friendly prime field with modulus 2^128 - 45 * 2^40 + 1.
+//! An implementation of a 128-bit STARK-friendly prime field with modulus $2^{128} - 45 \cdot 2^{40} + 1$.
 //!
 //! Operations in this field are implemented using Barret reduction and are stored in their
 //! canonical form using `u128` as the backing type. However, this field was not chosen with any
@@ -12,7 +12,7 @@
 
 use super::{
     traits::{FieldElement, StarkField},
-    QuadExtensionA,
+    ExtensibleField,
 };
 use core::{
     convert::{TryFrom, TryInto},
@@ -73,31 +73,6 @@ impl FieldElement for BaseElement {
 
     const IS_CANONICAL: bool = true;
 
-    fn exp(self, power: Self::Representation) -> Self {
-        let mut r = Self::ONE;
-        let mut b = self;
-        let mut p = power;
-
-        let int_zero = Self::Representation::from(0u32);
-        let int_one = Self::Representation::from(1u32);
-
-        if p == int_zero {
-            return Self::ONE;
-        } else if b == Self::ZERO {
-            return Self::ZERO;
-        }
-
-        while p > int_zero {
-            if p & int_one == int_one {
-                r *= b;
-            }
-            p >>= int_one;
-            b = b.square();
-        }
-
-        r
-    }
-
     fn inv(self) -> Self {
         BaseElement(inv(self.0))
     }
@@ -152,15 +127,9 @@ impl FieldElement for BaseElement {
     fn as_base_elements(elements: &[Self]) -> &[Self::BaseField] {
         elements
     }
-
-    fn normalize(&mut self) {
-        // do nothing since the internal and canonical representations are the same
-    }
 }
 
 impl StarkField for BaseElement {
-    type QuadExtension = QuadExtensionA<Self>;
-
     /// sage: MODULUS = 2^128 - 45 * 2^40 + 1 \
     /// sage: GF(MODULUS).is_prime_field() \
     /// True \
@@ -280,6 +249,45 @@ impl Neg for BaseElement {
 
     fn neg(self) -> Self {
         Self(sub(0, self.0))
+    }
+}
+
+// QUADRATIC EXTENSION
+// ================================================================================================
+
+/// Defines a quadratic extension of the base field over an irreducible polynomial x<sup>2</sup> -
+/// x - 1. Thus, an extension element is defined as α + β * φ, where φ is a root of this polynomial,
+/// and α and β are base field elements.
+impl ExtensibleField<2> for BaseElement {
+    #[inline(always)]
+    fn mul(a: [Self; 2], b: [Self; 2]) -> [Self; 2] {
+        let z = a[0] * b[0];
+        [z + a[1] * b[1], (a[0] + a[1]) * (b[0] + b[1]) - z]
+    }
+
+    #[inline(always)]
+    fn frobenius(x: [Self; 2]) -> [Self; 2] {
+        [x[0] + x[1], Self::ZERO - x[1]]
+    }
+}
+
+// CUBIC EXTENSION
+// ================================================================================================
+
+/// Cubic extension for this field is not implemented as quadratic extension already provides
+/// sufficient security level.
+impl ExtensibleField<3> for BaseElement {
+    fn mul(_a: [Self; 3], _b: [Self; 3]) -> [Self; 3] {
+        unimplemented!()
+    }
+
+    #[inline(always)]
+    fn frobenius(_x: [Self; 3]) -> [Self; 3] {
+        unimplemented!()
+    }
+
+    fn is_supported() -> bool {
+        false
     }
 }
 
