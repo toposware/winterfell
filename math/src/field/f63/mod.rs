@@ -11,6 +11,7 @@ use super::{
     traits::{FieldElement, StarkField},
     ExtensibleField,
 };
+use cheetah::group::ff::Field;
 use cheetah::Fp as BaseElementInner;
 use core::{
     convert::{TryFrom, TryInto},
@@ -19,6 +20,7 @@ use core::{
     ops::{Add, AddAssign, Deref, DerefMut, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
     slice,
 };
+use rand_core::RngCore;
 
 use utils::{
     collections::Vec, string::ToString, AsBytes, ByteReader, ByteWriter, Deserializable,
@@ -155,6 +157,11 @@ impl BaseElement {
         } else {
             Some(BaseElement(tmp.unwrap()))
         }
+    }
+
+    /// Generates a random field element
+    pub fn random(mut rng: impl RngCore) -> Self {
+        BaseElement(BaseElementInner::random(&mut rng))
     }
 }
 

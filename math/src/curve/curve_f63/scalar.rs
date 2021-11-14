@@ -5,7 +5,9 @@ use core::{
 };
 
 use bitvec::{order::Lsb0, slice::BitSlice};
+use cheetah::group::ff::Field;
 use cheetah::Scalar as ScalarInner;
+use rand_core::RngCore;
 use utils::{
     string::ToString, ByteReader, ByteWriter, Deserializable, DeserializationError, Randomizable,
     Serializable,
@@ -145,6 +147,11 @@ impl Scalar {
     #[cfg(test)]
     pub const fn from_raw_unchecked(v: [u64; 4]) -> Self {
         Scalar(ScalarInner::from_raw_unchecked(v))
+    }
+
+    /// Generates a random field element
+    pub fn random(mut rng: impl RngCore) -> Self {
+        Scalar(ScalarInner::random(&mut rng))
     }
 }
 

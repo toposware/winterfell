@@ -21,6 +21,8 @@ use core::{
     },
     slice,
 };
+use rand_core::RngCore;
+use stark_curve::group::ff::Field;
 use stark_curve::FieldElement as BaseElementInner;
 use utils::{
     collections::Vec, string::ToString, AsBytes, ByteReader, ByteWriter, Deserializable,
@@ -273,6 +275,11 @@ impl BaseElement {
         } else {
             Some(BaseElement(tmp.unwrap()))
         }
+    }
+
+    /// Generates a random field element
+    pub fn random(mut rng: impl RngCore) -> Self {
+        BaseElement(BaseElementInner::random(&mut rng))
     }
 }
 
