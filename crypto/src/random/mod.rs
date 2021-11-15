@@ -174,13 +174,13 @@ impl<B: StarkField, H: Hasher> RandomCoin<B, H> {
     /// Returns the next pseudo-random field element.
     ///
     /// # Errors
-    /// Returns an error if a valid field element could not be generated after 100 calls to the
+    /// Returns an error if a valid field element could not be generated after 1000 calls to the
     /// PRNG.
     pub fn draw<E>(&mut self) -> Result<E, RandomCoinError>
     where
         E: FieldElement<BaseField = B>,
     {
-        for _ in 0..200 {
+        for _ in 0..1000 {
             // get the next pseudo-random value and take the first ELEMENT_BYTES from it
             let value = self.next();
             let bytes = &value.as_bytes()[..E::ELEMENT_BYTES as usize];
@@ -188,11 +188,13 @@ impl<B: StarkField, H: Hasher> RandomCoin<B, H> {
             // check if the bytes can be converted into a valid field element; if they can,
             // return; otherwise try again
             if let Some(element) = E::from_random_bytes(bytes) {
-                return Ok(element);
+                if element != E::ZERO {
+                    return Ok(element);
+                }
             }
         }
 
-        Err(RandomCoinError::FailedToDrawFieldElement(100))
+        Err(RandomCoinError::FailedToDrawFieldElement(1000))
     }
 
     /// Returns the next pair of pseudo-random field elements.
