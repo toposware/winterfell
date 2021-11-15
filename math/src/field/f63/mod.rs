@@ -149,6 +149,11 @@ impl BaseElement {
         BaseElement(BaseElementInner::from_raw_unchecked(v))
     }
 
+    /// Outputs the raw underlying u64 limb without Montgomery reduction
+    pub const fn output_unreduced_limbs(&self) -> <Self as FieldElement>::Representation {
+        self.0.output_unreduced_limbs()
+    }
+
     /// Computes the square root of this element, if it exists.
     pub fn sqrt(&self) -> Option<Self> {
         let tmp = self.0.sqrt();

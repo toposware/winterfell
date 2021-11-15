@@ -3,7 +3,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-use super::{BaseElement, FieldElement, StarkField};
+use super::{BaseElement, DeserializationError, FieldElement, StarkField};
 use crate::field::{CubeExtension, QuadExtension};
 use core::convert::TryFrom;
 use num_bigint::BigUint;
@@ -104,6 +104,41 @@ fn element_as_int() {
     assert_eq!(v % super::M, e.to_repr());
 }
 
+// QUADRATIC EXTENSION
+// ------------------------------------------------------------------------------------------------
+#[test]
+fn quad_mul() {
+    // identity
+    let r: QuadExtension<BaseElement> = rand_value();
+    assert_eq!(
+        <QuadExtension<BaseElement>>::ZERO,
+        r * <QuadExtension<BaseElement>>::ZERO
+    );
+    assert_eq!(r, r * <QuadExtension<BaseElement>>::ONE);
+
+    // test multiplication within bounds
+    let a = <QuadExtension<BaseElement>>::new(BaseElement::new(15), BaseElement::new(22));
+    let b = <QuadExtension<BaseElement>>::new(BaseElement::new(20), BaseElement::new(22));
+    let expected =
+        <QuadExtension<BaseElement>>::new(BaseElement::new(1268), BaseElement::new(1738));
+    assert_eq!(expected, a * b);
+
+    // test multiplication with overflow
+    let a = <QuadExtension<BaseElement>>::new(
+        BaseElement::new(909293122448838652),
+        BaseElement::new(477277787758322091),
+    );
+    let b = <QuadExtension<BaseElement>>::new(
+        BaseElement::new(3542703669471729099),
+        BaseElement::new(1163739192097758270),
+    );
+    let expected = <QuadExtension<BaseElement>>::new(
+        BaseElement::new(2134274952469056161),
+        BaseElement::new(2186070506318879173),
+    );
+    assert_eq!(expected, a * b);
+}
+
 // CUBIC EXTENSION
 // ------------------------------------------------------------------------------------------------
 #[test]
@@ -199,6 +234,51 @@ fn try_from_slice() {
     let bytes = vec![255, 255, 255, 255, 255, 255, 255, 255];
     let result = BaseElement::try_from(bytes.as_slice());
     assert!(result.is_err());
+}
+
+#[test]
+fn elements_as_bytes() {
+    let source = vec![
+        BaseElement::new(1),
+        BaseElement::new(2),
+        BaseElement::new(3),
+        BaseElement::new(4),
+    ];
+
+    let mut expected = vec![];
+    expected.extend_from_slice(&source[0].output_unreduced_limbs().to_le_bytes());
+    expected.extend_from_slice(&source[1].output_unreduced_limbs().to_le_bytes());
+    expected.extend_from_slice(&source[2].output_unreduced_limbs().to_le_bytes());
+    expected.extend_from_slice(&source[3].output_unreduced_limbs().to_le_bytes());
+
+    assert_eq!(expected, BaseElement::elements_as_bytes(&source));
+}
+
+#[test]
+fn bytes_as_elements() {
+    let elements = vec![
+        BaseElement::new(1),
+        BaseElement::new(2),
+        BaseElement::new(3),
+        BaseElement::new(4),
+    ];
+
+    let mut bytes = vec![];
+    bytes.extend_from_slice(&elements[0].output_unreduced_limbs().to_le_bytes());
+    bytes.extend_from_slice(&elements[1].output_unreduced_limbs().to_le_bytes());
+    bytes.extend_from_slice(&elements[2].output_unreduced_limbs().to_le_bytes());
+    bytes.extend_from_slice(&elements[3].output_unreduced_limbs().to_le_bytes());
+    bytes.extend_from_slice(&BaseElement::new(5).output_unreduced_limbs().to_le_bytes());
+
+    let result = unsafe { BaseElement::bytes_as_elements(&bytes[..32]) };
+    assert!(result.is_ok());
+    assert_eq!(elements, result.unwrap());
+
+    let result = unsafe { BaseElement::bytes_as_elements(&bytes[..33]) };
+    assert!(matches!(result, Err(DeserializationError::InvalidValue(_))));
+
+    let result = unsafe { BaseElement::bytes_as_elements(&bytes[1..33]) };
+    assert!(matches!(result, Err(DeserializationError::InvalidValue(_))));
 }
 
 // INITIALIZATION
