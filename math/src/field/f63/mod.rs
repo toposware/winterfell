@@ -121,7 +121,7 @@ impl BaseElement {
 
     #[inline]
     pub fn double(&self) -> Self {
-        self.add(self)
+        BaseElement(self.0.double())
     }
 
     pub fn from_bytes(bytes: &[u8; 8]) -> Option<Self> {
