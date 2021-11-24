@@ -301,6 +301,23 @@ impl<H: Hasher> MerkleTree<H> {
         }
         Ok(())
     }
+
+    /// Updates the leaf at a given index
+    pub fn update_leaf(&mut self, index: usize, leaf: H::Digest) {
+        self.leaves[index] = leaf;
+        let n = self.leaves.len() / 2;
+
+        // Compute the first internal node from the leaves
+        let index = index >> 1;
+        let mut parent = index + n;
+        self.nodes[parent] = H::merge(&[self.leaves[2 * index], self.leaves[2 * index + 1]]);
+
+        // Compute the remaining internal nodes to the root
+        for _ in 1..self.depth() {
+            parent >>= 1;
+            self.nodes[parent] = H::merge(&[self.nodes[2 * parent], self.nodes[2 * parent + 1]]);
+        }
+    }
 }
 
 // HELPER FUNCTIONS

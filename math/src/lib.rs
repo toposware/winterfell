@@ -93,7 +93,12 @@
 #[macro_use]
 extern crate alloc;
 
-pub mod curve;
+mod curve;
+pub mod curves {
+    //! Elliptic curve implementations.
+    pub use super::curve::curve_f252;
+    pub use super::curve::curve_f63;
+}
 
 pub mod fft;
 pub mod polynom;
@@ -109,6 +114,7 @@ pub mod fields {
     pub use super::field::f128;
     pub use super::field::f252;
     pub use super::field::f62;
+    pub use super::field::f63;
     pub use super::field::f64;
     pub use super::field::CubeExtension;
     pub use super::field::QuadExtension;

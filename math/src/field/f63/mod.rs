@@ -3,169 +3,51 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-//! An implementation of a 252-bit STARK-friendly prime field with modulus 2^251 + 17 * 2^192 + 1.
+//! An implementation of a 63-bit STARK-friendly prime field with modulus 2^62 + 2^56 + 2^55 + 1.
 //!
-//! Operations in this field are implemented using Barret reduction and are stored in their
-//! canonical form using `[u64; 4]` as the backing type.
-//!
-//! Implementation is clearly not optimal!
+//! Operations in this field are implemented using Montgomery reduction.
 
-use super::traits::{ExtensibleField, FieldElement, StarkField};
+use super::{
+    traits::{FieldElement, StarkField},
+    ExtensibleField,
+};
+use cheetah::group::ff::Field;
+use cheetah::Fp as BaseElementInner;
 use core::{
     convert::{TryFrom, TryInto},
     fmt::{self, Debug, Display, Formatter},
     mem,
-    ops::{
-        Add, AddAssign, BitAnd, Deref, DerefMut, Div, DivAssign, Mul, MulAssign, Neg, Shl, Shr,
-        ShrAssign, Sub, SubAssign,
-    },
+    ops::{Add, AddAssign, Deref, DerefMut, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
     slice,
 };
 use rand_core::RngCore;
-use stark_curve::group::ff::Field;
-use stark_curve::FieldElement as BaseElementInner;
+
 use utils::{
     collections::Vec, string::ToString, AsBytes, ByteReader, ByteWriter, Deserializable,
     DeserializationError, Randomizable, Serializable,
 };
 
-/// Compute (a << b) + carry, returning the result and the new carry over.
-#[inline(always)]
-const fn shl32_with_carry(a: u64, b: u32, carry: u64) -> (u64, u64) {
-    let ret = ((a as u128) << (b as u128)) + (carry as u128);
-    (ret as u64, (ret >> 64) as u64)
-}
-
-/// Compute (a >> b) + carry, returning the result and the new carry over.
-#[inline(always)]
-const fn shr32_with_carry(a: u64, b: u32, carry: u64) -> (u64, u64) {
-    let ret = ((a as u128) << 64) >> (b as u128);
-    (((ret >> 64) + (carry as u128)) as u64, ret as u64)
-}
-
 #[cfg(test)]
 mod tests;
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Default)]
-pub struct Repr(pub [u64; 4]);
-
-impl From<u32> for Repr {
-    fn from(value: u32) -> Self {
-        Repr([value as u64, 0, 0, 0])
-    }
-}
-
-impl From<u64> for Repr {
-    fn from(value: u64) -> Self {
-        Repr([value, 0, 0, 0])
-    }
-}
-
-impl From<[u64; 4]> for Repr {
-    fn from(value: [u64; 4]) -> Self {
-        Repr(value)
-    }
-}
-
-impl Deref for Repr {
-    type Target = [u64; 4];
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl BitAnd for Repr {
-    type Output = Self;
-
-    // rhs is the "right-hand side" of the expression `a & b`
-    fn bitand(self, rhs: Self) -> Self::Output {
-        Self([
-            self.0[0] & rhs.0[0],
-            self.0[1] & rhs.0[1],
-            self.0[2] & rhs.0[2],
-            self.0[3] & rhs.0[3],
-        ])
-    }
-}
-
-impl Shl<u32> for Repr {
-    type Output = Self;
-
-    /// Performs a left shift on a value represented as 4 u64 limbs,
-    /// ordered in little-endian.
-    fn shl(self, rhs: u32) -> Self::Output {
-        if rhs > 255 {
-            return Self([0, 0, 0, 0]);
-        }
-        let mut rhs = rhs % 256;
-        let mut array = self.0;
-        while rhs > 0 {
-            let shift = if rhs > 64 { 64 } else { rhs % 65 };
-            let (res0, carry) = shl32_with_carry(array[0], shift, 0);
-            let (res1, carry) = shl32_with_carry(array[1], shift, carry);
-            let (res2, carry) = shl32_with_carry(array[2], shift, carry);
-            let (res3, _carry) = shl32_with_carry(array[3], shift, carry);
-            array = [res0, res1, res2, res3];
-            rhs = rhs.saturating_sub(shift);
-        }
-
-        Self(array)
-    }
-}
-
-impl Shr<u32> for Repr {
-    type Output = Self;
-
-    /// Performs a right shift on a value represented as 4 u64 limbs,
-    /// ordered in little-endian.
-    fn shr(self, rhs: u32) -> Self::Output {
-        if rhs > 255 {
-            return Self([0, 0, 0, 0]);
-        }
-        let mut rhs = rhs % 256;
-        let mut array = self.0;
-        while rhs > 0 {
-            let shift = if rhs > 64 { 64 } else { rhs % 65 };
-            let (res3, carry) = shr32_with_carry(array[3], shift, 0);
-            let (res2, carry) = shr32_with_carry(array[2], shift, carry);
-            let (res1, carry) = shr32_with_carry(array[1], shift, carry);
-            let (res0, _carry) = shr32_with_carry(array[0], shift, carry);
-            array = [res0, res1, res2, res3];
-            rhs = rhs.saturating_sub(shift);
-        }
-
-        Self(array)
-    }
-}
-
-impl ShrAssign for Repr {
-    fn shr_assign(&mut self, rhs: Self) {
-        *self = *self >> (rhs[0] as u32);
-    }
-}
 
 // CONSTANTS
 // ================================================================================================
 
-// 2^192 root of unity = 145784604816374866144131285430889962727208297722245411306711449302875041684
-const G: [u64; 4] = [
-    0x6070024f42f8ef94,
-    0xad187148e11a6161,
-    0x3f0464519c8b0fa5,
-    0x005282db87529cfa,
-];
+/// Field modulus = 2^62 + 2^56 + 2^55 + 1
+const M: u64 = 4719772409484279809;
+
+// 2^55 root of unity
+const G: u64 = 90479342105353296;
 
 // Number of bytes needed to represent field element
-const ELEMENT_BYTES: usize = core::mem::size_of::<[u64; 4]>();
+const ELEMENT_BYTES: usize = core::mem::size_of::<u64>();
 
 // FIELD ELEMENT
 // ================================================================================================
 
 /// Represents a base field element.
 ///
-/// Internal values are stored in their canonical form in the range [0, M).
-/// The backing type is stark_curve::BaseElementInner.
+/// Internal values are stored in Montgomery form.
 #[derive(Copy, Clone, PartialEq, Eq, Default)]
 pub struct BaseElement(pub(crate) BaseElementInner);
 
@@ -201,11 +83,15 @@ impl Display for BaseElement {
 }
 
 impl BaseElement {
-    /// Creates a new field element from a [u64; 4] value.
+    /// Creates a new field element from a u64 value.
     /// The value is converted to Montgomery form by computing
     /// (a.R^0 * R^2) / R = a.R
-    pub const fn new(value: [u64; 4]) -> Self {
+    pub const fn new(value: u64) -> Self {
         BaseElement(BaseElementInner::new(value))
+    }
+
+    pub const fn output_internal(&self) -> BaseElementInner {
+        self.0
     }
 
     #[inline]
@@ -238,7 +124,7 @@ impl BaseElement {
         BaseElement(self.0.double())
     }
 
-    pub fn from_bytes(bytes: &[u8; 32]) -> Option<Self> {
+    pub fn from_bytes(bytes: &[u8; 8]) -> Option<Self> {
         let tmp = BaseElementInner::from_bytes(bytes);
         if bool::from(tmp.is_none()) {
             None
@@ -247,12 +133,8 @@ impl BaseElement {
         }
     }
 
-    pub fn to_bytes(&self) -> [u8; 32] {
+    pub fn to_bytes(&self) -> [u8; 8] {
         self.0.to_bytes()
-    }
-
-    pub fn from_bytes_wide(bytes: &[u8; 64]) -> Self {
-        BaseElement(BaseElementInner::from_bytes_wide(bytes))
     }
 
     /// Returns whether or not this element is strictly lexicographically
@@ -263,8 +145,13 @@ impl BaseElement {
 
     /// Constructs an element of `BaseElement` without checking that it is
     /// canonical.
-    pub const fn from_raw_unchecked(v: [u64; 4]) -> Self {
+    pub const fn from_raw_unchecked(v: u64) -> Self {
         BaseElement(BaseElementInner::from_raw_unchecked(v))
+    }
+
+    /// Outputs the raw underlying u64 limb without Montgomery reduction
+    pub const fn output_unreduced_limbs(&self) -> <Self as FieldElement>::Representation {
+        self.0.output_unreduced_limbs()
     }
 
     /// Computes the square root of this element, if it exists.
@@ -284,7 +171,7 @@ impl BaseElement {
 }
 
 impl FieldElement for BaseElement {
-    type Representation = Repr;
+    type Representation = u64;
 
     type BaseField = Self;
 
@@ -293,7 +180,11 @@ impl FieldElement for BaseElement {
 
     const ELEMENT_BYTES: usize = ELEMENT_BYTES;
 
-    const IS_CANONICAL: bool = true;
+    const IS_CANONICAL: bool = false;
+
+    fn exp(self, power: Self::Representation) -> Self {
+        BaseElement(self.0.exp(power))
+    }
 
     fn inv(self) -> Self {
         BaseElement(self.invert().unwrap_or(BaseElementInner::zero()))
@@ -304,7 +195,6 @@ impl FieldElement for BaseElement {
     }
 
     fn elements_as_bytes(elements: &[Self]) -> &[u8] {
-        // TODO: take endianness into account
         let p = elements.as_ptr();
         let len = elements.len() * Self::ELEMENT_BYTES;
         unsafe { slice::from_raw_parts(p as *const u8, len) }
@@ -321,7 +211,7 @@ impl FieldElement for BaseElement {
         let p = bytes.as_ptr();
         let len = bytes.len() / Self::ELEMENT_BYTES;
 
-        if (p as usize) % mem::align_of::<[u64; 4]>() != 0 {
+        if (p as usize) % mem::align_of::<u64>() != 0 {
             return Err(DeserializationError::InvalidValue(
                 "slice memory alignment is not valid for this field element type".to_string(),
             ));
@@ -334,10 +224,10 @@ impl FieldElement for BaseElement {
         // this uses a specialized vector initialization code which requests zero-filled memory
         // from the OS; unfortunately, this works only for built-in types and we can't use
         // Self::ZERO here as much less efficient initialization procedure will be invoked.
-        debug_assert_eq!(Self::ELEMENT_BYTES, mem::size_of::<[u64; 4]>());
-        let result = vec![[0u64; 4]; n];
+        debug_assert_eq!(Self::ELEMENT_BYTES, mem::size_of::<u64>());
+        let result = vec![0u64; n];
 
-        // translate a zero-filled vector of [u64; 4]s into a vector of base field elements
+        // translate a zero-filled vector of u64s into a vector of base field elements
         let mut v = core::mem::ManuallyDrop::new(result);
         let p = v.as_mut_ptr();
         let len = v.len();
@@ -351,30 +241,25 @@ impl FieldElement for BaseElement {
 }
 
 impl StarkField for BaseElement {
-    /// sage: MODULUS = 2^251 + 17 * 2^192 + 1 \
+    /// sage: MODULUS = 2^62 + 2^56 + 2^55 + 1 \
     /// sage: GF(MODULUS).is_prime_field() \
     /// True \
     /// sage: GF(MODULUS).order() \
-    /// 3618502788666131213697322783095070105623107215331596699973092056135872020481
-    const MODULUS: Self::Representation = Repr([
-        0x0000000000000001,
-        0x0000000000000000,
-        0x0000000000000000,
-        0x0800000000000011,
-    ]);
-    const MODULUS_BITS: u32 = 256;
+    /// 4719772409484279809
+    const MODULUS: Self::Representation = M;
+    const MODULUS_BITS: u32 = 63;
 
     /// sage: GF(MODULUS).primitive_element() \
     /// 3
-    const GENERATOR: Self = BaseElement::from_raw_unchecked([3, 0, 0, 0]);
+    const GENERATOR: Self = BaseElement::new(3);
 
-    /// sage: is_odd((MODULUS - 1) / 2^192) \
+    /// sage: is_odd((MODULUS - 1) / 2^55) \
     /// True
-    const TWO_ADICITY: u32 = 192;
+    const TWO_ADICITY: u32 = 55;
 
-    /// sage: k = (MODULUS - 1) / 2^192 \
+    /// sage: k = (MODULUS - 1) / 2^55 \
     /// sage: GF(MODULUS).primitive_element()^k \
-    /// 145784604816374866144131285430889962727208297722245411306711449302875041684
+    /// 90479342105353296
     const TWO_ADIC_ROOT_OF_UNITY: Self = BaseElement::new(G);
 
     fn get_root_of_unity(n: u32) -> Self {
@@ -382,14 +267,11 @@ impl StarkField for BaseElement {
     }
 
     fn get_modulus_le_bytes() -> Vec<u8> {
-        vec![
-            1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 17, 0, 0, 0, 0,
-            0, 0, 8,
-        ]
+        Self::MODULUS.to_le_bytes().to_vec()
     }
 
     fn to_repr(&self) -> Self::Representation {
-        Repr(self.0.output_reduced_limbs())
+        self.output_reduced_limbs()
     }
 }
 
@@ -535,38 +417,66 @@ impl DivAssign for BaseElement {
 // QUADRATIC EXTENSION
 // ================================================================================================
 
-/// Quadratic extension for this field is not implemented as
-/// it already provides a sufficient security level.
+/// Defines a quadratic extension of the base field over an irreducible polynomial x<sup>2</sup> -
+/// 2*x - 2. Thus, an extension element is defined as α + β * φ, where φ is a root of this polynomial,
+/// and α and β are base field elements.
 impl ExtensibleField<2> for BaseElement {
-    fn mul(_a: [Self; 2], _b: [Self; 2]) -> [Self; 2] {
-        unimplemented!()
+    #[inline(always)]
+    fn mul(a: [Self; 2], b: [Self; 2]) -> [Self; 2] {
+        let a0b0 = a[0] * b[0];
+        let a1b1 = a[1] * b[1];
+
+        let t = (a[0] - a[1]) * (b[1] - b[0]);
+
+        let res0 = a0b0 + a1b1.double();
+        [res0, a1b1 + res0 + t]
     }
 
-    fn frobenius(_x: [Self; 2]) -> [Self; 2] {
-        unimplemented!()
-    }
-
-    fn is_supported() -> bool {
-        false
+    #[inline(always)]
+    fn frobenius(x: [Self; 2]) -> [Self; 2] {
+        [x[0] + x[1].double(), -x[1]]
     }
 }
 
 // CUBIC EXTENSION
 // ================================================================================================
 
-/// Cubic extension for this field is not implemented as
-/// it already provides a sufficient security level.
+/// Defines a cubic extension of the base field over an irreducible polynomial x<sup>3</sup> +
+/// x + 1. Thus, an extension element is defined as α + β * φ + γ * φ^2, where φ is a root of this
+/// polynomial, and α, β and γ are base field elements.
 impl ExtensibleField<3> for BaseElement {
-    fn mul(_a: [Self; 3], _b: [Self; 3]) -> [Self; 3] {
-        unimplemented!()
+    #[inline(always)]
+    fn mul(a: [Self; 3], b: [Self; 3]) -> [Self; 3] {
+        // performs multiplication in the extension field using 6 multiplications,
+        // 10 additions, and 4 subtractions in the base field.
+        let a0b0 = a[0] * b[0];
+        let a1b1 = a[1] * b[1];
+        let a2b2 = a[2] * b[2];
+
+        let a0b0_a0b1_a1b0_a1b1 = (a[0] + a[1]) * (b[0] + b[1]);
+        let a0b0_a0b2_a2b0_a2b2 = (a[0] + a[2]) * (b[0] + b[2]);
+        let a1b1_a1b2_a2b1_a2b2 = (a[1] + a[2]) * (b[1] + b[2]);
+
+        let a0b0_a1b1_a2b2 = a0b0 + a1b1 + a2b2;
+
+        let res0 = a0b0_a1b1_a2b2 - a1b1_a1b2_a2b1_a2b2;
+        let res1 = a0b0_a0b1_a1b0_a1b1 - a1b1_a1b2_a2b1_a2b2 - a0b0;
+        let res2 = a0b0_a0b2_a2b0_a2b2 - a0b0_a1b1_a2b2 - a2b2 + a1b1.double();
+
+        [res0, res1, res2]
     }
 
-    fn frobenius(_x: [Self; 3]) -> [Self; 3] {
-        unimplemented!()
-    }
-
-    fn is_supported() -> bool {
-        false
+    #[inline(always)]
+    fn frobenius(x: [Self; 3]) -> [Self; 3] {
+        // coefficients were computed using SageMath
+        [
+            x[0] + BaseElement::new(3748426544840615980) * x[1]
+                + BaseElement::new(902867407776644160) * x[2],
+            BaseElement::new(3365471297819313567) * x[1]
+                + BaseElement::new(1874213272420307990) * x[2],
+            BaseElement::new(902867407776644161) * x[1]
+                + BaseElement::new(1354301111664966241) * x[2],
+        ]
     }
 }
 
@@ -575,17 +485,16 @@ impl ExtensibleField<3> for BaseElement {
 
 impl From<BaseElementInner> for BaseElement {
     /// Converts a 128-bit value into a field element. If the value is greater than or equal to
-    /// the field modulus, modular reduction is silently preformed.
+    /// the field modulus, modular reduction is silently performed.
     fn from(value: BaseElementInner) -> Self {
         BaseElement(value)
     }
 }
 
 impl From<u128> for BaseElement {
-    /// Converts a 128-bit value into a field element. If the value is greater than or equal to
-    /// the field modulus, modular reduction is silently preformed.
+    /// Converts a 128-bit value into a field element.
     fn from(value: u128) -> Self {
-        BaseElement(BaseElementInner::from(value))
+        BaseElement(BaseElementInner::from_bytes_wide(&value.to_le_bytes()))
     }
 }
 
@@ -617,20 +526,20 @@ impl From<u8> for BaseElement {
     }
 }
 
-impl From<[u8; 32]> for BaseElement {
+impl From<[u8; 8]> for BaseElement {
     /// Converts the value encoded in an array of 32 bytes into a field element. The bytes
     /// are assumed to be in little-endian byte order. If the value is greater than or equal
-    /// to the field modulus, modular reduction is silently preformed.
-    fn from(bytes: [u8; 32]) -> Self {
+    /// to the field modulus, modular reduction is silently performed.
+    fn from(bytes: [u8; 8]) -> Self {
         Self::from_bytes(&bytes).unwrap_or(Self::ZERO)
     }
 }
 
-impl From<&[u8; 32]> for BaseElement {
+impl From<&[u8; 8]> for BaseElement {
     /// Converts the value encoded in an array of 32 bytes into a field element. The bytes
     /// are assumed to be in little-endian byte order. If the value is greater than or equal
-    /// to the field modulus, modular reduction is silently preformed.
-    fn from(bytes: &[u8; 32]) -> Self {
+    /// to the field modulus, modular reduction is silently performed.
+    fn from(bytes: &[u8; 8]) -> Self {
         Self::from_bytes(bytes).unwrap_or(Self::ZERO)
     }
 }
@@ -656,17 +565,12 @@ impl<'a> TryFrom<&'a [u8]> for BaseElement {
             )));
         }
 
-        let mut bytes: [u8; 32] = bytes[0..32].try_into().unwrap();
-        // masking away the unused MSBs
-        bytes[31] &= 0b0001_1111;
-
-        match BaseElement::from_bytes(&bytes) {
-            Some(e) => Ok(e),
-            None => Err(DeserializationError::InvalidValue(
+        BaseElement::from_bytes(bytes.try_into().unwrap()).ok_or_else(|| {
+            DeserializationError::InvalidValue(
                 "invalid field element: value is greater than or equal to the field modulus"
                     .to_string(),
-            )),
-        }
+            )
+        })
     }
 }
 
