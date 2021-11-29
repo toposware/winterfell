@@ -134,12 +134,6 @@ pub enum ExampleType {
         #[structopt(short = "n", default_value = "1024")]
         chain_length: usize,
     },
-    /// Compute a hash chain using Rescue hash function
-    RescueF252 {
-        /// Length of the hash chain; must be a power of two
-        #[structopt(short = "n", default_value = "1024")]
-        chain_length: usize,
-    },
     /// Compute a root of a Merkle path using Rescue hash function
     #[cfg(feature = "std")]
     Merkle {

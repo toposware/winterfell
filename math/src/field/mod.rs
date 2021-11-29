@@ -7,7 +7,6 @@ mod traits;
 pub use traits::{ExtensibleField, FieldElement, StarkField};
 
 pub mod f128;
-pub mod f252;
 pub mod f62;
 pub mod f63;
 pub mod f64;

@@ -96,7 +96,6 @@ extern crate alloc;
 mod curve;
 pub mod curves {
     //! Elliptic curve implementations.
-    pub use super::curve::curve_f252;
     pub use super::curve::curve_f63;
 }
 
@@ -112,7 +111,6 @@ pub mod fields {
     //! of these field.
 
     pub use super::field::f128;
-    pub use super::field::f252;
     pub use super::field::f62;
     pub use super::field::f63;
     pub use super::field::f64;
