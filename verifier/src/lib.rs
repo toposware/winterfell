@@ -33,6 +33,11 @@
 #[macro_use]
 extern crate alloc;
 
+#[cfg(feature = "std")]
+use log::debug;
+#[cfg(feature = "std")]
+use std::time::Instant;
+
 pub use air::{
     proof::StarkProof, Air, AirContext, Assertion, AuxTraceRandElements, BoundaryConstraint,
     BoundaryConstraintGroup, ConstraintCompositionCoefficients, ConstraintDivisor,
@@ -189,6 +194,8 @@ where
     // used to draw random elements needed to construct the next trace segment. The last trace
     // commitment is used to draw a set of random coefficients which the prover uses to compute
     // constraint composition polynomial.
+    #[cfg(feature = "std")]
+    let now = Instant::now();
     let trace_commitments = channel.read_trace_commitments();
 
     // reseed the coin with the commitment to the main trace segment
@@ -209,17 +216,31 @@ where
         .get_constraint_composition_coefficients(&mut public_coin)
         .map_err(|_| VerifierError::RandomCoinError)?;
 
+    #[cfg(feature = "std")]
+    debug!(
+        "1- Read trace commitment over LDE domain and drew random coefficients in {} us",
+        now.elapsed().as_micros()
+    );
+
     // 2 ----- constraint commitment --------------------------------------------------------------
     // read the commitment to evaluations of the constraint composition polynomial over the LDE
     // domain sent by the prover, use it to update the public coin, and draw an out-of-domain point
     // z from the coin; in the interactive version of the protocol, the verifier sends this point z
     // to the prover, and the prover evaluates trace and constraint composition polynomials at z,
     // and sends the results back to the verifier.
+    #[cfg(feature = "std")]
+    let now = Instant::now();
     let constraint_commitment = channel.read_constraint_commitment();
     public_coin.reseed(constraint_commitment);
     let z = public_coin
         .draw::<E>()
         .map_err(|_| VerifierError::RandomCoinError)?;
+
+    #[cfg(feature = "std")]
+    debug!(
+        "2- Read composition polynomial commitment over LDE domain and drew OOD point in {} us",
+        now.elapsed().as_micros()
+    );
 
     // 3 ----- OOD consistency check --------------------------------------------------------------
     // make sure that evaluations obtained by evaluating constraints over the out-of-domain frame
@@ -228,6 +249,8 @@ where
     // read the out-of-domain trace frames (the main trace frame and auxiliary trace frame, if
     // provided) sent by the prover and evaluate constraints over them; also, reseed the public
     // coin with the OOD frames received from the prover.
+    #[cfg(feature = "std")]
+    let now = Instant::now();
     let (ood_main_trace_frame, ood_aux_trace_frame) = channel.read_ood_trace_frame();
     let ood_constraint_evaluation_1 = evaluate_constraints(
         &air,
@@ -254,11 +277,18 @@ where
         public_coin.reseed(H::hash_elements(ood_main_trace_frame.current()));
         public_coin.reseed(H::hash_elements(ood_main_trace_frame.next()));
     }
+    #[cfg(feature = "std")]
+    debug!(
+        "3.a- Read OOD evaluation frame and evaluated constraints over it in {} us",
+        now.elapsed().as_micros()
+    );
 
     // read evaluations of composition polynomial columns sent by the prover, and reduce them into
     // a single value by computing sum(z^i * value_i), where value_i is the evaluation of the ith
     // column polynomial at z^m, where m is the total number of column polynomials; also, reseed
     // the public coin with the OOD constraint evaluations received from the prover.
+    #[cfg(feature = "std")]
+    let now = Instant::now();
     let ood_constraint_evaluations = channel.read_ood_constraint_evaluations();
     let ood_constraint_evaluation_2 = ood_constraint_evaluations
         .iter()
@@ -267,6 +297,11 @@ where
             result + z.exp((i as u32).into()) * value
         });
     public_coin.reseed(H::hash_elements(&ood_constraint_evaluations));
+    #[cfg(feature = "std")]
+    debug!(
+        "3.b- Read composition polynomial evaluations and folded them into one in {} us",
+        now.elapsed().as_micros()
+    );
 
     // finally, make sure the values are the same
     if ood_constraint_evaluation_1 != ood_constraint_evaluation_2 {
@@ -278,15 +313,23 @@ where
     // interactive version of the protocol, the verifier sends these coefficients to the prover
     // and the prover uses them to compute the DEEP composition polynomial. the prover, then
     // applies FRI protocol to the evaluations of the DEEP composition polynomial.
+    #[cfg(feature = "std")]
+    let now = Instant::now();
     let deep_coefficients = air
         .get_deep_composition_coefficients::<E, H>(&mut public_coin)
         .map_err(|_| VerifierError::RandomCoinError)?;
+    debug!(
+        "4.a- Drew coefficients for computing the DEEP composition polynomial {} us",
+        now.elapsed().as_micros()
+    );
 
     // instantiates a FRI verifier with the FRI layer commitments read from the channel. From the
     // verifier's perspective, this is equivalent to executing the commit phase of the FRI protocol.
     // The verifier uses these commitments to update the public coin and draw random points alpha
     // from them; in the interactive version of the protocol, the verifier sends these alphas to
     // the prover, and the prover uses them to compute and commit to the subsequent FRI layers.
+    #[cfg(feature = "std")]
+    let now = Instant::now();
     let fri_verifier = FriVerifier::new(
         &mut channel,
         &mut public_coin,
@@ -294,10 +337,16 @@ where
         air.trace_poly_degree(),
     )
     .map_err(VerifierError::FriVerificationFailed)?;
+    debug!(
+        "4.b- Performed commit phase of the FRI protocol in {} us",
+        now.elapsed().as_micros()
+    );
     // TODO: make sure air.lde_domain_size() == fri_verifier.domain_size()
 
     // 5 ----- trace and constraint queries -------------------------------------------------------
     // read proof-of-work nonce sent by the prover and update the public coin with it
+    #[cfg(feature = "std")]
+    let now = Instant::now();
     let pow_nonce = channel.read_pow_nonce();
     public_coin.reseed_with_int(pow_nonce);
 
@@ -319,9 +368,15 @@ where
     let (queried_main_trace_states, queried_aux_trace_states) =
         channel.read_queried_trace_states(&query_positions)?;
     let queried_constraint_evaluations = channel.read_constraint_evaluations(&query_positions)?;
+    debug!(
+        "5- Verified POW, drew FRI query positions and read evaluations of trace and composition polynomial at these positions in {} us",
+        now.elapsed().as_micros()
+    );
 
     // 6 ----- DEEP composition -------------------------------------------------------------------
     // compute evaluations of the DEEP composition polynomial at the queried positions
+    #[cfg(feature = "std")]
+    let now = Instant::now();
     let composer = DeepComposer::new(&air, &query_positions, z, deep_coefficients);
     let t_composition = composer.compose_trace_columns(
         queried_main_trace_states,
@@ -332,11 +387,23 @@ where
     let c_composition = composer
         .compose_constraint_evaluations(queried_constraint_evaluations, ood_constraint_evaluations);
     let deep_evaluations = composer.combine_compositions(t_composition, c_composition);
+    debug!(
+        "6- Computed evaluations of the DEEP composition polynomial at the queried positions in {} us",
+        now.elapsed().as_micros()
+    );
 
     // 7 ----- Verify low-degree proof -------------------------------------------------------------
     // make sure that evaluations of the DEEP composition polynomial we computed in the previous
     // step are in fact evaluations of a polynomial of degree equal to trace polynomial degree
-    fri_verifier
+    #[cfg(feature = "std")]
+    let now = Instant::now();
+    let result = fri_verifier
         .verify(&mut channel, &deep_evaluations, &query_positions)
-        .map_err(VerifierError::FriVerificationFailed)
+        .map_err(VerifierError::FriVerificationFailed);
+    debug!(
+        "7- Verified low-degree proof in {} us",
+        now.elapsed().as_micros()
+    );
+
+    result
 }
