@@ -15,6 +15,11 @@ use utils::collections::Vec;
 mod channel;
 pub use channel::{DefaultVerifierChannel, VerifierChannel};
 
+#[cfg(feature = "std")]
+use log::debug;
+#[cfg(feature = "std")]
+use std::time::Instant;
+
 // FRI VERIFIER
 // ================================================================================================
 /// Implements the verifier component of the FRI protocol.
@@ -335,9 +340,19 @@ fn verify_remainder<B: StarkField, E: FieldElement<BaseField = B>>(
     // interpolate remainder polynomial from its evaluations; we don't shift the domain here
     // because the degree of the polynomial will not change as long as we interpolate over a
     // coset of the original domain.
-    let inv_twiddles = fft::get_inv_twiddles(remainder.len());
+
+    #[cfg(feature = "std")]
+    let now = Instant::now();
+    let domain_len = remainder.len();
+    let inv_twiddles = fft::get_inv_twiddles(domain_len);
     fft::interpolate_poly(&mut remainder, &inv_twiddles);
     let poly = remainder;
+    #[cfg(feature = "std")]
+    debug!(
+        "\t[FRI] Interpolated remainder polynomial (domain size {}) with FFT in {} us",
+        domain_len,
+        now.elapsed().as_micros()
+    );
 
     // make sure the degree is valid
     if max_degree < polynom::degree_of(&poly) {

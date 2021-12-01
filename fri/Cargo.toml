@@ -30,6 +30,7 @@ std = ["crypto/std", "math/std", "utils/std"]
 
 [dependencies]
 crypto = { version = "0.4", path = "../crypto", package = "winter-crypto", default-features = false }
+log = { version = "0.4", default-features = false }
 math = { version = "0.4", path = "../math", package = "winter-math", default-features = false }
 utils = { version = "0.4", path = "../utils/core", package = "winter-utils", default-features = false }
 
