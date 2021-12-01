@@ -8,6 +8,11 @@ use air::{Air, AuxTraceRandElements, ConstraintCompositionCoefficients, Evaluati
 use math::{polynom, FieldElement};
 use utils::collections::Vec;
 
+#[cfg(feature = "std")]
+use log::debug;
+#[cfg(feature = "std")]
+use std::time::Instant;
+
 // CONSTRAINT EVALUATION
 // ================================================================================================
 
@@ -26,6 +31,8 @@ pub fn evaluate_constraints<A: Air, E: FieldElement<BaseField = A::BaseField>>(
     let t_constraints = air.get_transition_constraints(&composition_coefficients.transition);
 
     // compute values of periodic columns at x
+    #[cfg(feature = "std")]
+    let now = Instant::now();
     let periodic_values = air
         .get_periodic_column_polys()
         .iter()
@@ -35,8 +42,15 @@ pub fn evaluate_constraints<A: Air, E: FieldElement<BaseField = A::BaseField>>(
             polynom::eval(poly, x)
         })
         .collect::<Vec<_>>();
+    #[cfg(feature = "std")]
+    debug!(
+        "\tComputed values of periodic columns at x in {} us",
+        now.elapsed().as_micros()
+    );
 
     // evaluate transition constraints for the main trace segment
+    #[cfg(feature = "std")]
+    let now = Instant::now();
     let mut t_evaluations1 = E::zeroed_vector(t_constraints.num_main_constraints());
     air.evaluate_transition(main_trace_frame, &periodic_values, &mut t_evaluations1);
 
@@ -51,6 +65,11 @@ pub fn evaluate_constraints<A: Air, E: FieldElement<BaseField = A::BaseField>>(
             &mut t_evaluations2,
         );
     }
+    #[cfg(feature = "std")]
+    debug!(
+        "\tEvaluated transition constraints over OOD domain in {} us",
+        now.elapsed().as_micros()
+    );
 
     // merge all constraint evaluations into a single value by computing their random linear
     // combination using coefficients drawn from the public coin. this also divides the result
@@ -60,6 +79,8 @@ pub fn evaluate_constraints<A: Air, E: FieldElement<BaseField = A::BaseField>>(
     // 2 ----- evaluate boundary constraints ------------------------------------------------------
 
     // get boundary constraints grouped by common divisor from the AIR
+    #[cfg(feature = "std")]
+    let now = Instant::now();
     let b_constraints =
         air.get_boundary_constraints(&aux_rand_elements, &composition_coefficients.boundary);
 
@@ -96,6 +117,11 @@ pub fn evaluate_constraints<A: Air, E: FieldElement<BaseField = A::BaseField>>(
             result += group.evaluate_at(aux_trace_frame.current(), x, xp);
         }
     }
+    #[cfg(feature = "std")]
+    debug!(
+        "\tEvaluated boundary constraints in {} us",
+        now.elapsed().as_micros()
+    );
 
     result
 }

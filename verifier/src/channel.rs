@@ -14,6 +14,11 @@ use fri::VerifierChannel as FriVerifierChannel;
 use math::{FieldElement, StarkField};
 use utils::{collections::Vec, string::ToString};
 
+#[cfg(feature = "std")]
+use log::debug;
+#[cfg(feature = "std")]
+use std::time::Instant;
+
 // VERIFIER CHANNEL
 // ================================================================================================
 
@@ -170,6 +175,8 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> VerifierChanne
         &mut self,
         positions: &[usize],
     ) -> Result<(Table<E::BaseField>, Option<Table<E>>), VerifierError> {
+        #[cfg(feature = "std")]
+        let now = Instant::now();
         let queries = self.trace_queries.take().expect("already read");
 
         // make sure the states included in the proof correspond to the trace commitment
@@ -177,6 +184,12 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> VerifierChanne
             MerkleTree::verify_batch(root, positions, proof)
                 .map_err(|_| VerifierError::TraceQueryDoesNotMatchCommitment)?;
         }
+        #[cfg(feature = "std")]
+        debug!(
+            "\tVerified trace commitment against {} positions (i.e. auth paths) in {} us",
+            positions.len(),
+            now.elapsed().as_micros()
+        );
 
         Ok((queries.main_states, queries.aux_states))
     }
@@ -188,10 +201,18 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> VerifierChanne
         &mut self,
         positions: &[usize],
     ) -> Result<Table<E>, VerifierError> {
+        #[cfg(feature = "std")]
+        let now = Instant::now();
         let queries = self.constraint_queries.take().expect("already read");
 
         MerkleTree::verify_batch(&self.constraint_root, positions, &queries.query_proofs)
             .map_err(|_| VerifierError::ConstraintQueryDoesNotMatchCommitment)?;
+        #[cfg(feature = "std")]
+        debug!(
+            "\tVerified constraint commitment against {} positions (i.e. auth paths) in {} us",
+            positions.len(),
+            now.elapsed().as_micros()
+        );
 
         Ok(queries.evaluations)
     }
