@@ -14,6 +14,11 @@ use fri::VerifierChannel as FriVerifierChannel;
 use math::{FieldElement, StarkField};
 use utils::{collections::Vec, string::ToString};
 
+#[cfg(feature = "std")]
+use log::debug;
+#[cfg(feature = "std")]
+use std::time::Instant;
+
 // VERIFIER CHANNEL
 // ================================================================================================
 
@@ -189,9 +194,16 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> VerifierChanne
         positions: &[usize],
     ) -> Result<Table<E>, VerifierError> {
         let queries = self.constraint_queries.take().expect("already read");
-
+        #[cfg(feature = "std")]
+        let now = Instant::now();
         MerkleTree::verify_batch(&self.constraint_root, positions, &queries.query_proofs)
             .map_err(|_| VerifierError::ConstraintQueryDoesNotMatchCommitment)?;
+        #[cfg(feature = "std")]
+        debug!(
+            "\tVerified constraint commitment against {} positions (i.e. auth paths) in {} us",
+            positions.len(),
+            now.elapsed().as_micros()
+        );
 
         Ok(queries.evaluations)
     }

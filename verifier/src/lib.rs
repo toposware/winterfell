@@ -218,7 +218,7 @@ where
 
     #[cfg(feature = "std")]
     debug!(
-        "1- Read trace commitment over LDE domain and drew random coefficients in {} us",
+        "Read trace commitment over LDE domain and drew random coefficients in {} us",
         now.elapsed().as_micros()
     );
 
@@ -238,7 +238,7 @@ where
 
     #[cfg(feature = "std")]
     debug!(
-        "2- Read composition polynomial commitment over LDE domain and drew OOD point in {} us",
+        "Read composition polynomial commitment over LDE domain and drew OOD point in {} us",
         now.elapsed().as_micros()
     );
 
@@ -279,7 +279,7 @@ where
     }
     #[cfg(feature = "std")]
     debug!(
-        "3.a- Read OOD evaluation frame and evaluated constraints over it in {} us",
+        "Read OOD evaluation frame and evaluated constraints over it in {} us",
         now.elapsed().as_micros()
     );
 
@@ -299,7 +299,7 @@ where
     public_coin.reseed(H::hash_elements(&ood_constraint_evaluations));
     #[cfg(feature = "std")]
     debug!(
-        "3.b- Read composition polynomial evaluations and folded them into one in {} us",
+        "Read composition polynomial evaluations and folded them into one in {} us",
         now.elapsed().as_micros()
     );
 
@@ -318,8 +318,9 @@ where
     let deep_coefficients = air
         .get_deep_composition_coefficients::<E, H>(&mut public_coin)
         .map_err(|_| VerifierError::RandomCoinError)?;
+    #[cfg(feature = "std")]
     debug!(
-        "4.a- Drew coefficients for computing the DEEP composition polynomial {} us",
+        "Drew coefficients for computing the DEEP composition polynomial {} us",
         now.elapsed().as_micros()
     );
 
@@ -337,8 +338,9 @@ where
         air.trace_poly_degree(),
     )
     .map_err(VerifierError::FriVerificationFailed)?;
+    #[cfg(feature = "std")]
     debug!(
-        "4.b- Performed commit phase of the FRI protocol in {} us",
+        "Performed commit phase of the FRI protocol in {} us",
         now.elapsed().as_micros()
     );
     // TODO: make sure air.lde_domain_size() == fri_verifier.domain_size()
@@ -368,8 +370,9 @@ where
     let (queried_main_trace_states, queried_aux_trace_states) =
         channel.read_queried_trace_states(&query_positions)?;
     let queried_constraint_evaluations = channel.read_constraint_evaluations(&query_positions)?;
+    #[cfg(feature = "std")]
     debug!(
-        "5- Verified POW, drew FRI query positions and read evaluations of trace and composition polynomial at these positions in {} us",
+        "Verified POW, drew FRI query positions and read evaluations of trace and composition polynomial at these positions in {} us",
         now.elapsed().as_micros()
     );
 
@@ -387,8 +390,9 @@ where
     let c_composition = composer
         .compose_constraint_evaluations(queried_constraint_evaluations, ood_constraint_evaluations);
     let deep_evaluations = composer.combine_compositions(t_composition, c_composition);
+    #[cfg(feature = "std")]
     debug!(
-        "6- Computed evaluations of the DEEP composition polynomial at the queried positions in {} us",
+        "Computed evaluations of the DEEP composition polynomial at the queried positions in {} us",
         now.elapsed().as_micros()
     );
 
@@ -400,10 +404,13 @@ where
     let result = fri_verifier
         .verify(&mut channel, &deep_evaluations, &query_positions)
         .map_err(VerifierError::FriVerificationFailed);
+    #[cfg(feature = "std")]
     debug!(
-        "7- Verified low-degree proof in {} us",
+        "Verified low-degree proof in {} us",
         now.elapsed().as_micros()
     );
+    #[cfg(feature = "std")]
+    debug!("---------------------");
 
     result
 }
