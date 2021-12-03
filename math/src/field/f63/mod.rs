@@ -182,10 +182,6 @@ impl FieldElement for BaseElement {
 
     const IS_CANONICAL: bool = false;
 
-    fn exp(self, power: Self::Representation) -> Self {
-        BaseElement(self.0.exp(power))
-    }
-
     fn inv(self) -> Self {
         BaseElement(self.invert().unwrap_or(BaseElementInner::zero()))
     }
