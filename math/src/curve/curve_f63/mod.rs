@@ -385,7 +385,16 @@ impl AffinePoint {
     }
 
     pub fn multiply(&self, by: &[u8; 32]) -> AffinePoint {
-        AffinePoint(self.0.multiply(by))
+        AffinePoint(self.0.multiply_vartime(by))
+    }
+
+    pub fn multiply_double(
+        &self,
+        rhs: &AffinePoint,
+        by_lhs: &[u8; 32],
+        by_rhs: &[u8; 32],
+    ) -> AffinePoint {
+        AffinePoint(self.0.multiply_double_vartime(&rhs.0, by_lhs, by_rhs))
     }
 
     /// Multiplies by the curve cofactor
@@ -704,8 +713,17 @@ impl ProjectivePoint {
         ProjectivePoint(self.0.add_mixed(&rhs.0))
     }
 
-    fn multiply(&self, by: &[u8; 32]) -> ProjectivePoint {
-        ProjectivePoint(self.0.multiply(by))
+    pub fn multiply(&self, by: &[u8; 32]) -> ProjectivePoint {
+        ProjectivePoint(self.0.multiply_vartime(by))
+    }
+
+    pub fn multiply_double(
+        &self,
+        rhs: &ProjectivePoint,
+        by_lhs: &[u8; 32],
+        by_rhs: &[u8; 32],
+    ) -> ProjectivePoint {
+        ProjectivePoint(self.0.multiply_double_vartime(&rhs.0, by_lhs, by_rhs))
     }
 
     /// Multiplies by the curve cofactor
