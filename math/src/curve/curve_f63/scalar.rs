@@ -25,7 +25,7 @@ const ELEMENT_BYTES: usize = core::mem::size_of::<[u64; 4]>();
 /// Represents a scalar field element.
 ///
 /// Internal values are stored in their canonical form in the range [0, M).
-/// The backing type is `stark_curve::Scalar`.
+/// The backing type is `cheetah::Scalar`.
 #[derive(Copy, Clone, PartialEq, Eq, Default)]
 pub struct Scalar(pub(crate) ScalarInner);
 
