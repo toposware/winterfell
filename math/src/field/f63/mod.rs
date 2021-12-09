@@ -259,7 +259,7 @@ impl StarkField for BaseElement {
     const TWO_ADIC_ROOT_OF_UNITY: Self = BaseElement::new(G);
 
     fn get_root_of_unity(n: u32) -> Self {
-        BaseElement(BaseElementInner::get_root_of_unity(n))
+        BaseElement(BaseElementInner::get_root_of_unity_vartime(n))
     }
 
     fn get_modulus_le_bytes() -> Vec<u8> {
