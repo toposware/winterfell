@@ -133,7 +133,7 @@ impl Scalar {
     }
 
     pub fn exp(self, by: &[u64; 4]) -> Self {
-        Scalar(self.0.exp(by))
+        Scalar(self.0.exp_vartime(by))
     }
 
     pub fn invert(self) -> Self {

@@ -182,10 +182,6 @@ impl FieldElement for BaseElement {
 
     const IS_CANONICAL: bool = false;
 
-    fn exp(self, power: Self::Representation) -> Self {
-        BaseElement(self.0.exp(power))
-    }
-
     fn inv(self) -> Self {
         BaseElement(self.invert().unwrap_or(BaseElementInner::zero()))
     }
@@ -263,7 +259,7 @@ impl StarkField for BaseElement {
     const TWO_ADIC_ROOT_OF_UNITY: Self = BaseElement::new(G);
 
     fn get_root_of_unity(n: u32) -> Self {
-        BaseElement(BaseElementInner::get_root_of_unity(n))
+        BaseElement(BaseElementInner::get_root_of_unity_vartime(n))
     }
 
     fn get_modulus_le_bytes() -> Vec<u8> {
