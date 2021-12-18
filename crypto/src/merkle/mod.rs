@@ -129,20 +129,28 @@ impl<H: Hasher> MerkleTree<H> {
 
     /// Returns new Merkle tree built from default, empty leaves using hash function
     /// specified by the `H` generic parameter.
-    pub fn build_empty(depth: usize, empty_leaf: H::Digest) -> Result<Self, MerkleTreeError> {
+    pub fn build_empty(depth: usize) -> Self {
         // Calculate number of leaves
         let n = 2usize.pow(depth as u32);
         // Build the leaves
-        let leaves = vec![empty_leaf; n];
-        // Determing hash values for nodes depending upon level
-        let mut cur_empty = empty_leaf;
-        let mut empty_nodes = Vec::new();
+        let result = vec![0u8; n * core::mem::size_of::<H::Digest>()];
+
+        // translate a zero-filled vector of u8s into a vector of digests
+        let mut v = core::mem::ManuallyDrop::new(result);
+        let p = v.as_mut_ptr();
+        let len = n;
+        let cap = n;
+        let leaves = unsafe { Vec::from_raw_parts(p as *mut H::Digest, len, cap) };
+        // Determine hash values for nodes depending upon level
+        let mut cur_empty = leaves[0];
+        let mut empty_nodes = Vec::with_capacity(depth);
         for _ in 0..depth {
             cur_empty = H::merge(&[cur_empty, cur_empty]);
             empty_nodes.push(cur_empty);
         }
         // Begin with an empty internal node set
-        let mut nodes = vec![cur_empty];
+        let mut nodes = Vec::with_capacity(n);
+        nodes.push(cur_empty);
         let mut num_nodes = 1;
         // Fill the nodes for each level
         for empty_node in empty_nodes.iter().rev() {
@@ -150,7 +158,7 @@ impl<H: Hasher> MerkleTree<H> {
             num_nodes *= 2;
         }
 
-        Ok(MerkleTree { nodes, leaves })
+        MerkleTree { nodes, leaves }
     }
 
     // PUBLIC ACCESSORS

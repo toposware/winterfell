@@ -40,11 +40,9 @@ pub fn empty_merkle_tree_construction(c: &mut Criterion) {
 
     static DEPTHS: [usize; 3] = [3, 7, 15];
 
-    let empty_leaf =  Blake3::hash(&rand_value::<u128>().to_le_bytes());
-
     for depth in DEPTHS {
         merkle_group.bench_function(BenchmarkId::new("construction", depth), |bench| {
-            bench.iter(|| MerkleTree::<Blake3>::build_empty(depth, empty_leaf))
+            bench.iter(|| MerkleTree::<Blake3>::build_empty(depth))
         });
     }
 }
