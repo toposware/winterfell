@@ -84,26 +84,32 @@ impl Scalar {
         Scalar(ScalarInner::new(value))
     }
 
+    #[must_use]
     pub fn add(&self, rhs: &Self) -> Self {
         Scalar(self.0.add(&rhs.0))
     }
 
+    #[must_use]
     pub fn sub(&self, rhs: &Self) -> Self {
         Scalar(self.0.sub(&rhs.0))
     }
 
+    #[must_use]
     pub fn neg(&self) -> Self {
         Scalar(self.0.neg())
     }
 
+    #[must_use]
     pub fn mul(&self, rhs: &Self) -> Self {
         Scalar(self.0.mul(&rhs.0))
     }
 
+    #[must_use]
     pub fn square(&self) -> Self {
         Scalar(self.0.square())
     }
 
+    #[must_use]
     pub fn double(&self) -> Self {
         self.add(self)
     }
@@ -132,14 +138,17 @@ impl Scalar {
         bool::from(self.0.lexicographically_largest())
     }
 
+    #[must_use]
     pub fn exp(self, by: &[u64; 4]) -> Self {
         Scalar(self.0.exp_vartime(by))
     }
 
+    #[must_use]
     pub fn invert(self) -> Self {
         Scalar(self.0.invert().unwrap_or_else(ScalarInner::zero))
     }
 
+    #[must_use]
     pub fn conjugate(&self) -> Self {
         Scalar(self.0)
     }
