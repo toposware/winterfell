@@ -8,7 +8,7 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use math::fields::f128::BaseElement;
 use rand_utils::rand_value;
 use utils::uninit_vector;
-use winter_crypto::{build_merkle_nodes, concurrent, hashers::Blake3_256, Hasher};
+use winter_crypto::{build_merkle_nodes, concurrent, hashers::Blake3_256, Hasher, MerkleTree};
 
 type Blake3 = Blake3_256<BaseElement>;
 type Blake3Digest = <Blake3 as Hasher>::Digest;
@@ -35,5 +35,21 @@ pub fn merkle_tree_construction(c: &mut Criterion) {
     }
 }
 
-criterion_group!(merkle_group, merkle_tree_construction,);
+pub fn empty_merkle_tree_construction(c: &mut Criterion) {
+    let mut merkle_group = c.benchmark_group("empty merkle tree");
+
+    static DEPTHS: [usize; 3] = [3, 7, 15];
+
+    for depth in DEPTHS {
+        merkle_group.bench_function(BenchmarkId::new("construction", depth), |bench| {
+            bench.iter(|| MerkleTree::<Blake3>::build_empty(depth))
+        });
+    }
+}
+
+criterion_group!(
+    merkle_group,
+    merkle_tree_construction,
+    empty_merkle_tree_construction
+);
 criterion_main!(merkle_group);
