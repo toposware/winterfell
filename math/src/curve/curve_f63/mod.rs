@@ -384,10 +384,12 @@ impl AffinePoint {
         bool::from(self.0.is_on_curve())
     }
 
+    #[must_use]
     pub fn multiply(&self, by: &[u8; 32]) -> AffinePoint {
         AffinePoint(self.0.multiply_vartime(by))
     }
 
+    #[must_use]
     pub fn multiply_double(
         &self,
         rhs: &AffinePoint,
@@ -398,6 +400,7 @@ impl AffinePoint {
     }
 
     /// Multiplies by the curve cofactor
+    #[must_use]
     pub fn clear_cofactor(&self) -> AffinePoint {
         AffinePoint(self.0.clear_cofactor())
     }
@@ -699,24 +702,29 @@ impl ProjectivePoint {
     }
 
     /// Computes the doubling of this point.
+    #[must_use]
     pub fn double(&self) -> ProjectivePoint {
         ProjectivePoint(self.0.double())
     }
 
     /// Adds this point to another point.
+    #[must_use]
     pub fn add(&self, rhs: &ProjectivePoint) -> ProjectivePoint {
         ProjectivePoint(self.0.add(&rhs.0))
     }
 
     /// Adds this point to another point in the affine model.
+    #[must_use]
     pub fn add_mixed(&self, rhs: &AffinePoint) -> ProjectivePoint {
         ProjectivePoint(self.0.add_mixed(&rhs.0))
     }
 
+    #[must_use]
     pub fn multiply(&self, by: &[u8; 32]) -> ProjectivePoint {
         ProjectivePoint(self.0.multiply_vartime(by))
     }
 
+    #[must_use]
     pub fn multiply_double(
         &self,
         rhs: &ProjectivePoint,
@@ -727,6 +735,7 @@ impl ProjectivePoint {
     }
 
     /// Multiplies by the curve cofactor
+    #[must_use]
     pub fn clear_cofactor(&self) -> ProjectivePoint {
         ProjectivePoint(self.0.clear_cofactor())
     }

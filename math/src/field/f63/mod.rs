@@ -96,31 +96,37 @@ impl BaseElement {
     }
 
     #[inline]
+    #[must_use]
     pub fn add(&self, rhs: &Self) -> Self {
         BaseElement(self.0.add(&rhs.0))
     }
 
     #[inline]
+    #[must_use]
     pub fn sub(&self, rhs: &Self) -> Self {
         BaseElement(self.0.sub(&rhs.0))
     }
 
     #[inline]
+    #[must_use]
     pub fn neg(&self) -> Self {
         BaseElement(self.0.neg())
     }
 
     #[inline]
+    #[must_use]
     pub fn mul(&self, rhs: &Self) -> Self {
         BaseElement(self.0.mul(&rhs.0))
     }
 
     #[inline]
+    #[must_use]
     pub fn square(&self) -> Self {
         BaseElement(self.0.square())
     }
 
     #[inline]
+    #[must_use]
     pub fn double(&self) -> Self {
         BaseElement(self.0.double())
     }
@@ -146,6 +152,7 @@ impl BaseElement {
 
     /// Constructs an element of `BaseElement` without checking that it is
     /// canonical.
+    #[must_use]
     pub const fn from_raw_unchecked(v: u64) -> Self {
         BaseElement(BaseElementInner::from_raw_unchecked(v))
     }
@@ -166,6 +173,7 @@ impl BaseElement {
     }
 
     /// Generates a random field element
+    #[must_use]
     pub fn random(mut rng: impl RngCore) -> Self {
         BaseElement(BaseElementInner::random(&mut rng))
     }
