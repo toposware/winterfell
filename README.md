@@ -7,7 +7,7 @@
 <img src="https://img.shields.io/badge/verifier-rustc_1.54+-lightgray.svg">
 <a href="https://crates.io/crates/winterfell"><img src="https://img.shields.io/crates/v/winterfell"></a>
 
-A STARK prover and verifier for arbitrary computations.
+This is a fork of novifinancial/winterfell, a STARK prover and verifier for arbitrary computations.
 
 **WARNING:** This is a research project. It has not been audited and may contain bugs and security flaws. This implementation is NOT ready for production use.
 
