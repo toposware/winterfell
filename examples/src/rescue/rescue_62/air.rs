@@ -8,15 +8,14 @@ use super::rescue;
 use crate::utils::{are_equal, is_zero, not, EvaluationResult};
 use winterfell::{
     math::{fields::f62::BaseElement, FieldElement},
-    Air, AirContext, Assertion, ByteWriter, EvaluationFrame, ExecutionTrace, ProofOptions,
-    Serializable, TraceInfo, TransitionConstraintDegree,
+    Air, AirContext, Assertion, ByteWriter, EvaluationFrame, ProofOptions, Serializable, TraceInfo,
+    TransitionConstraintDegree,
 };
 
 // CONSTANTS
 // ================================================================================================
 
 const CYCLE_LENGTH: usize = 16;
-const NUM_HASH_ROUNDS: usize = 14;
 const TRACE_WIDTH: usize = 4;
 
 /// Specifies steps on which Rescue transition function is applied.
@@ -139,38 +138,4 @@ fn enforce_hash_copy<E: FieldElement>(result: &mut [E], current: &[E], next: &[E
     result.agg_constraint(1, flag, are_equal(current[1], next[1]));
     result.agg_constraint(2, flag, is_zero(next[2]));
     result.agg_constraint(3, flag, is_zero(next[3]));
-}
-
-// RESCUE TRACE GENERATOR
-// ================================================================================================
-
-pub fn build_trace(seed: [BaseElement; 2], iterations: usize) -> ExecutionTrace<BaseElement> {
-    // allocate memory to hold the trace table
-    let trace_length = iterations * CYCLE_LENGTH;
-    let mut trace = ExecutionTrace::new(4, trace_length);
-
-    trace.fill(
-        |state| {
-            // initialize first state of the computation
-            state[0] = seed[0];
-            state[1] = seed[1];
-            state[2] = BaseElement::ZERO;
-            state[3] = BaseElement::ZERO;
-        },
-        |step, state| {
-            // execute the transition function for all steps
-            //
-            // for the first 14 steps in every cycle, compute a single round of
-            // Rescue hash; for the remaining 2 rounds, just carry over the values
-            // in the first two registers to the next step
-            if (step % CYCLE_LENGTH) < NUM_HASH_ROUNDS {
-                rescue::apply_round(state, step);
-            } else {
-                state[2] = BaseElement::ZERO;
-                state[3] = BaseElement::ZERO;
-            }
-        },
-    );
-
-    trace
 }
