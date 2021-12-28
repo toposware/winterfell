@@ -361,7 +361,8 @@
 //!
 //! impl Prover for WorkProver {
 //!     type BaseField = BaseElement;
-//!     type AIR = WorkAir;
+//!     type Air = WorkAir;
+//!     type Trace = ExecutionTrace<Self::BaseField>;
 //!
 //!     fn options(&self) -> &ProofOptions {
 //!         &self.options
@@ -409,7 +410,7 @@ pub use prover::{
     BoundaryConstraintGroup, ByteReader, ByteWriter, ConstraintCompositionCoefficients,
     ConstraintDivisor, DeepCompositionCoefficients, Deserializable, DeserializationError,
     EvaluationFrame, ExecutionTrace, ExecutionTraceFragment, FieldExtension, HashFunction,
-    ProofOptions, Prover, ProverError, Serializable, StarkProof, TraceInfo,
+    ProofOptions, Prover, ProverError, Serializable, StarkProof, Trace, TraceInfo,
     TransitionConstraintDegree, TransitionConstraintGroup,
 };
 pub use verifier::{verify, VerifierError};

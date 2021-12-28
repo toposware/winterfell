@@ -80,7 +80,8 @@ impl LamportAggregateProver {
 
 impl Prover for LamportAggregateProver {
     type BaseField = BaseElement;
-    type AIR = LamportAggregateAir;
+    type Air = LamportAggregateAir;
+    type Trace = ExecutionTrace<BaseElement>;
 
     fn options(&self) -> &ProofOptions {
         &self.options

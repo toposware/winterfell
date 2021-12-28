@@ -6,7 +6,7 @@
 
 use crate::{
     tests::{build_fib_trace, MockAir},
-    StarkDomain,
+    StarkDomain, Trace,
 };
 use crypto::{hashers::Blake3_256, ElementHasher, MerkleTree};
 use math::{

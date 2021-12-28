@@ -115,7 +115,8 @@ impl LamportThresholdProver {
 
 impl Prover for LamportThresholdProver {
     type BaseField = BaseElement;
-    type AIR = LamportThresholdAir;
+    type Air = LamportThresholdAir;
+    type Trace = ExecutionTrace<BaseElement>;
 
     fn options(&self) -> &ProofOptions {
         &self.options

@@ -64,7 +64,8 @@ impl RescueProver {
 
 impl Prover for RescueProver {
     type BaseField = BaseElement;
-    type AIR = RescueAir;
+    type Air = RescueAir;
+    type Trace = ExecutionTrace<BaseElement>;
 
     fn options(&self) -> &ProofOptions {
         &self.options

@@ -12,7 +12,7 @@ use log::debug;
 use std::time::Instant;
 use winterfell::{
     math::{fields::f128::BaseElement, log2},
-    ProofOptions, Prover, StarkProof, VerifierError,
+    ProofOptions, Prover, StarkProof, Trace, VerifierError,
 };
 
 mod air;
