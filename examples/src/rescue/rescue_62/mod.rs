@@ -9,7 +9,7 @@ use log::debug;
 use std::time::Instant;
 use winterfell::{
     math::{fields::f62::BaseElement, log2, FieldElement},
-    ExecutionTrace, ProofOptions, Prover, StarkProof, Trace, VerifierError,
+    ProofOptions, Prover, StarkProof, Trace, TraceTable, VerifierError,
 };
 
 #[allow(clippy::module_inception)]

@@ -1,6 +1,6 @@
 use super::{
-    rescue, BaseElement, ExecutionTrace, FieldElement, ProofOptions, Prover, RescueAir,
-    CYCLE_LENGTH, NUM_HASH_ROUNDS,
+    rescue, BaseElement, FieldElement, ProofOptions, Prover, RescueAir, TraceTable, CYCLE_LENGTH,
+    NUM_HASH_ROUNDS,
 };
 
 // RESCUE PROVER
@@ -19,10 +19,10 @@ impl RescueProver {
         &self,
         seed: [BaseElement; 7],
         iterations: usize,
-    ) -> ExecutionTrace<BaseElement> {
+    ) -> TraceTable<BaseElement> {
         // allocate memory to hold the trace table
         let trace_length = iterations * CYCLE_LENGTH;
-        let mut trace = ExecutionTrace::new(14, trace_length);
+        let mut trace = TraceTable::new(14, trace_length);
 
         trace.fill(
             |state| {
@@ -65,7 +65,7 @@ impl RescueProver {
 impl Prover for RescueProver {
     type BaseField = BaseElement;
     type Air = RescueAir;
-    type Trace = ExecutionTrace<BaseElement>;
+    type Trace = TraceTable<BaseElement>;
 
     fn options(&self) -> &ProofOptions {
         &self.options

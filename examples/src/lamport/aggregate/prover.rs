@@ -5,12 +5,9 @@
 // LICENSE file in the root directory of this source tree.
 
 use super::{
-    rescue, LamportAggregateAir, ProofOptions, Prover, Signature, CYCLE_LENGTH, NUM_HASH_ROUNDS,
-    SIG_CYCLE_LENGTH, TRACE_WIDTH,
-};
-use winterfell::{
-    math::{fields::f128::BaseElement, get_power_series, FieldElement, StarkField},
-    ExecutionTrace,
+    get_power_series, rescue, BaseElement, FieldElement, LamportAggregateAir, ProofOptions, Prover,
+    Signature, StarkField, TraceTable, CYCLE_LENGTH, NUM_HASH_ROUNDS, SIG_CYCLE_LENGTH,
+    TRACE_WIDTH,
 };
 
 #[cfg(feature = "concurrent")]
@@ -54,10 +51,10 @@ impl LamportAggregateProver {
         &self,
         messages: &[[BaseElement; 2]],
         signatures: &[Signature],
-    ) -> ExecutionTrace<BaseElement> {
+    ) -> TraceTable<BaseElement> {
         // allocate memory to hold the trace table
         let trace_length = SIG_CYCLE_LENGTH * messages.len();
-        let mut trace = ExecutionTrace::new(TRACE_WIDTH, trace_length);
+        let mut trace = TraceTable::new(TRACE_WIDTH, trace_length);
 
         let powers_of_two = get_power_series(TWO, 128);
 
@@ -81,7 +78,7 @@ impl LamportAggregateProver {
 impl Prover for LamportAggregateProver {
     type BaseField = BaseElement;
     type Air = LamportAggregateAir;
-    type Trace = ExecutionTrace<BaseElement>;
+    type Trace = TraceTable<BaseElement>;
 
     fn options(&self) -> &ProofOptions {
         &self.options

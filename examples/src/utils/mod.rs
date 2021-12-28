@@ -7,7 +7,7 @@
 use core::ops::Range;
 use winterfell::{
     math::{fields::f128::BaseElement, FieldElement, StarkField},
-    ExecutionTrace, Trace,
+    Trace, TraceTable,
 };
 
 pub mod rescue;
@@ -60,7 +60,7 @@ impl<E: FieldElement> EvaluationResult<E> for Vec<E> {
 
 /// Prints out an execution trace.
 pub fn print_trace(
-    trace: &ExecutionTrace<BaseElement>,
+    trace: &TraceTable<BaseElement>,
     multiples_of: usize,
     offset: usize,
     range: Range<usize>,

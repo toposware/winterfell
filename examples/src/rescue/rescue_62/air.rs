@@ -4,11 +4,10 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-use super::rescue;
+use super::{rescue, BaseElement, FieldElement, ProofOptions};
 use crate::utils::{are_equal, is_zero, not, EvaluationResult};
 use winterfell::{
-    math::{fields::f62::BaseElement, FieldElement},
-    Air, AirContext, Assertion, ByteWriter, EvaluationFrame, ProofOptions, Serializable, TraceInfo,
+    Air, AirContext, Assertion, ByteWriter, EvaluationFrame, Serializable, TraceInfo,
     TransitionConstraintDegree,
 };
 
@@ -60,7 +59,7 @@ pub struct RescueAir {
 }
 
 impl Air for RescueAir {
-    type BaseElement = BaseElement;
+    type BaseField = BaseElement;
     type PublicInputs = PublicInputs;
 
     // CONSTRUCTOR
@@ -80,11 +79,11 @@ impl Air for RescueAir {
         }
     }
 
-    fn context(&self) -> &AirContext<Self::BaseElement> {
+    fn context(&self) -> &AirContext<Self::BaseField> {
         &self.context
     }
 
-    fn evaluate_transition<E: FieldElement + From<Self::BaseElement>>(
+    fn evaluate_transition<E: FieldElement + From<Self::BaseField>>(
         &self,
         frame: &EvaluationFrame<E>,
         periodic_values: &[E],
@@ -109,7 +108,7 @@ impl Air for RescueAir {
         enforce_hash_copy(result, current, next, copy_flag);
     }
 
-    fn get_assertions(&self) -> Vec<Assertion<Self::BaseElement>> {
+    fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
         // Assert starting and ending values of the hash chain
         let last_step = self.trace_length() - 1;
         vec![
@@ -120,7 +119,7 @@ impl Air for RescueAir {
         ]
     }
 
-    fn get_periodic_column_values(&self) -> Vec<Vec<Self::BaseElement>> {
+    fn get_periodic_column_values(&self) -> Vec<Vec<Self::BaseField>> {
         let mut result = vec![CYCLE_MASK.to_vec()];
         result.append(&mut rescue::get_round_constants());
         result
