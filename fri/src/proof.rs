@@ -226,8 +226,8 @@ impl Deserializable for FriProof {
         let layers = FriProofLayer::read_batch_from(source, num_layers)?;
 
         // read remainder
-        let remainder_bytes = source.read_u16()? as usize;
-        let remainder = source.read_u8_vec(remainder_bytes)?;
+        let num_remainder_bytes = source.read_u16()? as usize;
+        let remainder = source.read_u8_vec(num_remainder_bytes)?;
 
         // read number of partitions
         let num_partitions = source.read_u8()?;
