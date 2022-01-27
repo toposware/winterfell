@@ -10,7 +10,7 @@ use std::time::Instant;
 use structopt::StructOpt;
 use winterfell::StarkProof;
 
-use examples::{fibonacci, rescue::*, ExampleOptions, ExampleType};
+use examples::{fibonacci, collatz, rescue::*, ExampleOptions, ExampleType};
 #[cfg(feature = "std")]
 use examples::{lamport, merkle};
 
@@ -31,6 +31,9 @@ fn main() {
 
     // instantiate and prepare the example
     let example = match options.example {
+        ExampleType::Collatz { input_value, sequence_length } => {
+            collatz::get_example(options, input_value, sequence_length)
+        }
         ExampleType::Fib { sequence_length } => {
             fibonacci::fib2::get_example(options, sequence_length)
         }

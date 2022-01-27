@@ -7,6 +7,7 @@
 use structopt::StructOpt;
 use winterfell::{FieldExtension, HashFunction, ProofOptions, StarkProof, VerifierError};
 
+pub mod collatz;
 pub mod fibonacci;
 #[cfg(feature = "std")]
 pub mod lamport;
@@ -93,6 +94,15 @@ impl ExampleOptions {
 #[derive(StructOpt, Debug)]
 //#[structopt(about = "available examples")]
 pub enum ExampleType {
+    /// Compute a Collatz sequence using trace table with 1 register
+    Collatz {
+        /// Input of Collatz sequence
+        #[structopt(short = "n", default_value = "42")]
+        input_value: usize,
+        /// Length of Collatz sequence; must be a power of two
+        #[structopt(short = "n", default_value = "4096")]
+        sequence_length: usize,
+    },
     /// Compute a Fibonacci sequence using trace table with 2 registers
     Fib {
         /// Length of Fibonacci sequence; must be a power of two
