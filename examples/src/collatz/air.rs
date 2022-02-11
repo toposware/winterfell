@@ -63,7 +63,8 @@ impl Air for CollatzAir {
     fn evaluate_transition<E: FieldElement + From<Self::BaseField>>(
         &self,
         frame: &EvaluationFrame<E>,
-        _periodic_values: &[E],
+        // TODO 2.3 Add the constraints using these periodic values. Dont forget to copy ;-)
+        periodic_values: &[E],
         result: &mut [E],
     ) {
         let current = frame.current();
@@ -88,6 +89,17 @@ impl Air for CollatzAir {
         // to the next power of two, we instead want to enforce that the
         // last term is matching the provided final_input.
         // todo: return a vector of assertions for the first and last step of the program
+        unimplemented!();
+    }
+
+    // TODO 2.2 In the evaluate_constraints function you don't have access to the step,
+    // and hence is not clear how to know wether to enforce collatz or binary_decomp.
+    // The way we tell the AIR program what to do is using the peridoc_columns which is just a bunch of
+    // vectors whose length divide the trace legth (and hence powers of 2). Whenever the function
+    // evaluate_constrains is called for checking the constrains between rows i and i+1, the function
+    // receives as input a vector containing periodic_columns[1][i], ..., periodic_columns[n][i]. (Actually
+    // 'i' can be any point on the "extended domain").
+    fn get_periodic_column_values(&self) -> Vec<Vec<Self::BaseField>> {
         unimplemented!();
     }
 }

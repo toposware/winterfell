@@ -46,6 +46,24 @@ impl CollatzProver {
         // Question: What are the potential risks of assumming that b_i0 is correct?
         //
         // Note: The trace length must be a power of 2.
+        //
+        // PART 2 Now we will not assume that the parity bit is correctly computed. To do so,
+        // we are forced to non-deterministically guess the whole binary representation and then
+        // check its correctness. (Hard question: Can we prove that it is necessary to check the whole
+        // binary representation even when we just need the parity bit?). To do so, our AIR program needs
+        // to switch between two states: a) non-deterministically checking the validity of the binary decomposition;
+        // and b) enforcing the correct computation of the Collatz function repeating the following patern
+        // +---------------+
+        // | binary_decomp |
+        // +---------------+
+        // | collatz       |
+        // +---------------+
+        // QUESTION 2. What other pattern could we use?
+        // ATENTION! This time we will use only the aforementioned pattern.unimplemented
+        //
+        // TODO 2.1 Compute the trace as mentioned before. Note that now the function for updating
+        // the trace rows receives the step as input. Use that value to know wether you need to
+        // do collatz or the binary decomposition.
         assert!(
             sequence_length.is_power_of_two(),
             "sequence length must be a power of 2"
