@@ -9,7 +9,7 @@
 //! This field supports very fast modular arithmetic and has a number of other attractive
 //! properties, including:
 //! * Multiplication of two 32-bit values does not overflow field modulus.
-//! * Filed arithmetic in this field can be implemented using a few 32-bit addition, subtractions,
+//! * Field arithmetic in this field can be implemented using a few 32-bit addition, subtractions,
 //!   and shifts.
 //! * $8$ is the 64th root of unity which opens up potential for optimized FFT implementations.
 //!
@@ -60,7 +60,7 @@ pub struct BaseElement(u64);
 
 impl BaseElement {
     /// Creates a new field element from the provided `value`. If the value is greater than or
-    /// equal to the field modulus, modular reduction is silently preformed.
+    /// equal to the field modulus, modular reduction is silently performed.
     pub const fn new(value: u64) -> Self {
         Self(value % M)
     }
@@ -79,51 +79,33 @@ impl FieldElement for BaseElement {
     #[inline]
     #[allow(clippy::many_single_char_names)]
     fn inv(self) -> Self {
-        let x = self.to_repr();
+        // compute base^(M - 2) using 72 multiplications
+        // M - 2 = 0b1111111111111111111111111111111011111111111111111111111111111111
 
-        if x == 0 {
-            return Self::ZERO;
-        };
+        // compute base^11
+        let t2 = self.square() * self;
 
-        let mut a: u128 = 0;
-        let mut u: u128 = if x & 1 == 1 {
-            x as u128
-        } else {
-            (x as u128) + (M as u128)
-        };
-        let mut v: u128 = M as u128;
-        let mut d = (M as u128) - 1;
+        // compute base^111
+        let t3 = t2.square() * self;
 
-        while v != 1 {
-            while v < u {
-                u -= v;
-                d += a;
-                while u & 1 == 0 {
-                    if d & 1 == 1 {
-                        d += M as u128;
-                    }
-                    u >>= 1;
-                    d >>= 1;
-                }
-            }
+        // compute base^111111 (6 ones)
+        let t6 = exp_acc::<3>(t3, t3);
 
-            v -= u;
-            a += d;
+        // compute base^111111111111 (12 ones)
+        let t12 = exp_acc::<6>(t6, t6);
 
-            while v & 1 == 0 {
-                if a & 1 == 1 {
-                    a += M as u128;
-                }
-                v >>= 1;
-                a >>= 1;
-            }
-        }
+        // compute base^111111111111111111111111 (24 ones)
+        let t24 = exp_acc::<12>(t12, t12);
 
-        while a > (M as u128) {
-            a -= M as u128;
-        }
+        // compute base^1111111111111111111111111111111 (31 ones)
+        let t30 = exp_acc::<6>(t24, t6);
+        let t31 = t30.square() * self;
 
-        Self(a as u64)
+        // compute base^111111111111111111111111111111101111111111111111111111111111111
+        let t63 = exp_acc::<32>(t31, t31);
+
+        // compute base^1111111111111111111111111111111011111111111111111111111111111111
+        t63.square() * self
     }
 
     fn conjugate(&self) -> Self {
@@ -415,37 +397,37 @@ impl ExtensibleField<3> for BaseElement {
 // ================================================================================================
 
 impl From<u128> for BaseElement {
-    /// Converts a 128-bit value into a filed element. If the value is greater than or equal to
-    /// the field modulus, modular reduction is silently preformed.
+    /// Converts a 128-bit value into a field element. If the value is greater than or equal to
+    /// the field modulus, modular reduction is silently performed.
     fn from(value: u128) -> Self {
         Self(mod_reduce(value))
     }
 }
 
 impl From<u64> for BaseElement {
-    /// Converts a 64-bit value into a filed element. If the value is greater than or equal to
-    /// the field modulus, modular reduction is silently preformed.
+    /// Converts a 64-bit value into a field element. If the value is greater than or equal to
+    /// the field modulus, modular reduction is silently performed.
     fn from(value: u64) -> Self {
         Self::new(value)
     }
 }
 
 impl From<u32> for BaseElement {
-    /// Converts a 32-bit value into a filed element.
+    /// Converts a 32-bit value into a field element.
     fn from(value: u32) -> Self {
         Self::new(value as u64)
     }
 }
 
 impl From<u16> for BaseElement {
-    /// Converts a 16-bit value into a filed element.
+    /// Converts a 16-bit value into a field element.
     fn from(value: u16) -> Self {
         Self::new(value as u64)
     }
 }
 
 impl From<u8> for BaseElement {
-    /// Converts an 8-bit value into a filed element.
+    /// Converts an 8-bit value into a field element.
     fn from(value: u8) -> Self {
         Self::new(value as u64)
     }
@@ -455,7 +437,7 @@ impl From<[u8; 8]> for BaseElement {
     /// Converts the value encoded in an array of 8 bytes into a field element. The bytes are
     /// assumed to encode the element in the canonical representation in little-endian byte order.
     /// If the value is greater than or equal to the field modulus, modular reduction is silently
-    /// preformed.
+    /// performed.
     fn from(bytes: [u8; 8]) -> Self {
         let value = u64::from_le_bytes(bytes);
         Self::new(value)
@@ -565,4 +547,14 @@ fn normalize(value: u64) -> u64 {
     } else {
         value
     }
+}
+
+/// Squares the base N number of times and multiplies the result by the tail value.
+#[inline(always)]
+fn exp_acc<const N: usize>(base: BaseElement, tail: BaseElement) -> BaseElement {
+    let mut result = base;
+    for _ in 0..N {
+        result = result.square();
+    }
+    result * tail
 }

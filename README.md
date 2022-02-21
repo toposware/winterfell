@@ -3,8 +3,8 @@
 <a href="https://github.com/novifinancial/winterfell/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
 <img src="https://github.com/novifinancial/winterfell/workflows/CI/badge.svg?branch=main">
 <a href="https://deps.rs/repo/github/novifinancial/winterfell"><img src="https://deps.rs/repo/github/novifinancial/winterfell/status.svg"></a>
-<img src="https://img.shields.io/badge/prover-rustc_1.54+-lightgray.svg">
-<img src="https://img.shields.io/badge/verifier-rustc_1.54+-lightgray.svg">
+<img src="https://img.shields.io/badge/prover-rustc_1.57+-lightgray.svg">
+<img src="https://img.shields.io/badge/verifier-rustc_1.57+-lightgray.svg">
 <a href="https://crates.io/crates/winterfell"><img src="https://img.shields.io/crates/v/winterfell"></a>
 
 This is a fork of novifinancial/winterfell, a STARK prover and verifier for arbitrary computations.
@@ -160,7 +160,7 @@ pub struct WorkAir {
 impl Air for WorkAir {
     // First, we'll specify which finite field to use for our computation, and also how
     // the public inputs must look like.
-    type BaseElement = BaseElement;
+    type BaseField = BaseElement;
     type PublicInputs = PublicInputs;
 
     // Here, we'll construct a new instance of our computation which is defined by 3 parameters:
@@ -187,7 +187,7 @@ impl Air for WorkAir {
     // be valid, if for all valid state transitions, transition constraints evaluate to all
     // zeros, and for any invalid transition, at least one constraint evaluates to a non-zero
     // value. The `frame` parameter will contain current and next states of the computation.
-    fn evaluate_transition<E: FieldElement + From<Self::BaseElement>>(
+    fn evaluate_transition<E: FieldElement + From<Self::BaseField>>(
         &self,
         frame: &EvaluationFrame<E>,
         _periodic_values: &[E],
@@ -205,7 +205,7 @@ impl Air for WorkAir {
     // Here, we'll define a set of assertions about the execution trace which must be satisfied
     // for the computation to be valid. Essentially, this ties computation's execution trace
     // to the public inputs.
-    fn get_assertions(&self) -> Vec<Assertion<Self::BaseElement>> {
+    fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
         // for our computation to be valid, value in column 0 at step 0 must be equal to the
         // starting value, and at the last step it must be equal to the result.
         let last_step = self.trace_length() - 1;
@@ -217,8 +217,52 @@ impl Air for WorkAir {
 
     // This is just boilerplate which is used by the Winterfell prover/verifier to retrieve
     // the context of the computation.
-    fn context(&self) -> &AirContext<Self::BaseElement> {
+    fn context(&self) -> &AirContext<Self::BaseField> {
         &self.context
+    }
+}
+```
+
+Next, we need define our prover. This can be done by implementing [Prover] trait. The trait is
+pretty simple and has just a few required methods. Here is how our implementation could look
+like:
+```Rust
+use winterfell::{
+    math::{fields::f128::BaseElement, FieldElement},
+    ProofOptions, Prover, Trace, TraceTable
+};
+
+// Our prover needs to hold STARK protocol parameters which are specified via ProofOptions
+// struct.
+struct WorkProver {
+    options: ProofOptions
+}
+
+impl WorkProver {
+    pub fn new(options: ProofOptions) -> Self {
+        Self { options }
+    }
+}
+
+// When implementing Prover trait we set the `Air` associated type to the AIR of the
+// computation we defined previously, and set the `Trace` associated type to `TraceTable`
+// struct as we don't need to define a custom trace for our computation.
+impl Prover for WorkProver {
+    type BaseField = BaseElement;
+    type Air = WorkAir;
+    type Trace = TraceTable<Self::BaseField>;
+
+    // Our public inputs consist of the first and last value in the execution trace.
+    fn get_pub_inputs(&self, trace: &Self::Trace) -> PublicInputs {
+        let last_step = trace.length() - 1;
+        PublicInputs {
+            start: trace.get(0, 0),
+            result: trace.get(0, last_step),
+        }
+    }
+
+    fn options(&self) -> &ProofOptions {
+        &self.options
     }
 }
 ```
@@ -228,7 +272,7 @@ Now, we are finally ready to generate a STARK proof. The function below, will ex
 ```Rust
 use winterfell::{
     math::{fields::f128::BaseElement, FieldElement},
-    ExecutionTrace, FieldExtension, HashFunction, ProofOptions, StarkProof,
+    FieldExtension, HashFunction, ProofOptions, StarkProof,
 };
 
 pub fn prove_work() -> (BaseElement, StarkProof) {
@@ -251,9 +295,9 @@ pub fn prove_work() -> (BaseElement, StarkProof) {
         128, // FRI max remainder length
     );
 
-    // Generate the proof.
-    let pub_inputs = PublicInputs { start, result };
-    let proof = winterfell::prove::<WorkAir>(trace, pub_inputs, options).unwrap();
+    // Instantiate the prover and generate the proof.
+    let prover = WorkProver::new(options);
+    let proof = prover.prove(trace).unwrap();
 
     (result, proof)
 }
@@ -398,6 +442,9 @@ Vitalik Buterin's blog series on zk-STARKs:
 * [STARKs, part 1: Proofs with Polynomials](https://vitalik.ca/general/2017/11/09/starks_part_1.html)
 * [STARKs, part 2: Thank Goodness it's FRI-day](https://vitalik.ca/general/2017/11/22/starks_part_2.html)
 * [STARKs, part 3: Into the Weeds](https://vitalik.ca/general/2018/07/21/starks_part_3.html)
+
+Alan Szepieniec's STARK tutorial:
+* [Anatomy of a STARK](https://aszepieniec.github.io/stark-anatomy/)
 
 StarkWare's STARK Math blog series:
 * [STARK Math: The Journey Begins](https://medium.com/starkware/stark-math-the-journey-begins-51bd2b063c71)

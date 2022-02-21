@@ -4,18 +4,16 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-use super::rescue;
+use super::{rescue, BaseElement, FieldElement, ProofOptions};
 use crate::utils::{are_equal, is_zero, not, EvaluationResult};
 use winterfell::{
-    math::{fields::f63::BaseElement, FieldElement},
-    Air, AirContext, Assertion, ByteWriter, EvaluationFrame, ExecutionTrace, ProofOptions,
-    Serializable, TraceInfo, TransitionConstraintDegree,
+    Air, AirContext, Assertion, ByteWriter, EvaluationFrame, Serializable, TraceInfo,
+    TransitionConstraintDegree,
 };
 
 // CONSTANTS
 // ================================================================================================
 
-const NUM_HASH_ROUNDS: usize = 7;
 const CYCLE_LENGTH: usize = 8;
 const TRACE_WIDTH: usize = 14;
 
@@ -53,7 +51,7 @@ pub struct RescueAir {
 }
 
 impl Air for RescueAir {
-    type BaseElement = BaseElement;
+    type BaseField = BaseElement;
     type PublicInputs = PublicInputs;
 
     // CONSTRUCTOR
@@ -83,11 +81,11 @@ impl Air for RescueAir {
         }
     }
 
-    fn context(&self) -> &AirContext<Self::BaseElement> {
+    fn context(&self) -> &AirContext<Self::BaseField> {
         &self.context
     }
 
-    fn evaluate_transition<E: FieldElement + From<Self::BaseElement>>(
+    fn evaluate_transition<E: FieldElement + From<Self::BaseField>>(
         &self,
         frame: &EvaluationFrame<E>,
         periodic_values: &[E],
@@ -112,7 +110,7 @@ impl Air for RescueAir {
         enforce_hash_copy(result, current, next, copy_flag);
     }
 
-    fn get_assertions(&self) -> Vec<Assertion<Self::BaseElement>> {
+    fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
         // Assert starting and ending values of the hash chain
         let last_step = self.trace_length() - 1;
         vec![
@@ -133,7 +131,7 @@ impl Air for RescueAir {
         ]
     }
 
-    fn get_periodic_column_values(&self) -> Vec<Vec<Self::BaseElement>> {
+    fn get_periodic_column_values(&self) -> Vec<Vec<Self::BaseField>> {
         let mut result = vec![CYCLE_MASK.to_vec()];
         result.append(&mut rescue::get_round_constants());
         result
@@ -161,49 +159,4 @@ fn enforce_hash_copy<E: FieldElement>(result: &mut [E], current: &[E], next: &[E
     result.agg_constraint(11, flag, is_zero(next[11]));
     result.agg_constraint(12, flag, is_zero(next[12]));
     result.agg_constraint(13, flag, is_zero(next[13]));
-}
-
-// RESCUE TRACE GENERATOR
-// ================================================================================================
-
-pub fn build_trace(seed: [BaseElement; 7], iterations: usize) -> ExecutionTrace<BaseElement> {
-    // allocate memory to hold the trace table
-    let trace_length = iterations * CYCLE_LENGTH;
-    let mut trace = ExecutionTrace::new(14, trace_length);
-
-    trace.fill(
-        |state| {
-            // initialize first state of the computation
-            state[0] = seed[0];
-            state[1] = seed[1];
-            state[2] = seed[2];
-            state[3] = seed[3];
-            state[4] = seed[4];
-            state[5] = seed[5];
-            state[6] = seed[6];
-            state[7] = BaseElement::ZERO;
-            state[8] = BaseElement::ZERO;
-            state[9] = BaseElement::ZERO;
-            state[10] = BaseElement::ZERO;
-            state[11] = BaseElement::ZERO;
-            state[12] = BaseElement::ZERO;
-            state[13] = BaseElement::ZERO;
-        },
-        |step, state| {
-            // execute the transition function for all steps
-            if (step % CYCLE_LENGTH) < NUM_HASH_ROUNDS {
-                rescue::apply_round(state, step);
-            } else {
-                state[7] = BaseElement::ZERO;
-                state[8] = BaseElement::ZERO;
-                state[9] = BaseElement::ZERO;
-                state[10] = BaseElement::ZERO;
-                state[11] = BaseElement::ZERO;
-                state[12] = BaseElement::ZERO;
-                state[13] = BaseElement::ZERO;
-            }
-        },
-    );
-
-    trace
 }

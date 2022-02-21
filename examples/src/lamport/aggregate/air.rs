@@ -21,6 +21,7 @@ const TWO: BaseElement = BaseElement::new(2);
 // AGGREGATE LAMPORT PLUS SIGNATURE AIR
 // ================================================================================================
 
+#[derive(Clone)]
 pub struct PublicInputs {
     pub pub_keys: Vec<[BaseElement; 2]>,
     pub messages: Vec<[BaseElement; 2]>,
@@ -40,7 +41,7 @@ pub struct LamportAggregateAir {
 }
 
 impl Air for LamportAggregateAir {
-    type BaseElement = BaseElement;
+    type BaseField = BaseElement;
     type PublicInputs = PublicInputs;
 
     // CONSTRUCTOR
@@ -88,11 +89,11 @@ impl Air for LamportAggregateAir {
         }
     }
 
-    fn context(&self) -> &AirContext<Self::BaseElement> {
+    fn context(&self) -> &AirContext<Self::BaseField> {
         &self.context
     }
 
-    fn evaluate_transition<E: FieldElement + From<Self::BaseElement>>(
+    fn evaluate_transition<E: FieldElement + From<Self::BaseField>>(
         &self,
         frame: &EvaluationFrame<E>,
         periodic_values: &[E],
@@ -122,7 +123,7 @@ impl Air for LamportAggregateAir {
         );
     }
 
-    fn get_assertions(&self) -> Vec<Assertion<Self::BaseElement>> {
+    fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
         let last_cycle_step = SIG_CYCLE_LEN - 1;
         let messages = transpose(&self.messages);
         let pub_keys = transpose(&self.pub_keys);
@@ -161,7 +162,7 @@ impl Air for LamportAggregateAir {
         ]
     }
 
-    fn get_periodic_column_values(&self) -> Vec<Vec<Self::BaseElement>> {
+    fn get_periodic_column_values(&self) -> Vec<Vec<Self::BaseField>> {
         let mut result = vec![];
 
         // signature cycle mask: 1023 zeros followed by 1 one
