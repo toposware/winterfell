@@ -221,7 +221,7 @@ pub trait Prover {
         // should come from the verifier.
         let mut channel = ProverChannel::<Self::Air, E, H>::new(&air, pub_inputs_bytes);
 
-        // 1 ----- extend execution trace ---------------------------------------------------------
+        // 1.1 ----- extend execution trace ---------------------------------------------------------
 
         // build computation domain; this is used later for polynomial evaluations
         #[cfg(feature = "std")]
@@ -248,7 +248,7 @@ pub trait Prover {
         now.elapsed().as_millis()
     );
 
-        // 2 ----- commit to the extended execution trace -----------------------------------------
+        // 1.2 ----- commit to the extended execution trace -----------------------------------------
         #[cfg(feature = "std")]
         let now = Instant::now();
         let trace_tree = extended_trace.build_commitment::<H>();
@@ -259,6 +259,40 @@ pub trait Prover {
             trace_tree.depth(),
             now.elapsed().as_millis()
         );
+
+        // 2.1 ----- extend auxiliary columns ---------------------------------------------------------
+
+        while !trace.is_finished() {
+
+            // sample auxiliary columns random coefficients
+            let aux_cols_coeffs = channel.get_aux_columns_composition_coeffs();
+            trace.set_random_coeffs(aux_cols_coeffs);
+
+            // extend the auxiliary columns
+            let (extended_aux_cols, aux_polys) = trace.extend_aux_columns(&domain);
+            #[cfg(feature = "std")]
+            debug!(
+            "Extended execution trace of {} registers from 2^{} to 2^{} steps ({}x blowup) in {} ms",
+            extended_trace.width(),
+            log2(trace_polys.poly_size()),
+            log2(extended_trace.len()),
+            extended_trace.blowup(),
+            now.elapsed().as_millis()
+            );
+
+            // 2.2 ----- commit to the extended execution trace -----------------------------------------
+            #[cfg(feature = "std")]
+            let now = Instant::now();
+            let trace_tree = extended_trace.build_commitment::<H>();
+            channel.commit_trace(*trace_tree.root());
+            #[cfg(feature = "std")]
+            debug!(
+                "Committed to extended execution trace by building a Merkle tree of depth {} in {} ms",
+                trace_tree.depth(),
+                now.elapsed().as_millis()
+            );
+
+        }
 
         // 3 ----- evaluate constraints -----------------------------------------------------------
         // evaluate constraints specified by the AIR over the constraint evaluation domain, and

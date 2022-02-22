@@ -15,7 +15,7 @@ use utils::{
 /// Commitments made by the prover during commit phase of the protocol.
 ///
 /// These commitments include:
-/// * Commitment to the extended execution trace.
+/// * Commitments to the extended execution trace.
 /// * Commitment to the evaluations of constraint composition polynomial over LDE domain.
 /// * Commitments to the evaluations of polynomials at all FRI layers.
 ///
@@ -29,7 +29,7 @@ impl Commitments {
     // --------------------------------------------------------------------------------------------
     /// Returns a new Commitments struct initialized with the provided commitments.
     pub fn new<H: Hasher>(
-        trace_root: H::Digest,
+        trace_root: Vec<H::Digest>, // What if length of trace_root is > 2?
         constraint_root: H::Digest,
         fri_roots: Vec<H::Digest>,
     ) -> Self {
@@ -65,16 +65,16 @@ impl Commitments {
     pub fn parse<H: Hasher>(
         self,
         num_fri_layers: usize,
-    ) -> Result<(H::Digest, H::Digest, Vec<H::Digest>), DeserializationError> {
-        // +1 for trace_root, +1 for constraint root, +1 for FRI remainder commitment
-        let num_commitments = num_fri_layers + 3;
+    ) -> Result<(Vec<H::Digest>, H::Digest, Vec<H::Digest>), DeserializationError> {
+        // +2 for trace_roots, +1 for constraint root, +1 for FRI remainder commitment
+        let num_commitments = num_fri_layers + 4;
         let mut reader = SliceReader::new(&self.0);
         let commitments = H::Digest::read_batch_from(&mut reader, num_commitments)?;
         // make sure we consumed all available commitment bytes
         if reader.has_more_bytes() {
             return Err(DeserializationError::UnconsumedBytes);
         }
-        Ok((commitments[0], commitments[1], commitments[2..].to_vec()))
+        Ok((commitments[0..1].to_vec(), commitments[1], commitments[2..].to_vec()))
     }
 }
 

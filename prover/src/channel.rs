@@ -100,6 +100,14 @@ where
     // PUBLIC COIN METHODS
     // --------------------------------------------------------------------------------------------
 
+    /// Return coefficients for constructing the auxiliary trace columns drawn from the public coins
+    pub fn get_aux_columns_composition_coeffs(&self) -> Vec<E> {
+        vec![
+            self.public_coin.draw().expect("failed to draw auxliary columns first coin"),
+            self.public_coin.draw().expect("failed to draw auxliary columns second coin")
+        ]
+    }
+
     /// Returns a set of coefficients for constructing a constraint composition polynomial drawn
     /// from the public coin.
     pub fn get_constraint_composition_coeffs(&mut self) -> ConstraintCompositionCoefficients<E> {
