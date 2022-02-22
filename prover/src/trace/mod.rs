@@ -44,7 +44,7 @@ mod tests;
 pub trait Trace: Sized {
     /// Base field for this execution trace.
     ///
-    /// All cells of this execution trace contain values which are elements in this filed.
+    /// All cells of this execution trace contain values which are elements in this field.
     type BaseField: StarkField;
 
     // REQUIRED METHODS
@@ -71,6 +71,14 @@ pub trait Trace: Sized {
     // PROVIDED METHODS
     // --------------------------------------------------------------------------------------------
 
+    // Returns wether the trace has been fully computed. By default returns true.
+    fn is_finished(&self) -> bool {
+        true
+    }
+
+    // Set the random coeffiecients used for computing the auxiliary columns. By default does nothing
+    fn set_random_coeffs(&mut self, coeffs: Vec<Self::BaseField>) {}
+
     /// Returns trace info for this trace.
     fn get_info(&self) -> TraceInfo {
         TraceInfo::with_meta(self.width(), self.length(), self.meta().to_vec())
@@ -83,6 +91,9 @@ pub trait Trace: Sized {
     /// NOTE: this is a very expensive operation and is intended for use only in debug mode.
     fn validate<A: Air<BaseField = Self::BaseField>>(&self, air: &A) {
         // TODO: eventually, this should return errors instead of panicking
+
+        // make sure the trace auxiliary columns where generated
+        assert!(self.get_number_of_coins() > 0 & )
 
         // make sure the width align; if they don't something went terribly wrong
         assert_eq!(
