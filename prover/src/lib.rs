@@ -201,7 +201,7 @@ pub trait Prover {
         // 0 ----- instantiate AIR and prover channel ---------------------------------------------
 
         // serialize public inputs; these will be included in the seed for the public coin
-        let pub_inputs = self.get_pub_inputs(&trace);
+        let pub_inputs = self.get_pub_inputs(&trace); 
         let mut pub_inputs_bytes = Vec::new();
         pub_inputs.write_into(&mut pub_inputs_bytes);
 
@@ -265,7 +265,7 @@ pub trait Prover {
         while !trace.is_finished() {
 
             // sample auxiliary columns random coefficients
-            let aux_cols_coeffs = channel.get_aux_columns_composition_coeffs();
+            let aux_cols_coeffs = channel.get_aux_columns_composition_coeffs(trace.number_of_coins());
             trace.set_random_coeffs(aux_cols_coeffs);
 
             // extend the auxiliary columns

@@ -71,13 +71,26 @@ pub trait Trace: Sized {
     // PROVIDED METHODS
     // --------------------------------------------------------------------------------------------
 
-    // Returns wether the trace has been fully computed. By default returns true.
+    /// Returns the number of auxiliary columns. By defaul returns 0.
+    fn aux_columns_width(&self) -> usize {
+        0
+    }
+
+    /// Returns wether the trace has been fully computed. By default returns true.
     fn is_finished(&self) -> bool {
         true
     }
 
-    // Set the random coeffiecients used for computing the auxiliary columns. By default does nothing
-    fn set_random_coeffs(&mut self, coeffs: Vec<Self::BaseField>) {}
+    /// Returns the number of elements in the STARK field required by the auxiliary columns. The number of
+    /// coins must be a number between 0 and 3. By default returns 0
+    fn number_of_coins(&self) -> usize {
+        0
+    }
+
+    /// Set the random coeffiecients used for computing the auxiliary columns. By default does nothing
+    fn set_random_coeffs(&mut self, coeffs: Vec<Self::BaseField>) {
+        assert_eq!(self.number_of_coins(), coeffs.len())
+    }
 
     /// Returns trace info for this trace.
     fn get_info(&self) -> TraceInfo {
@@ -93,7 +106,7 @@ pub trait Trace: Sized {
         // TODO: eventually, this should return errors instead of panicking
 
         // make sure the trace auxiliary columns where generated
-        assert!(self.get_number_of_coins() > 0 & )
+        assert!(self.is_finished());
 
         // make sure the width align; if they don't something went terribly wrong
         assert_eq!(
@@ -166,7 +179,7 @@ pub trait Trace: Sized {
     /// The extension is done by first interpolating each register into a polynomial over the
     /// trace domain, and then evaluating the polynomial over the LDE domain.
     fn extend(
-        self,
+        &self,
         domain: &StarkDomain<Self::BaseField>,
     ) -> (TraceLde<Self::BaseField>, TracePolyTable<Self::BaseField>) {
         assert_eq!(
@@ -181,7 +194,8 @@ pub trait Trace: Sized {
         // extend all registers; the extension procedure first interpolates register traces into
         // polynomials (in-place), then evaluates these polynomials over a larger domain, and
         // then returns extended evaluations.
-        let mut columns = self.into_columns();
+        // TODO: Perhaps clone only the require cells
+        let mut columns = self.clone().into_columns();
         let extended_trace = iter_mut!(columns)
             .map(|register_trace| extend_column(register_trace, domain, &inv_twiddles))
             .collect();

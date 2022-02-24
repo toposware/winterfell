@@ -101,11 +101,24 @@ where
     // --------------------------------------------------------------------------------------------
 
     /// Return coefficients for constructing the auxiliary trace columns drawn from the public coins
-    pub fn get_aux_columns_composition_coeffs(&self) -> Vec<E> {
-        vec![
-            self.public_coin.draw().expect("failed to draw auxliary columns first coin"),
-            self.public_coin.draw().expect("failed to draw auxliary columns second coin")
-        ]
+    pub fn get_aux_columns_composition_coeffs(&self, ncoeffs: usize) -> Vec<A::BaseField> {
+        let mut elements = vec![];
+        if ncoeffs > 0 {
+            elements.append(&mut Vec::from(E::as_base_elements(
+                &[self.public_coin.draw().expect("failed to draw auxliary columns first coin")]
+            )));
+        }
+        if ncoeffs > 1 {
+            elements.append(&mut Vec::from(E::as_base_elements(
+                &[self.public_coin.draw().expect("failed to draw auxliary columns first coin")]
+            )));
+        }
+        if ncoeffs > 2 {
+            elements.append(&mut Vec::from(E::as_base_elements(
+                &[self.public_coin.draw().expect("failed to draw auxliary columns first coin")]
+            )));
+        }
+        elements
     }
 
     /// Returns a set of coefficients for constructing a constraint composition polynomial drawn

@@ -232,7 +232,7 @@ impl<B: StarkField> RandomizedTraceTable<B> {
     where
         I: Fn(&mut [B]),
         U: Fn(usize, &mut [B]),
-        R: Fn(usize, &[B], &mut [B])
+        R: Fn(usize, &[B], &[B], &mut[B])
     {
         let mut state = vec![B::ZERO; self.width()];
         init(&mut state);
@@ -364,6 +364,10 @@ impl<B: StarkField> Trace for RandomizedTraceTable<B> {
 
     fn into_columns(self) -> Vec<Vec<B>> {
         self.trace
+    }
+
+    fn set_random_coeffs(coeffs: Vec<B>) {
+        
     }
 }
 
