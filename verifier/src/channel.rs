@@ -21,7 +21,7 @@ where
     H: ElementHasher<BaseField = B>,
 {
     // trace queries
-    trace_root: H::Digest,
+    trace_root: Vec<H::Digest>,
     trace_proof: BatchMerkleProof<H>,
     trace_states: Option<Vec<Vec<B>>>,
     // constraint queries
@@ -136,7 +136,12 @@ where
 
     /// Returns execution trace commitment sent by the prover.
     pub fn read_trace_commitment(&self) -> H::Digest {
-        self.trace_root
+        self.trace_root[0]
+    }
+
+    /// Returns execution trace commitment sent by the prover.
+    pub fn read_aux_columns_commitment(&self) -> H::Digest {
+        self.trace_root[1]
     }
 
     /// Returns constraint evaluation commitment sent by the prover.

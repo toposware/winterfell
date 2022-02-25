@@ -65,11 +65,15 @@ pub trait Trace: Sized {
     /// Reads a single row of this trace at the specified index into the specified target.
     fn read_row_into(&self, step: usize, target: &mut [Self::BaseField]);
 
-    /// Transforms this trace into a vector of columns containing trace data.
-    fn into_columns(self) -> Vec<Vec<Self::BaseField>>;
+    /// Gets a copy of the trace columns.
+    fn get_columns(&self) -> Vec<Vec<Self::BaseField>>;
 
     // PROVIDED METHODS
     // --------------------------------------------------------------------------------------------
+    
+    fn get_aux_columns(self)-> Vec<Vec<Self::BaseField>> {
+        vec![]
+    }
 
     /// Returns the number of auxiliary columns. By defaul returns 0.
     fn aux_columns_width(&self) -> usize {
@@ -89,7 +93,6 @@ pub trait Trace: Sized {
 
     /// Set the random coeffiecients used for computing the auxiliary columns. By default does nothing
     fn set_random_coeffs(&mut self, coeffs: Vec<Self::BaseField>) {
-        assert_eq!(self.number_of_coins(), coeffs.len())
     }
 
     /// Returns trace info for this trace.
@@ -195,7 +198,38 @@ pub trait Trace: Sized {
         // polynomials (in-place), then evaluates these polynomials over a larger domain, and
         // then returns extended evaluations.
         // TODO: Perhaps clone only the require cells
-        let mut columns = self.clone().into_columns();
+        let mut columns = self.get_columns();
+        let extended_trace = iter_mut!(columns)
+            .map(|register_trace| extend_column(register_trace, domain, &inv_twiddles))
+            .collect();
+
+        (
+            TraceLde::new(extended_trace, domain.trace_to_lde_blowup()),
+            TracePolyTable::new(columns),
+        )
+    }
+
+    /// Extends all the auxiliary columns to the length of the LDE domain.
+    ///
+    /// The extension is done by first interpolating each register into a polynomial over the
+    /// trace domain, and then evaluating the polynomial over the LDE domain.
+    fn extend_aux_columns(
+        self,
+        domain: &StarkDomain<Self::BaseField>,
+    ) -> (TraceLde<Self::BaseField>, TracePolyTable<Self::BaseField>) {
+        assert_eq!(
+            self.length(),
+            domain.trace_length(),
+            "inconsistent trace length"
+        );
+        // build and cache trace twiddles for FFT interpolation; we do it here so that we
+        // don't have to rebuild these twiddles for every register.
+        let inv_twiddles = fft::get_inv_twiddles::<Self::BaseField>(domain.trace_length());
+
+        // extend all registers; the extension procedure first interpolates register traces into
+        // polynomials (in-place), then evaluates these polynomials over a larger domain, and
+        // then returns extended evaluations.
+        let mut columns = self.get_aux_columns();
         let extended_trace = iter_mut!(columns)
             .map(|register_trace| extend_column(register_trace, domain, &inv_twiddles))
             .collect();

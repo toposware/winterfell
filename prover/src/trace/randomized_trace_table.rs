@@ -62,7 +62,11 @@ const MIN_FRAGMENT_LENGTH: usize = 2;
 /// semantics of the [RandomizedTraceTable::fill()] method.
 pub struct RandomizedTraceTable<B: StarkField> {
     trace: Vec<Vec<B>>,
-    aux_columns: Fn(usize, &[B], &mut [B]),
+    aux_columns: Vec<Vec<B>>,
+    aux_init: Fn(&[B], &[B], &mut [B]),
+    aux_update: Fn(usize, &[B], &[B], &mut [B]),
+    ncoins: usize,
+    finished: bool,
     meta: Vec<u8>,
 }
 
@@ -70,39 +74,43 @@ impl<B: StarkField> RandomizedTraceTable<B> {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
 
-    /// Creates a new execution trace of the specified width and length.
-    ///
+    /// Creates a new execution trace of the specified width and length as well as number of
+    /// auxiliary columns for performing computations using up to `ncoins` random field elements,
+    /// typically used for copy constraints.
     /// This allocates all the required memory for the trace, but does not initialize it. It is
     /// expected that the trace will be filled using one of the data mutator methods.
     ///
     /// # Panics
     /// Panics if:
-    /// * `width` is zero or greater than 255.
+    /// * `width` + `aux_width` is zero or greater than 255.
     /// * `length` is smaller than 8, greater than biggest multiplicative subgroup in the field
     ///   `B`, or is not a power of two.
-    pub fn new(width: usize, length: usize) -> Self {
-        Self::with_meta(width, length, vec![])
+    /// 
+    
+    // TODO: add some check for ncoins
+    pub fn new(width: usize, aux_width: usize, length: usize, ncoins: usize) -> Self {
+        Self::with_meta(width, aux_width, length, ncoins, vec![])
     }
 
-    /// Creates a new execution trace of the specified width and length, and with the specified
-    /// metadata.
+    /// Creates a new execution trace of the specified width and length and number of auxiliary
+    /// columns, and with the specified metadata.
     ///
     /// This allocates all the required memory for the trace, but does not initialize it. It is
     /// expected that the trace will be filled using one of the data mutator methods.
     ///
     /// # Panics
     /// Panics if:
-    /// * `width` is zero or greater than 255.
+    /// * `width` + `aux_width` is zero or greater than 255.
     /// * `length` is smaller than 8, greater than the biggest multiplicative subgroup in the
     ///   field `B`, or is not a power of two.
     /// * Length of `meta` is greater than 65535;
-    pub fn with_meta(width: usize, length: usize, meta: Vec<u8>) -> Self {
+    pub fn with_meta(width: usize, aux_width: usize, length: usize, ncoins: usize, meta: Vec<u8>) -> Self {
         assert!(
             width > 0,
             "execution trace must consist of at least one register"
         );
         assert!(
-            width <= TraceInfo::MAX_TRACE_WIDTH,
+            width + aux_width <= TraceInfo::MAX_TRACE_WIDTH,
             "execution trace width cannot be greater than {}, but was {}",
             TraceInfo::MAX_TRACE_WIDTH,
             width
@@ -131,32 +139,39 @@ impl<B: StarkField> RandomizedTraceTable<B> {
         );
 
         let registers = unsafe { (0..width).map(|_| uninit_vector(length)).collect() };
+        let aux_registers = unsafe { (0..aux_width).map(|_| uninit_vector(length)).collect() };
         Self {
             trace: registers,
+            aux_columns: aux_registers,
+            ncoins: ncoins,
+            finished: false,
             meta,
         }
     }
 
     /// Creates a new execution trace from a list of provided register traces.
     ///
-    /// The provides `registers` vector is expected to contain register traces.
+    /// The provided `registers` and `aux_registers` vector are expected to
+    /// contain register traces.
     ///
     /// # Panics
     /// Panics if:
-    /// * The `registers` vector is empty or has over 255 registers.
-    /// * Number of elements in any of the registers is smaller than 8, greater than the biggest
-    ///   multiplicative subgroup in the field `B`, or is not a power of two.
-    /// * Number of elements is not identical for all registers.
-    pub fn init(registers: Vec<Vec<B>>) -> Self {
+    /// * The `registers` vector is empty or `registers` concatenated with
+    ///   `aux_registers`has over 255 registers.
+    /// * Number of elements in any of the registers is smaller than 8,
+    ///   greater than the biggest multiplicative subgroup in the field `B`,
+    ///   or is not a power of two.
+    /// * Number of elements is not identical for all registers or auxiliary register.
+    pub fn init(registers: Vec<Vec<B>>, aux_registers: Vec<Vec<B>, ncoins:usize) -> Self {
         assert!(
             !registers.is_empty(),
             "execution trace must consist of at least one register"
         );
         assert!(
-            registers.len() <= TraceInfo::MAX_TRACE_WIDTH,
+            registers.len() + aux_registers.len() <= TraceInfo::MAX_TRACE_WIDTH,
             "execution trace width cannot be greater than {}, but was {}",
             TraceInfo::MAX_TRACE_WIDTH,
-            registers.len()
+            registers.len() + aux_registers.len()
         );
         let trace_length = registers[0].len();
         assert!(
@@ -182,9 +197,19 @@ impl<B: StarkField> RandomizedTraceTable<B> {
                 "all register traces must have the same length"
             );
         }
+        for register in aux_registers.iter() {
+            assert_eq!(
+                register.len(),
+                trace_length,
+                "all register traces must have the same length"
+            );
+        }
 
         Self {
             trace: registers,
+            aux_columns: aux_registers,
+            ncois: ncoins,
+            finished: aux_registers.is_empty(),
             meta: vec![],
         }
     }
@@ -200,6 +225,9 @@ impl<B: StarkField> RandomizedTraceTable<B> {
     /// # Panics
     /// Panics if either `register` or `step` are out of bounds for this execution trace.
     pub fn set(&mut self, register: usize, step: usize, value: B) {
+        if(register >= trace.width()){
+            self.aux_columns[register - trace.width()][step] = value;
+        }
         self.trace[register][step] = value;
     }
 
@@ -220,18 +248,31 @@ impl<B: StarkField> RandomizedTraceTable<B> {
     /// Fill all rows in the execution trace.
     ///
     /// The rows are filled by executing the provided closures as follows:
-    /// - `init` closure is used to initialize the first row of the trace; it receives a mutable
+    /// - `init` closure is used to initialize the first row of the trace (b); it receives a mutable
     ///   reference to the first state initialized to all zeros. The contents of the state are
     ///   copied into the first row of the trace after the closure returns.
+    /// - `aux_init` closure is used to initialize the first row of the auxiliary columns; 
+    ///   it receives references to a vector of random values and to the first row of the trace, as well as
+    ///   a mutable reference to the first row of the auxiliary columns initialized to all zeros.
+    ///   The contents of the state are copied into the first row of the auxiliary columns after the
+    ///   closure returns.
     /// - `update` closure is used to populate all subsequent rows of the trace; it receives two
     ///   parameters:
     ///   - index of the last updated row (starting with 0).
     ///   - a mutable reference to the last updated state; the contents of the state are copied
     ///     into the next row of the trace after the closure returns.
-    pub fn fill<I, U>(&mut self, init: I, update: U, aux_columns: R)
+    /// - `aux_columns` closure is used to populate all the subsequent rows of the auxiliary columns;
+    ///   it receives four parameters:
+    ///   - index of the last updated row (starting with 0).
+    ///   - a reference to a vector of (random) field elements.
+    ///   - a reference to the current row trace (index + 1)
+    ///   - a mutable reference to the last updated state; the contents of the state are copied
+    ///     into the next row of the auxiliary columns after the closure returns.
+    pub fn fill<I, U>(&mut self, init: I, update: U, aux_init: J, aux_update: R)
     where
         I: Fn(&mut [B]),
         U: Fn(usize, &mut [B]),
+        J: Fn(&[B], &[B], &mut[B]),
         R: Fn(usize, &[B], &[B], &mut[B])
     {
         let mut state = vec![B::ZERO; self.width()];
@@ -244,12 +285,20 @@ impl<B: StarkField> RandomizedTraceTable<B> {
         }
 
         // Lazy evaluation of auxiliary columns
-        self.aux_columns = aux_columns;
+        self.aux_init = aux_init;
+        self.aux_update = aux_update;
     }
 
     /// Updates a single row in the execution trace with provided data.
     pub fn update_row(&mut self, step: usize, state: &[B]) {
         for (register, &value) in self.trace.iter_mut().zip(state) {
+            register[step] = value;
+        }
+    }
+
+    /// Updates a single row in the auxiliary columns with provided data.
+    pub fn update_aux_row(&mut self, step: usize, state: &[B]) {
+        for (register, &value) in self.aux_columns.iter_mut().zip(state) {
             register[step] = value;
         }
     }
@@ -330,6 +379,9 @@ impl<B: StarkField> RandomizedTraceTable<B> {
 
     /// Returns the entire register trace for the register at the specified index.
     pub fn get_register(&self, idx: usize) -> &[B] {
+        if idx > self.width() {
+            &self.aux_columns[idx - self.width()]
+        }
         &self.trace[idx]
     }
 }
@@ -344,6 +396,10 @@ impl<B: StarkField> Trace for RandomizedTraceTable<B> {
         self.trace.len()
     }
 
+    fn aux_columns_width(&self) -> usize {
+        self.aux_columns.len()
+    }
+
     fn length(&self) -> usize {
         self.trace[0].len()
     }
@@ -353,6 +409,9 @@ impl<B: StarkField> Trace for RandomizedTraceTable<B> {
     }
 
     fn get(&self, register: usize, step: usize) -> B {
+        if register > self.width() {
+            self.aux_columns[register - self.width()][step]
+        }
         self.trace[register][step]
     }
 
@@ -362,12 +421,36 @@ impl<B: StarkField> Trace for RandomizedTraceTable<B> {
         }
     }
 
-    fn into_columns(self) -> Vec<Vec<B>> {
-        self.trace
+    fn get_columns(&self) -> Vec<Vec<B>> {
+        self.trace.clone()
     }
 
-    fn set_random_coeffs(coeffs: Vec<B>) {
-        
+    // is actually computing the auxiliary columns 
+    fn set random_coeffs(&mut self, coeffs: Vec<B>) {
+        let mut state = vec![B::ZERO; self.aux_columns_width()];
+        let mut trace_state = vec![B::ZERO; self.width()];
+        self.read_row_into(0, &trace_state);
+        self.aux_init(&coeffs, &trace_state, &mut state);
+        self.update_aux_row(0, &state);
+
+        for i in 0..self.length() - 1 {
+            self.read_row_into(i+1, &trace_state);
+            self.aux_update(&coeffs, &trace_state, &mut state);
+            self.update_aux_row(i + 1, &state);
+        }
+        self.finished = true;
+    }
+
+    fn number_of_coins(&self) -> usize {
+        self.ncoins
+    }
+
+    fn is_finished(&self) -> bool {
+        self.finished
+    }
+
+    fn get_aux_columns(self) -> Vec<Vec<B>> {
+        self.aux_columns
     }
 }
 

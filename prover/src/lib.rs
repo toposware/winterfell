@@ -154,7 +154,7 @@ pub trait Prover {
     /// secret and public inputs. Public inputs must match the value returned from
     /// [Self::get_pub_inputs()](Prover::get_pub_inputs) for the provided trace.
     #[rustfmt::skip]
-    fn prove(&self, trace: Self::Trace) -> Result<StarkProof, ProverError> {
+    fn prove(&self, mut trace: Self::Trace) -> Result<StarkProof, ProverError> {
         // figure out which version of the generic proof generation procedure to run. this is a sort
         // of static dispatch for selecting two generic parameter: extension field and hash function.
         match self.options().field_extension() {
@@ -193,7 +193,7 @@ pub trait Prover {
     /// execution `trace` is valid against this prover's AIR.
     /// TODO: make this function un-callable externally?
     #[doc(hidden)]
-    fn generate_proof<E, H>(&self, trace: Self::Trace) -> Result<StarkProof, ProverError>
+    fn generate_proof<E, H>(&self, mut trace: Self::Trace) -> Result<StarkProof, ProverError>
     where
         E: FieldElement<BaseField = Self::BaseField>,
         H: ElementHasher<BaseField = Self::BaseField>,
@@ -237,7 +237,8 @@ pub trait Prover {
         // extend the execution trace; this interpolates each register of the trace into a
         // polynomial, and then evaluates the polynomial over the LDE domain; each of the trace
         // polynomials has degree = trace_length - 1
-        let (extended_trace, trace_polys) = trace.extend(&domain);
+        let (mut extended_trace, trace_polys) = trace.extend(&domain);
+
         #[cfg(feature = "std")]
         debug!(
         "Extended execution trace of {} registers from 2^{} to 2^{} steps ({}x blowup) in {} ms",
@@ -246,7 +247,7 @@ pub trait Prover {
         log2(extended_trace.len()),
         extended_trace.blowup(),
         now.elapsed().as_millis()
-    );
+        );
 
         // 1.2 ----- commit to the extended execution trace -----------------------------------------
         #[cfg(feature = "std")]
@@ -262,37 +263,36 @@ pub trait Prover {
 
         // 2.1 ----- extend auxiliary columns ---------------------------------------------------------
 
-        while !trace.is_finished() {
+        // sample auxiliary columns random coefficients
+        let aux_cols_coeffs = channel.get_aux_columns_composition_coeffs(trace.number_of_coins());
+        trace.set_random_coeffs(aux_cols_coeffs);
 
-            // sample auxiliary columns random coefficients
-            let aux_cols_coeffs = channel.get_aux_columns_composition_coeffs(trace.number_of_coins());
-            trace.set_random_coeffs(aux_cols_coeffs);
+        // extend the auxiliary columns
+        let (extended_aux_cols, aux_polys) = trace.extend_aux_columns(&domain);
+        #[cfg(feature = "std")]
+        debug!(
+        "Extended auxiliary columns of {} registers from 2^{} to 2^{} steps ({}x blowup) in {} ms",
+        extended_aux_cols.width(),
+        log2(aux_polys.poly_size()),
+        log2(extended_aux_cols.len()),
+        extended_aux_cols.blowup(),
+        now.elapsed().as_millis()
+        );
 
-            // extend the auxiliary columns
-            let (extended_aux_cols, aux_polys) = trace.extend_aux_columns(&domain);
-            #[cfg(feature = "std")]
-            debug!(
-            "Extended execution trace of {} registers from 2^{} to 2^{} steps ({}x blowup) in {} ms",
-            extended_trace.width(),
-            log2(trace_polys.poly_size()),
-            log2(extended_trace.len()),
-            extended_trace.blowup(),
+        // 2.2 ----- commit to the extended execution trace -----------------------------------------
+        #[cfg(feature = "std")]
+        let now = Instant::now();
+        let aux_cols_tree = extended_aux_cols.build_commitment::<H>();
+        channel.commit_trace(*aux_cols_tree.root());
+        #[cfg(feature = "std")]
+        debug!(
+            "Committed to extended execution trace by building a Merkle tree of depth {} in {} ms",
+            aux_cols_tree.depth(),
             now.elapsed().as_millis()
-            );
+        );
 
-            // 2.2 ----- commit to the extended execution trace -----------------------------------------
-            #[cfg(feature = "std")]
-            let now = Instant::now();
-            let trace_tree = extended_trace.build_commitment::<H>();
-            channel.commit_trace(*trace_tree.root());
-            #[cfg(feature = "std")]
-            debug!(
-                "Committed to extended execution trace by building a Merkle tree of depth {} in {} ms",
-                trace_tree.depth(),
-                now.elapsed().as_millis()
-            );
-
-        }
+        // apend the extended auxiliary columns to the extended trace
+        extended_trace.append(extended_aux_cols);
 
         // 3 ----- evaluate constraints -----------------------------------------------------------
         // evaluate constraints specified by the AIR over the constraint evaluation domain, and

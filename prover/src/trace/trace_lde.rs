@@ -66,6 +66,14 @@ impl<B: StarkField> TraceLde<B> {
         }
     }
 
+    pub fn append(&mut self, mut other: Self) {
+        self.data.append(&mut other.data)
+    }
+
+    pub fn into_columns(self) -> Vec<Vec<B>> {
+        self.data
+    }
+
     /// Reads current and next rows from the execution trace table into the specified frame.
     pub fn read_frame_into(&self, lde_step: usize, frame: &mut EvaluationFrame<B>) {
         // at the end of the trace, next state wraps around and we read the first step again

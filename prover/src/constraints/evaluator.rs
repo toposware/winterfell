@@ -46,7 +46,7 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
     // --------------------------------------------------------------------------------------------
     /// Returns a new evaluator which can be used to evaluate transition and boundary constraints
     /// over extended execution trace.
-    pub fn new(air: &'a A, coefficients: ConstraintCompositionCoefficients<E>) -> Self {
+    pub fn  new(air: &'a A, coefficients: ConstraintCompositionCoefficients<E>) -> Self {
         // collect expected degrees for all transition constraints to compare them against actual
         // degrees; we do this in debug mode only because this comparison is expensive
         #[cfg(debug_assertions)]

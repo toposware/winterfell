@@ -101,7 +101,7 @@ where
     // --------------------------------------------------------------------------------------------
 
     /// Return coefficients for constructing the auxiliary trace columns drawn from the public coins
-    pub fn get_aux_columns_composition_coeffs(&self, ncoeffs: usize) -> Vec<A::BaseField> {
+    pub fn get_aux_columns_composition_coeffs(&mut self, ncoeffs: usize) -> Vec<A::BaseField> {
         let mut elements = vec![];
         if ncoeffs > 0 {
             elements.append(&mut Vec::from(E::as_base_elements(

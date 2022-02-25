@@ -357,8 +357,8 @@ impl<B: StarkField> Trace for TraceTable<B> {
         }
     }
 
-    fn into_columns(self) -> Vec<Vec<B>> {
-        self.trace
+    fn get_columns(&self) -> Vec<Vec<B>> {
+        self.trace.clone()
     }
 }
 
