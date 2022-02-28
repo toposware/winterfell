@@ -237,7 +237,9 @@ pub trait Prover {
         // extend the execution trace; this interpolates each register of the trace into a
         // polynomial, and then evaluates the polynomial over the LDE domain; each of the trace
         // polynomials has degree = trace_length - 1
-        let (mut extended_trace, trace_polys) = trace.extend(&domain);
+        let mut extended_trace;
+        let mut trace_polys;
+        (extended_trace, trace_polys) = trace.extend(&domain);
 
         #[cfg(feature = "std")]
         debug!(
@@ -292,7 +294,8 @@ pub trait Prover {
         );
 
         // apend the extended auxiliary columns to the extended trace
-        extended_trace.append(extended_aux_cols);
+        extended_trace.append(&extended_aux_cols);
+        trace_polys.append(aux_polys);
 
         // 3 ----- evaluate constraints -----------------------------------------------------------
         // evaluate constraints specified by the AIR over the constraint evaluation domain, and
@@ -456,9 +459,13 @@ pub trait Prover {
         // generate FRI proof
         let fri_proof = fri_prover.build_proof(&query_positions);
 
-        // query the execution trace at the selected position; for each query, we need the
-        // state of the trace at that position + Merkle authentication path
+        // Recall we appended the aux columns to the extended trace. We need to undo this now
+        extended_trace.truncate(extended_trace.width() - extended_aux_cols.width());
+        // query the execution trace and the extented aux columns at the selected position; for each
+        // query, we need the state of the trace at that position + Merkle authentication path
         let trace_queries = extended_trace.query(trace_tree, &query_positions);
+        let aux_cols_queries = extended_aux_cols.query(aux_cols_tree, &query_positions);
+        
 
         // query the constraint commitment at the selected positions; for each query, we need just
         // a Merkle authentication path. this is because constraint evaluations for each step are
@@ -466,7 +473,12 @@ pub trait Prover {
         let constraint_queries = constraint_commitment.query(&query_positions);
 
         // build the proof object
-        let proof = channel.build_proof(trace_queries, constraint_queries, fri_proof);
+        let proof = channel.build_proof(
+            trace_queries, 
+            aux_cols_queries, 
+            constraint_queries, 
+            fri_proof
+        );
         #[cfg(feature = "std")]
         debug!("Built proof object in {} ms", now.elapsed().as_millis());
 

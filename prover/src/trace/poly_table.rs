@@ -70,4 +70,10 @@ impl<B: StarkField> TracePolyTable<B> {
     pub fn into_vec(self) -> Vec<Vec<B>> {
         self.0
     }
+
+    /// Appends `other` table to `self`
+    pub fn append(&mut self, mut other: Self) {
+        self.0.append(&mut other.0);
+    }
+
 }
