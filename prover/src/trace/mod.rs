@@ -17,6 +17,9 @@ pub use poly_table::TracePolyTable;
 mod trace_table;
 pub use trace_table::{TraceTable, TraceTableFragment};
 
+mod randomized_trace_table;
+pub use randomized_trace_table::{RandomizedTraceTable, RandomizedTraceTableFragment};
+
 use utils::{collections::Vec, iter_mut};
 
 #[cfg(feature = "concurrent")]

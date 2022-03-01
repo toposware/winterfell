@@ -237,9 +237,7 @@ pub trait Prover {
         // extend the execution trace; this interpolates each register of the trace into a
         // polynomial, and then evaluates the polynomial over the LDE domain; each of the trace
         // polynomials has degree = trace_length - 1
-        let mut extended_trace;
-        let mut trace_polys;
-        (extended_trace, trace_polys) = trace.extend(&domain);
+        let (mut extended_trace, mut trace_polys) = trace.extend(&domain);
 
         #[cfg(feature = "std")]
         debug!(

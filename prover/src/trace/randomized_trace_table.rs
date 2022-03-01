@@ -60,17 +60,18 @@ const MIN_FRAGMENT_LENGTH: usize = 2;
 /// [fill()](RandomizedTraceTableFragment::fill) method to fill all fragments with data in parallel.
 /// The semantics of the fragment's [RandomizedTraceTableFragment::fill()] method are identical to the
 /// semantics of the [RandomizedTraceTable::fill()] method.
-pub struct RandomizedTraceTable<B: StarkField> {
+pub struct RandomizedTraceTable<'a, B: StarkField> 
+{
     trace: Vec<Vec<B>>,
     aux_columns: Vec<Vec<B>>,
-    aux_init: Fn(&[B], &[B], &mut [B]),
-    aux_update: Fn(usize, &[B], &[B], &mut [B]),
+    aux_init: &'a dyn Fn(&[B], &[B], &mut[B]),
+    aux_update: &'a dyn Fn(usize, &[B], &[B], &mut[B]),
     ncoins: usize,
     finished: bool,
     meta: Vec<u8>,
 }
 
-impl<B: StarkField> RandomizedTraceTable<B> {
+impl<'a, B: StarkField> RandomizedTraceTable<'a, B> {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
 
@@ -88,7 +89,7 @@ impl<B: StarkField> RandomizedTraceTable<B> {
     /// 
     
     // TODO: add some check for ncoins
-    pub fn new(width: usize, aux_width: usize, length: usize, ncoins: usize) -> Self {
+    pub fn new(width: usize, aux_width: usize, length: usize, ncoins: usize, meta: Vec<u8>) -> Self {
         Self::with_meta(width, aux_width, length, ncoins, vec![])
     }
 
@@ -140,9 +141,12 @@ impl<B: StarkField> RandomizedTraceTable<B> {
 
         let registers = unsafe { (0..width).map(|_| uninit_vector(length)).collect() };
         let aux_registers = unsafe { (0..aux_width).map(|_| uninit_vector(length)).collect() };
+
         Self {
             trace: registers,
             aux_columns: aux_registers,
+            aux_init: &|_, _, _| {},
+            aux_update: &|_, _, _, _| {},
             ncoins: ncoins,
             finished: false,
             meta,
@@ -162,7 +166,7 @@ impl<B: StarkField> RandomizedTraceTable<B> {
     ///   greater than the biggest multiplicative subgroup in the field `B`,
     ///   or is not a power of two.
     /// * Number of elements is not identical for all registers or auxiliary register.
-    pub fn init(registers: Vec<Vec<B>>, aux_registers: Vec<Vec<B>, ncoins:usize) -> Self {
+    pub fn init(registers: Vec<Vec<B>>, aux_registers: Vec<Vec<B>>, ncoins: usize) -> Self {
         assert!(
             !registers.is_empty(),
             "execution trace must consist of at least one register"
@@ -205,11 +209,15 @@ impl<B: StarkField> RandomizedTraceTable<B> {
             );
         }
 
+        let finished = aux_registers.is_empty();
+
         Self {
             trace: registers,
             aux_columns: aux_registers,
-            ncois: ncoins,
-            finished: aux_registers.is_empty(),
+            aux_init: &|_, _, _| {},
+            aux_update: &|_, _, _, _| {},
+            ncoins: ncoins,
+            finished,
             meta: vec![],
         }
     }
@@ -225,9 +233,12 @@ impl<B: StarkField> RandomizedTraceTable<B> {
     /// # Panics
     /// Panics if either `register` or `step` are out of bounds for this execution trace.
     pub fn set(&mut self, register: usize, step: usize, value: B) {
-        if(register >= trace.width()){
-            self.aux_columns[register - trace.width()][step] = value;
+        let width = self.width();
+
+        if register >= width {
+            self.aux_columns[register - width][step] = value;
         }
+
         self.trace[register][step] = value;
     }
 
@@ -268,12 +279,15 @@ impl<B: StarkField> RandomizedTraceTable<B> {
     ///   - a reference to the current row trace (index + 1)
     ///   - a mutable reference to the last updated state; the contents of the state are copied
     ///     into the next row of the auxiliary columns after the closure returns.
-    pub fn fill<I, U>(&mut self, init: I, update: U, aux_init: J, aux_update: R)
-    where
+    pub fn fill<I, U>(
+        &mut self,
+        init: I,
+        update: U,
+        aux_init: &'a dyn Fn(&[B], &[B], &mut[B]),
+        aux_update: &'a dyn Fn(usize, &[B], &[B], &mut[B])
+    ) where
         I: Fn(&mut [B]),
         U: Fn(usize, &mut [B]),
-        J: Fn(&[B], &[B], &mut[B]),
-        R: Fn(usize, &[B], &[B], &mut[B])
     {
         let mut state = vec![B::ZERO; self.width()];
         init(&mut state);
@@ -380,8 +394,9 @@ impl<B: StarkField> RandomizedTraceTable<B> {
     /// Returns the entire register trace for the register at the specified index.
     pub fn get_register(&self, idx: usize) -> &[B] {
         if idx > self.width() {
-            &self.aux_columns[idx - self.width()]
+            return &self.aux_columns[idx - self.width()];
         }
+
         &self.trace[idx]
     }
 }
@@ -389,7 +404,7 @@ impl<B: StarkField> RandomizedTraceTable<B> {
 // TRACE TRAIT IMPLEMENTATION
 // ================================================================================================
 
-impl<B: StarkField> Trace for RandomizedTraceTable<B> {
+impl<'a, B: StarkField> Trace for RandomizedTraceTable<'a, B> {
     type BaseField = B;
 
     fn width(&self) -> usize {
@@ -410,8 +425,9 @@ impl<B: StarkField> Trace for RandomizedTraceTable<B> {
 
     fn get(&self, register: usize, step: usize) -> B {
         if register > self.width() {
-            self.aux_columns[register - self.width()][step]
+            return self.aux_columns[register - self.width()][step];
         }
+
         self.trace[register][step]
     }
 
@@ -426,16 +442,16 @@ impl<B: StarkField> Trace for RandomizedTraceTable<B> {
     }
 
     // is actually computing the auxiliary columns 
-    fn set random_coeffs(&mut self, coeffs: Vec<B>) {
+    fn set_random_coeffs(&mut self, coeffs: Vec<B>) {
         let mut state = vec![B::ZERO; self.aux_columns_width()];
         let mut trace_state = vec![B::ZERO; self.width()];
-        self.read_row_into(0, &trace_state);
-        self.aux_init(&coeffs, &trace_state, &mut state);
+        self.read_row_into(0, &mut trace_state);
+        (self.aux_init)(&coeffs, &trace_state, &mut state);
         self.update_aux_row(0, &state);
 
         for i in 0..self.length() - 1 {
-            self.read_row_into(i+1, &trace_state);
-            self.aux_update(&coeffs, &trace_state, &mut state);
+            self.read_row_into(i+1, &mut trace_state);
+            (self.aux_update)(i, &coeffs, &trace_state, &mut state);
             self.update_aux_row(i + 1, &state);
         }
         self.finished = true;
