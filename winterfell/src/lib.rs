@@ -488,7 +488,7 @@
 //!
 //! // Instantiate the prover and generate the proof.
 //! let prover = WorkProver::new(options);
-//! let proof = prover.prove(trace).unwrap();
+//! let proof = prover.prove(&mut trace).unwrap();
 //!
 //! // Verify the proof. The number of steps and options are encoded in the proof itself,
 //! // so we don't need to pass them explicitly to the verifier.

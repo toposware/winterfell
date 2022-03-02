@@ -297,7 +297,7 @@ pub fn prove_work() -> (BaseElement, StarkProof) {
 
     // Instantiate the prover and generate the proof.
     let prover = WorkProver::new(options);
-    let proof = prover.prove(trace).unwrap();
+    let proof = prover.prove(&mut trace).unwrap();
 
     (result, proof)
 }

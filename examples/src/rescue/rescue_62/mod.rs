@@ -89,7 +89,7 @@ impl Example for RescueExample {
 
         // generate the execution trace
         let now = Instant::now();
-        let trace = prover.build_trace(self.seed, self.chain_length);
+        let mut trace = prover.build_trace(self.seed, self.chain_length);
         let trace_length = trace.length();
         debug!(
             "Generated execution trace of {} registers and 2^{} steps in {} ms",
@@ -99,7 +99,7 @@ impl Example for RescueExample {
         );
 
         // generate the proof
-        prover.prove(trace).unwrap()
+        prover.prove(&mut trace).unwrap()
     }
 
     fn verify(&self, proof: StarkProof) -> Result<(), VerifierError> {

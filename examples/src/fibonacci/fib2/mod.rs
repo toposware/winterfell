@@ -83,7 +83,7 @@ impl Example for FibExample {
 
         // generate execution trace
         let now = Instant::now();
-        let trace = prover.build_trace(self.sequence_length);
+        let mut trace = prover.build_trace(self.sequence_length);
 
         let trace_width = trace.width();
         let trace_length = trace.length();
@@ -95,7 +95,7 @@ impl Example for FibExample {
         );
 
         // generate the proof
-        prover.prove(trace).unwrap()
+        prover.prove(&mut trace).unwrap()
     }
 
     fn verify(&self, proof: StarkProof) -> Result<(), VerifierError> {

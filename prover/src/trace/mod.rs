@@ -71,7 +71,7 @@ pub trait Trace: Sized {
     // PROVIDED METHODS
     // --------------------------------------------------------------------------------------------
     
-    fn get_aux_columns(self)-> Vec<Vec<Self::BaseField>> {
+    fn get_aux_columns(&self)-> Vec<Vec<Self::BaseField>> {
         vec![]
     }
 
@@ -213,7 +213,7 @@ pub trait Trace: Sized {
     /// The extension is done by first interpolating each register into a polynomial over the
     /// trace domain, and then evaluating the polynomial over the LDE domain.
     fn extend_aux_columns(
-        self,
+        &self,
         domain: &StarkDomain<Self::BaseField>,
     ) -> (TraceLde<Self::BaseField>, TracePolyTable<Self::BaseField>) {
         assert_eq!(

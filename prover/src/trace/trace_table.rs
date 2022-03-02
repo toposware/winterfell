@@ -447,8 +447,8 @@ impl<B: StarkField> Trace for TraceTable<B> {
         self.trace.clone()
     }
 
-    fn get_aux_columns(self) -> Vec<Vec<B>> {
-        self.aux_columns
+    fn get_aux_columns(&self) -> Vec<Vec<B>> {
+        self.aux_columns.clone()
     }
 
     // is actually computing the auxiliary columns

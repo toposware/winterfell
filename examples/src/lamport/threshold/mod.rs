@@ -110,7 +110,7 @@ impl Example for LamportThresholdExample {
 
         // generate execution trace
         let now = Instant::now();
-        let trace = prover.build_trace(&self.pub_key, self.message, &self.signatures);
+        let mut trace = prover.build_trace(&self.pub_key, self.message, &self.signatures);
         let trace_length = trace.length();
         debug!(
             "Generated execution trace of {} registers and 2^{} steps in {} ms",
@@ -120,7 +120,7 @@ impl Example for LamportThresholdExample {
         );
 
         // generate the proof
-        prover.prove(trace).unwrap()
+        prover.prove(&mut trace).unwrap()
     }
 
     fn verify(&self, proof: StarkProof) -> Result<(), VerifierError> {

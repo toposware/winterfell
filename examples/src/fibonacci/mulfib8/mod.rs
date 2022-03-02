@@ -79,7 +79,7 @@ impl Example for MulFib8Example {
 
         // generate execution trace
         let now = Instant::now();
-        let trace = prover.build_trace(sequence_length);
+        let mut trace = prover.build_trace(sequence_length);
         let trace_width = trace.width();
         let trace_length = trace.length();
         debug!(
@@ -90,7 +90,7 @@ impl Example for MulFib8Example {
         );
 
         // generate the proof
-        prover.prove(trace).unwrap()
+        prover.prove(&mut trace).unwrap()
     }
 
     fn verify(&self, proof: StarkProof) -> Result<(), VerifierError> {

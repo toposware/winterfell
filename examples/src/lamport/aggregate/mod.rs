@@ -119,7 +119,7 @@ impl Example for LamportAggregateExample {
             LamportAggregateProver::new(&self.pub_keys, &self.messages, self.options.clone());
 
         let now = Instant::now();
-        let trace = prover.build_trace(&self.messages, &self.signatures);
+        let mut trace = prover.build_trace(&self.messages, &self.signatures);
         let trace_length = trace.length();
         debug!(
             "Generated execution trace of {} registers and 2^{} steps in {} ms",
@@ -129,7 +129,7 @@ impl Example for LamportAggregateExample {
         );
 
         // generate the proof
-        prover.prove(trace).unwrap()
+        prover.prove(&mut trace).unwrap()
     }
 
     fn verify(&self, proof: StarkProof) -> Result<(), VerifierError> {
