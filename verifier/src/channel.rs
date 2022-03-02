@@ -21,8 +21,8 @@ where
     H: ElementHasher<BaseField = B>,
 {
     // trace queries
-    trace_root: Vec<H::Digest>,
-    trace_proof: BatchMerkleProof<H>,
+    trace_root: [H::Digest; 2],
+    trace_proof: [BatchMerkleProof<H>;2],
     trace_states: Option<Vec<Vec<B>>>,
     // constraint queries
     constraint_root: H::Digest,

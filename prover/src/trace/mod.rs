@@ -92,7 +92,7 @@ pub trait Trace: Sized {
     }
 
     /// Set the random coeffiecients used for computing the auxiliary columns. By default does nothing
-    fn set_random_coeffs(&mut self, coeffs: Vec<Self::BaseField>) {
+    fn set_random_coeffs(&mut self, _coeffs: Vec<Self::BaseField>) {
     }
 
     /// Returns trace info for this trace.

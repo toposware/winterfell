@@ -178,12 +178,16 @@ where
     E: FieldElement<BaseField = A::BaseField>,
     H: ElementHasher<BaseField = A::BaseField>,
 {
-    // 1 ----- trace commitment -------------------------------------------------------------------
+    // 1 ----- trace and auxiliary columns commitments --------------------------------------------
     // read the commitment to evaluations of the trace polynomials over the LDE domain sent by the
     // prover, use it to update the public coin, and draw a set of random coefficients from the
-    // coin; in the interactive version of the protocol, the verifier sends these coefficients to
-    // the prover, and prover uses them to compute constraint composition polynomial.
+    // coin. Then, do the same with the commitment to the auxiliary columns. In the interactive
+    // version of the protocol, the verifier sends these coefficients to the prover, and prover uses
+    // them to compute constraint composition polynomial.
     let trace_commitment = channel.read_trace_commitment();
+    public_coin.reseed(trace_commitment);
+    let aux_cols_coeffs = channel.read_aux_columns_coeffs()
+    let aux_cols_commitment = channel.read_aux_columns_commitment();
     public_coin.reseed(trace_commitment);
     let constraint_coeffs = air
         .get_constraint_composition_coefficients(&mut public_coin)
