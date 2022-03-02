@@ -215,7 +215,10 @@ pub trait Trace: Sized {
     fn extend_aux_columns(
         &self,
         domain: &StarkDomain<Self::BaseField>,
-    ) -> (TraceLde<Self::BaseField>, TracePolyTable<Self::BaseField>) {
+    ) -> Option<(TraceLde<Self::BaseField>, TracePolyTable<Self::BaseField>)> {
+        if self.aux_columns_width() == 0 {
+            return None;
+        }
         assert_eq!(
             self.length(),
             domain.trace_length(),
@@ -233,10 +236,10 @@ pub trait Trace: Sized {
             .map(|register_trace| extend_column(register_trace, domain, &inv_twiddles))
             .collect();
 
-        (
+        Some((
             TraceLde::new(extended_trace, domain.trace_to_lde_blowup()),
             TracePolyTable::new(columns),
-        )
+        ))
     }
 }
 

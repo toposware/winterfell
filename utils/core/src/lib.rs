@@ -116,6 +116,17 @@ impl<T: Serializable, const N: usize> Serializable for &[[T; N]] {
     }
 }
 
+impl<T: Serializable> Serializable for Option<T> {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        if let Some(e) = &self {
+            target.write_u8(1u8);
+            T::write_into(&e, target);
+        } else {
+            target.write_u8(0u8);
+        }
+    }
+}
+
 // DESERIALIZABLE
 // ================================================================================================
 
@@ -157,6 +168,20 @@ pub trait Deserializable: Sized {
             let element = Self::read_from(source)?;
             result.push(element)
         }
+        Ok(result)
+    }
+}
+
+impl<T: Deserializable> Deserializable for Option<T> {
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        let boolean = source.read_u8()?;
+        let result = if boolean == 1u8 {
+            let e = T::read_from(source)?;
+            Some(e)
+        } else {
+            None
+        };
+
         Ok(result)
     }
 }

@@ -45,7 +45,8 @@
 extern crate alloc;
 
 pub use air::{
-    proof::StarkProof, Air, AirContext, Assertion, BoundaryConstraint, BoundaryConstraintGroup,
+    proof::{StarkProof, Queries},
+    Air, AirContext, Assertion, BoundaryConstraint, BoundaryConstraintGroup,
     ConstraintCompositionCoefficients, ConstraintDivisor, DeepCompositionCoefficients,
     EvaluationFrame, FieldExtension, HashFunction, ProofOptions, TraceInfo,
     TransitionConstraintDegree, TransitionConstraintGroup,
@@ -67,7 +68,7 @@ use math::{
 pub use crypto;
 use crypto::{
     hashers::{Blake3_192, Blake3_256, Sha3_256},
-    ElementHasher,
+    ElementHasher, MerkleTree,
 };
 
 #[cfg(feature = "std")]
@@ -261,39 +262,52 @@ pub trait Prover {
             now.elapsed().as_millis()
         );
 
-        // 2.1 ----- extend auxiliary columns ---------------------------------------------------------
+        // If the trace isn't `finished`, then it means we need to generate the auxiliary RAP columns,
+        // commit to them and include the extended auxiliary columns to the extended trace.
+        // TODO: how to deal with it with the verifier?
+        let has_rap_columns = !trace.is_finished();
 
-        // sample auxiliary columns random coefficients
-        let aux_cols_coeffs = channel.get_aux_columns_composition_coeffs(trace.number_of_coins());
-        trace.set_random_coeffs(aux_cols_coeffs);
+        let extended_aux_trace = trace.extend_aux_columns(&domain);
+        let mut aux_cols_tree = MerkleTree::<H>::build_empty(1);
 
-        // extend the auxiliary columns
-        let (extended_aux_cols, aux_polys) = trace.extend_aux_columns(&domain);
-        #[cfg(feature = "std")]
-        debug!(
-        "Extended auxiliary columns of {} registers from 2^{} to 2^{} steps ({}x blowup) in {} ms",
-        extended_aux_cols.width(),
-        log2(aux_polys.poly_size()),
-        log2(extended_aux_cols.len()),
-        extended_aux_cols.blowup(),
-        now.elapsed().as_millis()
-        );
+        if has_rap_columns {
+            // 2.1 ----- extend auxiliary columns ---------------------------------------------------------
 
-        // 2.2 ----- commit to the extended execution trace -----------------------------------------
-        #[cfg(feature = "std")]
-        let now = Instant::now();
-        let aux_cols_tree = extended_aux_cols.build_commitment::<H>();
-        channel.commit_trace(*aux_cols_tree.root());
-        #[cfg(feature = "std")]
-        debug!(
-            "Committed to extended execution trace by building a Merkle tree of depth {} in {} ms",
-            aux_cols_tree.depth(),
-            now.elapsed().as_millis()
-        );
+            // sample auxiliary columns random coefficients
+            let aux_cols_coeffs = channel.get_aux_columns_composition_coeffs(trace.number_of_coins());
+            trace.set_random_coeffs(aux_cols_coeffs);
 
-        // apend the extended auxiliary columns to the extended trace
-        extended_trace.append(&extended_aux_cols);
-        trace_polys.append(aux_polys);
+            // extend the auxiliary columns
+            #[cfg(feature = "std")]
+            let now = Instant::now();
+            // TODO: is there a way to remove this cloning?
+            let (extended_aux_cols, aux_polys) = extended_aux_trace.clone().unwrap();
+            #[cfg(feature = "std")]
+            debug!(
+                "Extended auxiliary columns of {} registers from 2^{} to 2^{} steps ({}x blowup) in {} ms",
+                extended_aux_cols.width(),
+                log2(aux_polys.poly_size()),
+                log2(extended_aux_cols.len()),
+                extended_aux_cols.blowup(),
+                now.elapsed().as_millis()
+            );
+
+            // 2.2 ----- commit to the extended execution trace -----------------------------------------
+            #[cfg(feature = "std")]
+            let now = Instant::now();
+            aux_cols_tree = extended_aux_cols.build_commitment::<H>();
+            channel.commit_trace(*aux_cols_tree.root());
+            #[cfg(feature = "std")]
+            debug!(
+                "Committed to extended execution trace by building a Merkle tree of depth {} in {} ms",
+                aux_cols_tree.depth(),
+                now.elapsed().as_millis()
+            );
+
+            // append the extended auxiliary columns to the extended trace
+            extended_trace.append(&extended_aux_cols);
+            trace_polys.append(aux_polys);
+        }
 
         // 3 ----- evaluate constraints -----------------------------------------------------------
         // evaluate constraints specified by the AIR over the constraint evaluation domain, and
@@ -457,13 +471,19 @@ pub trait Prover {
         // generate FRI proof
         let fri_proof = fri_prover.build_proof(&query_positions);
 
-        // Recall we appended the aux columns to the extended trace. We need to undo this now
-        extended_trace.truncate(extended_trace.width() - extended_aux_cols.width());
+        // Recall we may have appended auxiliary columns to the extended trace. We need to undo this now
+        extended_trace.truncate(extended_trace.width() - trace.aux_columns_width());
+
         // query the execution trace and the extented aux columns at the selected position; for each
         // query, we need the state of the trace at that position + Merkle authentication path
         let trace_queries = extended_trace.query(trace_tree, &query_positions);
-        let aux_cols_queries = extended_aux_cols.query(aux_cols_tree, &query_positions);
-        
+        let aux_cols_queries = if has_rap_columns {
+            // TODO: is there a way to remove this double unwrapping?
+            let (extended_aux_cols, _) = extended_aux_trace.unwrap();
+            Some(extended_aux_cols.query(aux_cols_tree, &query_positions))
+        } else {
+            None
+        };
 
         // query the constraint commitment at the selected positions; for each query, we need just
         // a Merkle authentication path. this is because constraint evaluations for each step are
@@ -472,9 +492,9 @@ pub trait Prover {
 
         // build the proof object
         let proof = channel.build_proof(
-            trace_queries, 
-            aux_cols_queries, 
-            constraint_queries, 
+            trace_queries,
+            aux_cols_queries,
+            constraint_queries,
             fri_proof
         );
         #[cfg(feature = "std")]

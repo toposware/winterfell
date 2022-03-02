@@ -54,7 +54,7 @@ pub struct StarkProof {
     /// Decommitments of extended execution trace values at positions queried by the verifier.
     pub trace_queries: Queries,
     /// Decommitments of extended auxiliary columns values at positions queried by the verifier.
-    pub aux_cols_queries: Queries,
+    pub aux_cols_queries: Option<Queries>,
     /// Decommitments of constraint composition polynomial evaluations at positions queried by
     /// the verifier.
     pub constraint_queries: Queries,
@@ -140,7 +140,7 @@ impl StarkProof {
             context: Context::read_from(&mut source)?,
             commitments: Commitments::read_from(&mut source)?,
             trace_queries: Queries::read_from(&mut source)?,
-            aux_cols_queries: Queries::read_from(&mut source)?,
+            aux_cols_queries: Option::<Queries>::read_from(&mut source)?,
             constraint_queries: Queries::read_from(&mut source)?,
             ood_frame: OodFrame::read_from(&mut source)?,
             fri_proof: FriProof::read_from(&mut source)?,

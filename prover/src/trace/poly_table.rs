@@ -13,6 +13,7 @@ use utils::iterators::*;
 
 // POLYNOMIAL TABLE
 // ================================================================================================
+#[derive(Clone)]
 pub struct TracePolyTable<B: StarkField>(Vec<Vec<B>>);
 
 impl<B: StarkField> TracePolyTable<B> {

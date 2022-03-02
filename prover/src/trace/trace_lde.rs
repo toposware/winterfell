@@ -16,6 +16,7 @@ use utils::iterators::*;
 // ================================================================================================
 
 /// Trace low-degree extension.
+#[derive(Clone)]
 pub struct TraceLde<B: StarkField> {
     data: Vec<Vec<B>>,
     blowup: usize,
@@ -71,7 +72,7 @@ impl<B: StarkField> TraceLde<B> {
     }
 
     /// Drops the last `len` columns of the table
-    pub fn truncate(&mut self, len: usize){
+    pub fn truncate(&mut self, len: usize) {
         self.data.truncate(len)
     }
 

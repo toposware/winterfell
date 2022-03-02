@@ -66,15 +66,22 @@ impl Commitments {
         self,
         num_fri_layers: usize,
     ) -> Result<(Vec<H::Digest>, H::Digest, Vec<H::Digest>), DeserializationError> {
-        // +2 for trace_roots, +1 for constraint root, +1 for FRI remainder commitment
-        let num_commitments = num_fri_layers + 4;
+        // +1 for trace_root, +1 for constraint root, +1 for FRI remainder commitment
+        // the optional auxiliary_trace_root is read after
+        let num_commitments = num_fri_layers + 3;
         let mut reader = SliceReader::new(&self.0);
         let commitments = H::Digest::read_batch_from(&mut reader, num_commitments)?;
         // make sure we consumed all available commitment bytes
+        let mut trace_roots = vec![commitments[0]];
+        if reader.has_more_bytes() {
+            // TODO: this seems flawky. There should be a better way to know if there
+            // is an auxiliary trace root and read it in that case.
+            trace_roots.push(H::Digest::read_from(&mut reader)?);
+        }
         if reader.has_more_bytes() {
             return Err(DeserializationError::UnconsumedBytes);
         }
-        Ok((commitments[0..1].to_vec(), commitments[1], commitments[2..].to_vec()))
+        Ok((trace_roots, commitments[1], commitments[2..].to_vec()))
     }
 }
 

@@ -180,7 +180,7 @@ where
     pub fn build_proof(
         self,
         trace_queries: Queries,
-        aux_cols_queries: Queries,
+        aux_cols_queries: Option<Queries>,
         constraint_queries: Queries,
         fri_proof: FriProof,
     ) -> StarkProof {
