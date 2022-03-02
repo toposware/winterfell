@@ -139,7 +139,7 @@ where
         self.trace_root[0]
     }
 
-    /// Returns execution trace commitment sent by the prover.
+    /// Returns auxiliary columns commitment sent by the prover.
     pub fn read_aux_columns_commitment(&self) -> H::Digest {
         self.trace_root[1]
     }

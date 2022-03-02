@@ -187,7 +187,6 @@ pub trait Air: Send + Sync {
 
     // PROVIDED METHODS
     // --------------------------------------------------------------------------------------------
-
     /// Returns values for all periodic columns used in the computation.
     ///
     /// These values will be used to compute column values at specific states of the computation
@@ -494,6 +493,19 @@ pub trait Air: Send + Sync {
             transition: t_coefficients,
             boundary: b_coefficients,
         })
+    }
+
+      /// Returns the random coefficient used for computing the auxiliary columns. By default
+      /// returns an empty vector
+    fn get_aux_columns_random_coefficients<E, H>(
+        &self,
+        _public_coin: &mut RandomCoin<Self::BaseField, H>,
+    ) -> Result<Vec<E>, RandomCoinError>
+    where
+        E: FieldElement<BaseField = Self::BaseField>,
+        H: Hasher,
+    {
+        Ok(vec![])
     }
 
     /// Returns coefficients needed for random linear combinations during construction of DEEP
