@@ -277,6 +277,9 @@ impl<B: StarkField> TraceTable<B> {
         U: Fn(usize, &mut [B]),
     {
         let mut state = vec![B::ZERO; self.width()];
+        // TODO: we may want to give only a mutable reference to the subslice consisting in the
+        // original columns, so that there is no risk of updating the auxiliary ones, though it
+        // may not be an issue as aux_fill() would overwrite this normally.
         init(&mut state);
         self.update_row(0, &state);
 
