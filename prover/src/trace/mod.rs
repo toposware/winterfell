@@ -17,9 +17,6 @@ pub use poly_table::TracePolyTable;
 mod trace_table;
 pub use trace_table::{TraceTable, TraceTableFragment};
 
-mod randomized_trace_table;
-pub use randomized_trace_table::{RandomizedTraceTable, RandomizedTraceTableFragment};
-
 use utils::{collections::Vec, iter_mut};
 
 #[cfg(feature = "concurrent")]
@@ -95,8 +92,7 @@ pub trait Trace: Sized {
     }
 
     /// Set the random coeffiecients used for computing the auxiliary columns. By default does nothing
-    fn set_random_coeffs(&mut self, _coeffs: Vec<Self::BaseField>) {
-    }
+    fn set_random_coeffs(&mut self, _coeffs: Vec<Self::BaseField>) {}
 
     /// Returns trace info for this trace.
     fn get_info(&self) -> TraceInfo {

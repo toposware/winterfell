@@ -28,22 +28,32 @@ const MIN_FRAGMENT_LENGTH: usize = 2;
 /// cases. There are two ways to create a trace table trace.
 ///
 /// First, you can use the [TraceTable::init()] function which takes a set of vectors as a
-/// parameter, where each vector contains values for a given column of the trace. This approach
-/// allows you to build an execution trace as you see fit, as long as it meets a basic set of
-/// requirements. These requirements are:
+/// parameter, where each vector contains values for a given column of the trace, an additional
+/// set of vectors containing values for the auxiliary RAP columns of the trace, and the number
+/// of public coins required for the RAP argument.
+/// This approach allows you to build an execution trace as you see fit, as long as it meets a 
+/// basic set of requirements. These requirements are:
 ///
 /// 1. Lengths of all columns in the execution trace must be the same.
 /// 2. The length of the columns must be some power of two.
 ///
-/// The other approach is to use [TraceTable::new()] function, which takes trace width and
-/// length as parameters. This function will allocate memory for the trace, but will not fill it
-/// with data. To fill the execution trace, you can use the [fill()](TraceTable::fill) method,
-/// which takes two closures as parameters:
+/// The other approach is to use [TraceTable::new()] function, which takes regular trace width and
+/// length, as well as auxiliary RAP trace width and the number of RAP public coins as parameters.
+/// This function will allocate memory for the trace, but will not fill it with data. To fill the
+/// execution trace, you can use the [fill()](TraceTable::fill) method, which takes four closures
+/// as parameters:
 ///
 /// 1. The first closure is responsible for initializing the first state of the computation
 ///    (the first row of the execution trace).
 /// 2. The second closure receives the previous state of the execution trace as input, and must
 ///    update it to the next state of the computation.
+/// 3. The third closure is responsible for initializing the first state of the computation on the
+///    auxiliary RAP columns (their first row).
+/// 4. The fourth closure receives the previous state of the execution trace as input, and must
+///    update the next state of the computation of the auxiliary RAP columns.
+/// 
+/// The auxiliary RAP columns will be automatically filled once the original trace is commited to
+/// and the verifier has sampled the necessary public coins.
 ///
 /// You can also use [TraceTable::with_meta()] function to create a blank execution trace.
 /// This function work just like [TraceTable::new()] function, but also takes a metadata
@@ -62,6 +72,11 @@ const MIN_FRAGMENT_LENGTH: usize = 2;
 /// semantics of the [TraceTable::fill()] method.
 pub struct TraceTable<B: StarkField> {
     trace: Vec<Vec<B>>,
+    aux_columns: Vec<Vec<B>>,
+    aux_init: Box<dyn Fn(&[B], &[B], &mut[B])>,
+    aux_update:Box<dyn Fn(usize, &[B], &[B], &mut[B])>,
+    ncoins: usize,
+    finished: bool,
     meta: Vec<u8>,
 }
 
@@ -76,11 +91,13 @@ impl<B: StarkField> TraceTable<B> {
     ///
     /// # Panics
     /// Panics if:
-    /// * `width` is zero or greater than 255.
+    /// * `width` is zero.
+    /// * `width + aux_width` is greater than 255.
     /// * `length` is smaller than 8, greater than biggest multiplicative subgroup in the field
     ///   `B`, or is not a power of two.
-    pub fn new(width: usize, length: usize) -> Self {
-        Self::with_meta(width, length, vec![])
+    // TODO: add some check for ncoins
+    pub fn new(width: usize, aux_width: usize, length: usize, ncoins: usize) -> Self {
+        Self::with_meta(width, aux_width, length, ncoins, vec![])
     }
 
     /// Creates a new execution trace of the specified width and length, and with the specified
@@ -91,17 +108,19 @@ impl<B: StarkField> TraceTable<B> {
     ///
     /// # Panics
     /// Panics if:
-    /// * `width` is zero or greater than 255.
+    /// * `width` is zero.
+    /// * `width + aux_width` is greater than 255.
     /// * `length` is smaller than 8, greater than the biggest multiplicative subgroup in the
     ///   field `B`, or is not a power of two.
     /// * Length of `meta` is greater than 65535;
-    pub fn with_meta(width: usize, length: usize, meta: Vec<u8>) -> Self {
+    // TODO: add some check for ncoins
+    pub fn with_meta(width: usize, aux_width: usize, length: usize, ncoins: usize, meta: Vec<u8>) -> Self {
         assert!(
             width > 0,
             "execution trace must consist of at least one register"
         );
         assert!(
-            width <= TraceInfo::MAX_TRACE_WIDTH,
+            width + aux_width <= TraceInfo::MAX_TRACE_WIDTH,
             "execution trace width cannot be greater than {}, but was {}",
             TraceInfo::MAX_TRACE_WIDTH,
             width
@@ -130,8 +149,15 @@ impl<B: StarkField> TraceTable<B> {
         );
 
         let registers = unsafe { (0..width).map(|_| uninit_vector(length)).collect() };
+        let aux_registers = unsafe { (0..aux_width).map(|_| uninit_vector(length)).collect() };
+
         Self {
             trace: registers,
+            aux_columns: aux_registers,
+            aux_init: Box::new(|_, _, _| {}),
+            aux_update: Box::new(|_, _, _, _| {}),
+            ncoins: ncoins,
+            finished: false,
             meta,
         }
     }
@@ -142,20 +168,22 @@ impl<B: StarkField> TraceTable<B> {
     ///
     /// # Panics
     /// Panics if:
-    /// * The `registers` vector is empty or has over 255 registers.
+    /// * The `registers` vector is empty.
+    /// * The `registers` and `aux_registers` vectors combined have over 255 registers.
     /// * Number of elements in any of the registers is smaller than 8, greater than the biggest
     ///   multiplicative subgroup in the field `B`, or is not a power of two.
     /// * Number of elements is not identical for all registers.
-    pub fn init(registers: Vec<Vec<B>>) -> Self {
+    // TODO: add some check for ncoins
+    pub fn init(registers: Vec<Vec<B>>, aux_registers: Vec<Vec<B>>, ncoins: usize) -> Self {
         assert!(
             !registers.is_empty(),
             "execution trace must consist of at least one register"
         );
         assert!(
-            registers.len() <= TraceInfo::MAX_TRACE_WIDTH,
+            registers.len() + aux_registers.len() <= TraceInfo::MAX_TRACE_WIDTH,
             "execution trace width cannot be greater than {}, but was {}",
             TraceInfo::MAX_TRACE_WIDTH,
-            registers.len()
+            registers.len() + aux_registers.len()
         );
         let trace_length = registers[0].len();
         assert!(
@@ -182,8 +210,15 @@ impl<B: StarkField> TraceTable<B> {
             );
         }
 
+        let finished = aux_registers.is_empty();
+
         Self {
             trace: registers,
+            aux_columns: aux_registers,
+            aux_init: Box::new(|_, _, _| {}),
+            aux_update: Box::new(|_, _, _, _| {}),
+            ncoins: ncoins,
+            finished,
             meta: vec![],
         }
     }
@@ -199,6 +234,12 @@ impl<B: StarkField> TraceTable<B> {
     /// # Panics
     /// Panics if either `register` or `step` are out of bounds for this execution trace.
     pub fn set(&mut self, register: usize, step: usize, value: B) {
+        let width = self.width();
+
+        if register >= width {
+            self.aux_columns[register - width][step] = value;
+        }
+
         self.trace[register][step] = value;
     }
 
@@ -216,7 +257,7 @@ impl<B: StarkField> TraceTable<B> {
         self.meta = meta
     }
 
-    /// Fill all rows in the execution trace.
+    /// Fill all rows in the original execution trace.
     ///
     /// The rows are filled by executing the provided closures as follows:
     /// - `init` closure is used to initialize the first row of the trace; it receives a mutable
@@ -227,8 +268,11 @@ impl<B: StarkField> TraceTable<B> {
     ///   - index of the last updated row (starting with 0).
     ///   - a mutable reference to the last updated state; the contents of the state are copied
     ///     into the next row of the trace after the closure returns.
-    pub fn fill<I, U>(&mut self, init: I, update: U)
-    where
+    pub fn fill<I, U>(
+        &mut self,
+        init: I,
+        update: U,
+    ) where
         I: Fn(&mut [B]),
         U: Fn(usize, &mut [B]),
     {
@@ -242,9 +286,44 @@ impl<B: StarkField> TraceTable<B> {
         }
     }
 
+    /// Fill all rows in the auxiliary execution trace.
+    ///
+    /// The rows are filled by executing the provided closures as follows:    /// 
+    /// - `aux_init` closure is used to initialize the first row of the auxiliary RAP trace;
+    ///   it receives a reference to the RAP coefficients for the permutation argument, a reference
+    ///   to the original trace initial row, and a mutable reference to the first state of the
+    ///   auxiliary RAP trace initialized to all zeros. The contents of the state are copied into
+    ///   the first row of the auxiliary RAP trace after the closure returns.
+    /// - `aux_update` closure is used to populate all subsequent rows of the auxiliary RAP trace;
+    ///   it receives four parameters:
+    ///   - index of the last updated row (starting with 0).
+    ///   - a reference to the RAP coefficients for the permutation argument
+    ///   - a reference to the last updated state of the original trace
+    ///   - a mutable reference to the last updated state of the auxiliary RAP trace; the contents
+    ///     of the state are copied into the next row of the trace after the closure returns.
+    pub fn fill_aux<J, V>(
+        &mut self,
+        aux_init: J,
+        aux_update: V,
+    ) where
+        J: Fn(&[B], &[B], &mut[B]) + 'static,
+        V: Fn(usize, &[B], &[B], &mut[B]) + 'static,
+    {
+        // Lazy evaluation of auxiliary columns
+        self.aux_init = Box::new(aux_init);
+        self.aux_update = Box::new(aux_update);
+    }
+
     /// Updates a single row in the execution trace with provided data.
     pub fn update_row(&mut self, step: usize, state: &[B]) {
         for (register, &value) in self.trace.iter_mut().zip(state) {
+            register[step] = value;
+        }
+    }
+
+    /// Updates a single row in the auxiliary columns with provided data.
+    pub fn update_aux_row(&mut self, step: usize, state: &[B]) {
+        for (register, &value) in self.aux_columns.iter_mut().zip(state) {
             register[step] = value;
         }
     }
@@ -339,6 +418,10 @@ impl<B: StarkField> Trace for TraceTable<B> {
         self.trace.len()
     }
 
+    fn aux_columns_width(&self) -> usize {
+        self.aux_columns.len()
+    }
+
     fn length(&self) -> usize {
         self.trace[0].len()
     }
@@ -359,6 +442,41 @@ impl<B: StarkField> Trace for TraceTable<B> {
 
     fn get_columns(&self) -> Vec<Vec<B>> {
         self.trace.clone()
+    }
+
+    fn get_aux_columns(self) -> Vec<Vec<B>> {
+        self.aux_columns
+    }
+
+    // is actually computing the auxiliary columns
+    // TODO: should add checks on coeffs
+    fn set_random_coeffs(&mut self, coeffs: Vec<B>) {
+        if coeffs.is_empty() {
+            self.finished = true;
+            return;
+        }
+
+        let mut state = vec![B::ZERO; self.aux_columns_width()];
+        let mut trace_state = vec![B::ZERO; self.width()];
+        self.read_row_into(0, &mut trace_state);
+        (self.aux_init)(&coeffs, &trace_state, &mut state);
+        self.update_aux_row(0, &state);
+
+        for i in 0..self.length() - 1 {
+            self.read_row_into(i+1, &mut trace_state);
+            (self.aux_update)(i, &coeffs, &trace_state, &mut state);
+            self.update_aux_row(i + 1, &state);
+        }
+
+        self.finished = true;
+    }
+
+    fn number_of_coins(&self) -> usize {
+        self.ncoins
+    }
+
+    fn is_finished(&self) -> bool {
+        self.finished
     }
 }
 
