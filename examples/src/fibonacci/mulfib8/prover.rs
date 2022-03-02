@@ -45,7 +45,7 @@ impl MulFib8Prover {
             reg7.push(reg5[i + 1] * reg6[i + 1]);
         }
 
-        TraceTable::init(vec![reg0, reg1, reg2, reg3, reg4, reg5, reg6, reg7])
+        TraceTable::init(vec![reg0, reg1, reg2, reg3, reg4, reg5, reg6, reg7], vec![], 0)
     }
 }
 

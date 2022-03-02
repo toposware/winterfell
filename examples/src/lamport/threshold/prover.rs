@@ -77,7 +77,7 @@ impl LamportThresholdProver {
         // allocate memory to hold the trace table
         let num_cycles = pub_key.num_keys().next_power_of_two();
         let trace_length = SIG_CYCLE_LENGTH * num_cycles;
-        let mut trace = TraceTable::new(TRACE_WIDTH, trace_length);
+        let mut trace = TraceTable::new(TRACE_WIDTH, 0, trace_length, 0);
 
         let powers_of_two = get_power_series(TWO, 128);
 

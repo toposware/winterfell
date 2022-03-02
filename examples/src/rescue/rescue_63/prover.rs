@@ -22,7 +22,7 @@ impl RescueProver {
     ) -> TraceTable<BaseElement> {
         // allocate memory to hold the trace table
         let trace_length = iterations * CYCLE_LENGTH;
-        let mut trace = TraceTable::new(14, trace_length);
+        let mut trace = TraceTable::new(14, 0, trace_length, 0);
 
         trace.fill(
             |state| {

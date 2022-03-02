@@ -52,7 +52,7 @@ impl Fib8Prover {
             reg1.push(n7);
         }
 
-        TraceTable::init(vec![reg0, reg1])
+        TraceTable::init(vec![reg0, reg1], vec![], 0)
     }
 }
 

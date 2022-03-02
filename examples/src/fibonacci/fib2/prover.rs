@@ -27,7 +27,7 @@ impl FibProver {
             "sequence length must be a power of 2"
         );
 
-        let mut trace = TraceTable::new(TRACE_WIDTH, sequence_length / 2);
+        let mut trace = TraceTable::new(TRACE_WIDTH, 0, sequence_length / 2, 0);
         trace.fill(
             |state| {
                 state[0] = BaseElement::ONE;

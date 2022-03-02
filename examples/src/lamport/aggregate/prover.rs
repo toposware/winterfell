@@ -66,7 +66,7 @@ impl LamportAggregateProver {
     ) -> TraceTable<BaseElement> {
         // allocate memory to hold the trace table
         let trace_length = SIG_CYCLE_LENGTH * messages.len();
-        let mut trace = TraceTable::new(TRACE_WIDTH, trace_length);
+        let mut trace = TraceTable::new(TRACE_WIDTH, 0, trace_length, 0);
 
         let powers_of_two = get_power_series(TWO, 128);
 

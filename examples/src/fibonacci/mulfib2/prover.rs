@@ -33,7 +33,7 @@ impl MulFib2Prover {
             reg1.push(reg1[i] * reg0[i + 1]);
         }
 
-        TraceTable::init(vec![reg0, reg1])
+        TraceTable::init(vec![reg0, reg1], vec![], 0)
     }
 }
 
