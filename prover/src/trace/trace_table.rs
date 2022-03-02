@@ -157,7 +157,7 @@ impl<B: StarkField> TraceTable<B> {
             aux_init: Box::new(|_, _, _| {}),
             aux_update: Box::new(|_, _, _, _| {}),
             ncoins: ncoins,
-            finished: false,
+            finished: if aux_width == 0 { true } else { false },
             meta,
         }
     }
