@@ -70,7 +70,7 @@ where
             .map_err(|err| VerifierError::ProofDeserializationError(err.to_string()))?;
 
         // --- parse trace queries ----------------------------------------------------------------
-        let (trace_proof, trace_states) = proof
+        let (trace_proof, mut trace_states) = proof
             .trace_queries
             .parse::<H, B>(lde_domain_size, num_queries, air.trace_width())
             .map_err(|err| {
@@ -79,6 +79,18 @@ where
                     err
                 ))
             })?;
+        let (aux_cols_proof, aux_cols_states) = proof
+            .aux_cols_queries
+            .parse::<H, B>(lde_domain_size, num_queries, air.trace_width())
+            .map_err(|err| {
+                VerifierError::ProofDeserializationError(format!(
+                    "trace query deserialization failed: {}",
+                    err
+                ))
+            })?;
+        for (state, mut state_aux) in trace_states.iter_mut().zip(aux_cols_states.into_iter()) {
+            state.append(&mut state_aux);
+        }
 
         // --- parse constraint evaluation queries ------------------------------------------------
         let (constraint_proof, constraint_evaluations) = proof
@@ -110,8 +122,8 @@ where
 
         Ok(VerifierChannel {
             // trace queries
-            trace_root,
-            trace_proof,
+            trace_root: [trace_root[0], trace_root[1]],
+            trace_proof: [trace_proof, aux_cols_proof],
             trace_states: Some(trace_states),
             // constraint queries
             constraint_root,
@@ -174,7 +186,9 @@ where
         commitment: &H::Digest,
     ) -> Result<Vec<Vec<B>>, VerifierError> {
         // make sure the states included in the proof correspond to the trace commitment
-        MerkleTree::verify_batch(commitment, positions, &self.trace_proof)
+        MerkleTree::verify_batch(commitment, positions, &self.trace_proof[0])
+            .map_err(|_| VerifierError::TraceQueryDoesNotMatchCommitment)?;
+        MerkleTree::verify_batch(commitment, positions, &self.trace_proof[1])
             .map_err(|_| VerifierError::TraceQueryDoesNotMatchCommitment)?;
 
         Ok(self.trace_states.take().expect("already read"))

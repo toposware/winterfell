@@ -169,7 +169,7 @@ pub fn verify<AIR: Air>(
 /// Performs the actual verification by reading the data from the `channel` and making sure it
 /// attests to a correct execution of the computation specified by the provided `air`.
 fn perform_verification<A, E, H>(
-    air: A,
+    mut air: A,
     mut channel: VerifierChannel<A::BaseField, E, H>,
     mut public_coin: RandomCoin<A::BaseField, H>,
 ) -> Result<(), VerifierError>
@@ -185,8 +185,8 @@ where
     //the verifier sends these coefficients to the prover, and prover uses them to compute constraint composition polynomial.
     let trace_commitment = channel.read_trace_commitment();
     public_coin.reseed(trace_commitment);
-    let aux_cols_coeffs: Vec<E> = air
-        .get_aux_columns_random_coefficients(&mut public_coin)
+    air
+        .set_aux_columns_random_coefficients::<E,H>(&mut public_coin)
         .map_err(|_| VerifierError::RandomCoinError)?;
     let aux_cols_commitment = channel.read_aux_columns_commitment();
     public_coin.reseed(aux_cols_commitment);
@@ -278,7 +278,8 @@ where
 
     // read evaluations of trace and constraint composition polynomials at the queried positions;
     // this also checks that the read values are valid against trace and constraint commitments
-    let queried_trace_states = channel.read_trace_states(&query_positions, &trace_commitment)?;
+    let queried_trace_states = 
+        channel.read_trace_states(&query_positions, &trace_commitment)?;
     let queried_evaluations =
         channel.read_constraint_evaluations(&query_positions, &constraint_commitment)?;
 

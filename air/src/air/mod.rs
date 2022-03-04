@@ -497,8 +497,8 @@ pub trait Air: Send + Sync {
 
       /// Returns the random coefficient used for computing the auxiliary columns. By default
       /// returns an empty vector
-    fn get_aux_columns_random_coefficients<E, H>(
-        &self,
+    fn set_aux_columns_random_coefficients<E, H>(
+        &mut self,
         _public_coin: &mut RandomCoin<Self::BaseField, H>,
     ) -> Result<Vec<E>, RandomCoinError>
     where
