@@ -279,7 +279,7 @@ where
     // read evaluations of trace and constraint composition polynomials at the queried positions;
     // this also checks that the read values are valid against trace and constraint commitments
     let queried_trace_states = 
-        channel.read_trace_states(&query_positions, &trace_commitment)?;
+        channel.read_trace_states(&query_positions, &trace_commitment, &aux_cols_commitment)?;
     let queried_evaluations =
         channel.read_constraint_evaluations(&query_positions, &constraint_commitment)?;
 

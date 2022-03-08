@@ -184,13 +184,15 @@ where
         &mut self,
         positions: &[usize],
         commitment: &H::Digest,
+        aux_commitment: &H::Digest,
     ) -> Result<Vec<Vec<B>>, VerifierError> {
         // make sure the states included in the proof correspond to the trace commitment
         MerkleTree::verify_batch(commitment, positions, &self.trace_proof[0])
             .map_err(|_| VerifierError::TraceQueryDoesNotMatchCommitment)?;
-        MerkleTree::verify_batch(commitment, positions, &self.trace_proof[1])
+        MerkleTree::verify_batch(aux_commitment, positions, &self.trace_proof[1])
             .map_err(|_| VerifierError::TraceQueryDoesNotMatchCommitment)?;
 
+        // TODO: merge trace_states together at this moment
         Ok(self.trace_states.take().expect("already read"))
     }
 
