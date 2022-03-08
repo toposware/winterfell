@@ -267,21 +267,22 @@ pub trait Prover {
         // TODO: how to deal with it with the verifier?
         let has_rap_columns = !trace.is_finished();
 
-        let extended_aux_trace = trace.extend_aux_columns(&domain);
+        let mut extended_aux_trace = None;
         let mut aux_cols_tree = MerkleTree::<H>::build_empty(1);
 
         if has_rap_columns {
             // 2.1 ----- extend auxiliary columns ---------------------------------------------------------
 
             // sample auxiliary columns random coefficients
-            let aux_cols_coeffs = channel.get_aux_columns_composition_coeffs(trace.number_of_coins());
+            let aux_cols_coeffs =
+                channel.get_aux_columns_composition_coeffs(trace.number_of_coins());
             trace.set_random_coeffs(aux_cols_coeffs);
+            extended_aux_trace = trace.extend_aux_columns(&domain);
 
             // extend the auxiliary columns
             #[cfg(feature = "std")]
             let now = Instant::now();
-            // TODO: is there a way to remove this cloning?
-            let (extended_aux_cols, aux_polys) = extended_aux_trace.clone().unwrap();
+            let (extended_aux_cols, aux_polys) = extended_aux_trace.as_ref().unwrap();
             #[cfg(feature = "std")]
             debug!(
                 "Extended auxiliary columns of {} registers from 2^{} to 2^{} steps ({}x blowup) in {} ms",
@@ -306,7 +307,7 @@ pub trait Prover {
 
             // append the extended auxiliary columns to the extended trace
             extended_trace.append(&extended_aux_cols);
-            trace_polys.append(aux_polys);
+            trace_polys.append(aux_polys.clone());
         }
 
         // 3 ----- evaluate constraints -----------------------------------------------------------
