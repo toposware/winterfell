@@ -22,6 +22,9 @@ pub enum ProverError {
     /// This error occurs when the base field specified by the AIR does not support field extension
     /// of degree specified by proof options.
     UnsupportedFieldExtension(usize),
+    /// This error occurs when a prover fails to draw a random value from a random coin
+    /// within a specified number of tries.
+    RandomCoinError,
 }
 
 impl fmt::Display for ProverError {

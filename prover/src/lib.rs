@@ -209,13 +209,7 @@ pub trait Prover {
         // create an instance of AIR for the provided parameters. this takes a generic description
         // of the computation (provided via AIR type), and creates a description of a specific
         // execution of the computation for the provided public inputs.
-        let air = Self::Air::new(trace.get_info(), pub_inputs, self.options().clone());
-
-        // make sure the specified trace is valid against the AIR. This checks validity of both,
-        // assertions and state transitions. we do this in debug mode only because this is a very
-        // expensive operation.
-        #[cfg(debug_assertions)]
-        trace.validate(&air);
+        let mut air = Self::Air::new(trace.get_info(), pub_inputs, self.options().clone());
 
         // create a channel which is used to simulate interaction between the prover and the
         // verifier; the channel will be used to commit to values and to draw randomness that
@@ -274,9 +268,20 @@ pub trait Prover {
             // 2.1 ----- extend auxiliary columns ---------------------------------------------------------
 
             // sample auxiliary columns random coefficients
-            let aux_cols_coeffs =
-                channel.get_aux_columns_composition_coeffs(trace.number_of_coins());
+            let aux_cols_coeffs = air.set_aux_columns_random_coefficients(&channel.public_coin);
+                .map_err(|_| ProverError::RandomCoinError)?;
+            
+            assert_eq!(trace.number_of_coins(), aux_cols_coeffs.len());
+
             trace.set_random_coeffs(aux_cols_coeffs);
+
+            // make sure the specified trace is valid against the AIR. This checks validity of both,
+            // assertions and state transitions. we do this in debug mode only because this is a very
+            // expensive operation.
+            #[cfg(debug_assertions)]
+            trace.validate(&air);
+
+
             extended_aux_trace = trace.extend_aux_columns(&domain);
 
             // extend the auxiliary columns

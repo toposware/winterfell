@@ -26,7 +26,7 @@ pub fn build_fib_trace(length: usize) -> TraceTable<BaseElement> {
         reg2.push(reg1[i] + BaseElement::from(2u8) * reg2[i]);
     }
 
-    TraceTable::init(vec![reg1, reg2])
+    TraceTable::init(vec![reg1, reg2], vec![], 0)
 }
 
 // MOCK AIR

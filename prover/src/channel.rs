@@ -9,13 +9,14 @@ use air::{
     Air, ConstraintCompositionCoefficients, DeepCompositionCoefficients, EvaluationFrame,
 };
 use core::marker::PhantomData;
-use crypto::{ElementHasher, RandomCoin};
+use crypto::{ElementHasher, RandomCoin, RandomCoinError};
 use fri::{self, FriProof};
 use math::FieldElement;
 use utils::{collections::Vec, Serializable};
 
 #[cfg(feature = "concurrent")]
 use utils::iterators::*;
+pub use crate::errors::ProverError;
 
 // TYPES AND INTERFACES
 // ================================================================================================
@@ -27,7 +28,7 @@ where
     H: ElementHasher<BaseField = A::BaseField>,
 {
     air: &'a A,
-    public_coin: RandomCoin<A::BaseField, H>,
+    pub public_coin: RandomCoin<A::BaseField, H>,
     context: Context,
     commitments: Commitments,
     ood_frame: OodFrame,
@@ -100,22 +101,10 @@ where
     // PUBLIC COIN METHODS
     // --------------------------------------------------------------------------------------------
 
+    // TODO Should this function return?
     /// Return coefficients for constructing the auxiliary trace columns drawn from the public coins
-    pub fn get_aux_columns_composition_coeffs(&mut self, ncoeffs: usize) -> Vec<A::BaseField> {
-        // TODO: we may want to move number_of_coins() method from TraceTable to Air
-        // so that:
-        // - it depends directly on the program (rather than user-specified)
-        // - doesn't have to be mentioned here as argument (hence no sanity check needed for consistency)
-        let mut elements = vec![];
-        for i in 0..ncoeffs {
-            elements.push(
-                self.public_coin
-                    .draw()
-                    .expect(&format!("failed to draw auxiliary columns {:?}-th coin", i)),
-            );
-        }
-
-        elements
+    pub fn get_aux_columns_composition_coeffs(&mut self) -> Result<Vec<A::BaseField>, RandomCoinError> {
+        self.air.set_aux_columns_random_coefficients(&mut self.public_coin)
     }
 
     /// Returns a set of coefficients for constructing a constraint composition polynomial drawn
