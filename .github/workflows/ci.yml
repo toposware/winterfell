@@ -23,11 +23,6 @@ jobs:
           toolchain: ${{matrix.toolchain}}
           override: true
 
-      - name: Set git credentials
-        uses: fusion-engineering/setup-git-credentials@v2
-        with:
-          credentials: https://robot-toposware:${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}@github.com
-      - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{matrix.toolchain}}
@@ -50,11 +45,6 @@ jobs:
           components: clippy
           override: true
 
-      - name: Set git credentials
-        uses: fusion-engineering/setup-git-credentials@v2
-        with:
-          credentials: https://robot-toposware:${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}@github.com
-      - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -81,11 +71,6 @@ jobs:
           components: rustfmt
           override: true
 
-      - name: Set git credentials
-        uses: fusion-engineering/setup-git-credentials@v2
-        with:
-          credentials: https://robot-toposware:${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}@github.com
-      - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -116,11 +101,6 @@ jobs:
           toolchain: ${{matrix.toolchain}}
           override: true
 
-      - name: Set git credentials
-        uses: fusion-engineering/setup-git-credentials@v2
-        with:
-          credentials: https://robot-toposware:${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}@github.com
-      - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{matrix.toolchain}}
