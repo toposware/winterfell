@@ -191,6 +191,7 @@ impl Air for WorkAir {
         &self,
         frame: &EvaluationFrame<E>,
         _periodic_values: &[E],
+        _random_coins: &[E],
         result: &mut [E],
     ) {
         // First, we'll read the current state, and use it to compute the expected next state

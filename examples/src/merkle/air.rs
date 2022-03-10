@@ -60,6 +60,7 @@ impl Air for MerkleAir {
         &self,
         frame: &EvaluationFrame<E>,
         periodic_values: &[E],
+        _random_coins: &[E],
         result: &mut [E],
     ) {
         let current = frame.current();

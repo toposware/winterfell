@@ -53,6 +53,7 @@ impl Air for MulFib8Air {
         &self,
         frame: &EvaluationFrame<E>,
         _periodic_values: &[E],
+        _random_coins: &[E],
         result: &mut [E],
     ) {
         let current = frame.current();

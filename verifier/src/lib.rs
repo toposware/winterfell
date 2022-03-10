@@ -169,7 +169,7 @@ pub fn verify<AIR: Air>(
 /// Performs the actual verification by reading the data from the `channel` and making sure it
 /// attests to a correct execution of the computation specified by the provided `air`.
 fn perform_verification<A, E, H>(
-    mut air: A,
+    air: A,
     mut channel: VerifierChannel<A::BaseField, E, H>,
     mut public_coin: RandomCoin<A::BaseField, H>,
 ) -> Result<(), VerifierError>

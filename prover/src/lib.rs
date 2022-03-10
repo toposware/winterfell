@@ -269,7 +269,7 @@ pub trait Prover {
             // 2.1 ----- extend auxiliary columns ---------------------------------------------------------
 
             // sample auxiliary columns random coefficients
-            aux_cols_coeffs = channel.get_aux_columns_random_coeffs()
+            aux_cols_coeffs = channel.get_aux_columns_composition_coeffs()
                 .map_err(|_| ProverError::RandomCoinError)?;
             
             assert_eq!(trace.number_of_coins(), aux_cols_coeffs.len());
