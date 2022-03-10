@@ -66,7 +66,8 @@ impl Commitments {
     pub fn parse<H: Hasher>(
         self,
         num_fri_layers: usize,
-    ) -> Result<(H::Digest, Option<H::Digest>, H::Digest, Vec<H::Digest>), DeserializationError> {
+    ) -> Result<(H::Digest, Option<H::Digest>, H::Digest, Vec<H::Digest>), DeserializationError>
+    {
         // +1 for trace_root, +1 for constraint root, +1 for FRI remainder commitment
         // the optional auxiliary_trace_root is read after
         let num_commitments = num_fri_layers + 3;
@@ -83,7 +84,12 @@ impl Commitments {
         if reader.has_more_bytes() {
             return Err(DeserializationError::UnconsumedBytes);
         }
-        Ok((commitments[0], aux_trace_commitment, commitments[1], commitments[2..].to_vec()))
+        Ok((
+            commitments[0],
+            aux_trace_commitment,
+            commitments[1],
+            commitments[2..].to_vec(),
+        ))
     }
 }
 

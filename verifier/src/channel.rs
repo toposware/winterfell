@@ -86,18 +86,17 @@ where
         // TODO: we should have an available method in the Air trait (also possibly in TraceTable
         // though the information is currently retrievable through its RAP related members) to indicate
         // whether we have raps or not, so that parsing here can be done properly.
-        let (aux_cols_proof, aux_cols_states) = match proof
-            .aux_cols_queries {
-                Some(q) => {
-                    q.parse::<H, B>(lde_domain_size, num_queries, air.trace_width())
-                        .and_then(|(a,b)| Ok((Some(a), Some(b))))
-                        .map_err(|err| {
-                            VerifierError::ProofDeserializationError(format!(
-                            "trace query deserialization failed: {}", err
-                            ))
-                        })
-                    ?},
-                None => (None, None),
+        let (aux_cols_proof, aux_cols_states) = match proof.aux_cols_queries {
+            Some(q) => q
+                .parse::<H, B>(lde_domain_size, num_queries, air.trace_width())
+                .and_then(|(a, b)| Ok((Some(a), Some(b))))
+                .map_err(|err| {
+                    VerifierError::ProofDeserializationError(format!(
+                        "trace query deserialization failed: {}",
+                        err
+                    ))
+                })?,
+            None => (None, None),
         };
 
         // --- parse constraint evaluation queries ------------------------------------------------
@@ -207,10 +206,19 @@ where
         // If there are auxiliary columns, perform the same verifications and append
         // the states of auxiliary proof.
         if self.aux_cols_proof.is_some() {
-            MerkleTree::verify_batch(&aux_commitment.unwrap(), positions, self.aux_cols_proof.as_ref().unwrap())
-                .map_err(|_| VerifierError::TraceQueryDoesNotMatchCommitment)?;
+            MerkleTree::verify_batch(
+                &aux_commitment.unwrap(),
+                positions,
+                self.aux_cols_proof.as_ref().unwrap(),
+            )
+            .map_err(|_| VerifierError::TraceQueryDoesNotMatchCommitment)?;
 
-            states.append(&mut self.aux_cols_states.take().expect("auxiliary column states already read"));
+            states.append(
+                &mut self
+                    .aux_cols_states
+                    .take()
+                    .expect("auxiliary column states already read"),
+            );
         }
 
         Ok(states)

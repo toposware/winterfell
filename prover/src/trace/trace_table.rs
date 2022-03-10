@@ -31,7 +31,7 @@ const MIN_FRAGMENT_LENGTH: usize = 2;
 /// parameter, where each vector contains values for a given column of the trace, an additional
 /// set of vectors containing values for the auxiliary RAP columns of the trace, and the number
 /// of public coins required for the RAP argument.
-/// This approach allows you to build an execution trace as you see fit, as long as it meets a 
+/// This approach allows you to build an execution trace as you see fit, as long as it meets a
 /// basic set of requirements. These requirements are:
 ///
 /// 1. Lengths of all columns in the execution trace must be the same.
@@ -51,7 +51,7 @@ const MIN_FRAGMENT_LENGTH: usize = 2;
 ///    auxiliary RAP columns (their first row).
 /// 4. The fourth closure receives the previous state of the execution trace as input, and must
 ///    update the next state of the computation of the auxiliary RAP columns.
-/// 
+///
 /// The auxiliary RAP columns will be automatically filled once the original trace is commited to
 /// and the verifier has sampled the necessary public coins.
 ///
@@ -73,8 +73,8 @@ const MIN_FRAGMENT_LENGTH: usize = 2;
 pub struct TraceTable<B: StarkField> {
     trace: Vec<Vec<B>>,
     aux_columns: Vec<Vec<B>>,
-    aux_init: Box<dyn Fn(&[B], &[B], &mut[B])>,
-    aux_update:Box<dyn Fn(usize, &[B], &[B], &mut[B])>,
+    aux_init: Box<dyn Fn(&[B], &[B], &mut [B])>,
+    aux_update: Box<dyn Fn(usize, &[B], &[B], &mut [B])>,
     ncoins: usize,
     finished: bool,
     meta: Vec<u8>,
@@ -114,7 +114,13 @@ impl<B: StarkField> TraceTable<B> {
     ///   field `B`, or is not a power of two.
     /// * Length of `meta` is greater than 65535;
     // TODO: add some check for ncoins
-    pub fn with_meta(width: usize, aux_width: usize, length: usize, ncoins: usize, meta: Vec<u8>) -> Self {
+    pub fn with_meta(
+        width: usize,
+        aux_width: usize,
+        length: usize,
+        ncoins: usize,
+        meta: Vec<u8>,
+    ) -> Self {
         assert!(
             width > 0,
             "execution trace must consist of at least one register"
@@ -268,11 +274,8 @@ impl<B: StarkField> TraceTable<B> {
     ///   - index of the last updated row (starting with 0).
     ///   - a mutable reference to the last updated state; the contents of the state are copied
     ///     into the next row of the trace after the closure returns.
-    pub fn fill<I, U>(
-        &mut self,
-        init: I,
-        update: U,
-    ) where
+    pub fn fill<I, U>(&mut self, init: I, update: U)
+    where
         I: Fn(&mut [B]),
         U: Fn(usize, &mut [B]),
     {
@@ -291,7 +294,7 @@ impl<B: StarkField> TraceTable<B> {
 
     /// Fill all rows in the auxiliary execution trace.
     ///
-    /// The rows are filled by executing the provided closures as follows:    /// 
+    /// The rows are filled by executing the provided closures as follows:    ///
     /// - `aux_init` closure is used to initialize the first row of the auxiliary RAP trace;
     ///   it receives a reference to the RAP coefficients for the permutation argument, a reference
     ///   to the original trace initial row, and a mutable reference to the first state of the
@@ -304,13 +307,10 @@ impl<B: StarkField> TraceTable<B> {
     ///   - a reference to the last updated state of the original trace
     ///   - a mutable reference to the last updated state of the auxiliary RAP trace; the contents
     ///     of the state are copied into the next row of the trace after the closure returns.
-    pub fn fill_aux<J, V>(
-        &mut self,
-        aux_init: J,
-        aux_update: V,
-    ) where
-        J: Fn(&[B], &[B], &mut[B]) + 'static,
-        V: Fn(usize, &[B], &[B], &mut[B]) + 'static,
+    pub fn fill_aux<J, V>(&mut self, aux_init: J, aux_update: V)
+    where
+        J: Fn(&[B], &[B], &mut [B]) + 'static,
+        V: Fn(usize, &[B], &[B], &mut [B]) + 'static,
     {
         // Lazy evaluation of auxiliary columns
         self.aux_init = Box::new(aux_init);
@@ -466,7 +466,7 @@ impl<B: StarkField> Trace for TraceTable<B> {
         self.update_aux_row(0, &state);
 
         for i in 0..self.length() - 1 {
-            self.read_row_into(i+1, &mut trace_state);
+            self.read_row_into(i + 1, &mut trace_state);
             (self.aux_update)(i, coeffs, &trace_state, &mut state);
             self.update_aux_row(i + 1, &state);
         }

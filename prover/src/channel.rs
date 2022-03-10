@@ -14,9 +14,9 @@ use fri::{self, FriProof};
 use math::FieldElement;
 use utils::{collections::Vec, Serializable};
 
+pub use crate::errors::ProverError;
 #[cfg(feature = "concurrent")]
 use utils::iterators::*;
-pub use crate::errors::ProverError;
 
 // TYPES AND INTERFACES
 // ================================================================================================
@@ -102,8 +102,11 @@ where
     // --------------------------------------------------------------------------------------------
 
     /// Return coefficients for constructing the auxiliary trace columns drawn from the public coins
-    pub fn get_aux_columns_composition_coeffs(&mut self) -> Result<Vec<A::BaseField>, RandomCoinError> {
-        self.air.get_aux_columns_random_coefficients(&mut self.public_coin)
+    pub fn get_aux_columns_composition_coeffs(
+        &mut self,
+    ) -> Result<Vec<A::BaseField>, RandomCoinError> {
+        self.air
+            .get_aux_columns_random_coefficients(&mut self.public_coin)
     }
 
     /// Returns a set of coefficients for constructing a constraint composition polynomial drawn

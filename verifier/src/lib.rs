@@ -186,10 +186,10 @@ where
     let trace_commitment = channel.read_trace_commitment();
     public_coin.reseed(trace_commitment);
     let aux_columns_random_coins = air
-        .get_aux_columns_random_coefficients::<E,H>(&mut public_coin)
+        .get_aux_columns_random_coefficients::<E, H>(&mut public_coin)
         .map_err(|_| VerifierError::RandomCoinError)?;
     let aux_cols_commitment = channel.read_aux_columns_commitment();
-    
+
     // If we have auxiliary columns, reseed the public coin with their commitment.
     if aux_cols_commitment.is_some() {
         public_coin.reseed(aux_cols_commitment.unwrap())
@@ -219,11 +219,12 @@ where
     // also, reseed the public coin with the OOD frame received from the prover
     let ood_frame = channel.read_ood_evaluation_frame();
     let ood_constraint_evaluation_1 = evaluate_constraints(
-        &air, 
+        &air,
         constraint_coeffs,
         &ood_frame,
         z,
-        &aux_columns_random_coins);
+        &aux_columns_random_coins,
+    );
     public_coin.reseed(H::hash_elements(ood_frame.current()));
     public_coin.reseed(H::hash_elements(ood_frame.next()));
 
@@ -288,7 +289,7 @@ where
 
     // read evaluations of trace and constraint composition polynomials at the queried positions;
     // this also checks that the read values are valid against trace and constraint commitments
-    let queried_trace_states = 
+    let queried_trace_states =
         channel.read_trace_states(&query_positions, &trace_commitment, &aux_cols_commitment)?;
     let queried_evaluations =
         channel.read_constraint_evaluations(&query_positions, &constraint_commitment)?;

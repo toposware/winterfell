@@ -47,11 +47,11 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
     // --------------------------------------------------------------------------------------------
     /// Returns a new evaluator which can be used to evaluate transition and boundary constraints
     /// over extended execution trace.
-    pub fn  new(
+    pub fn new(
         air: &'a A,
         coefficients: ConstraintCompositionCoefficients<E>,
-        aux_columns_random_coins: &'a [A::BaseField])
-    -> Self {
+        aux_columns_random_coins: &'a [A::BaseField],
+    ) -> Self {
         // collect expected degrees for all transition constraints to compare them against actual
         // degrees; we do this in debug mode only because this comparison is expensive
         #[cfg(debug_assertions)]
@@ -219,8 +219,12 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         let periodic_values = self.periodic_values.get_row(step);
 
         // evaluate transition constraints and save the results into evaluations buffer
-        self.air
-            .evaluate_transition(frame, periodic_values, self.aux_columns_random_coins, evaluations);
+        self.air.evaluate_transition(
+            frame,
+            periodic_values,
+            self.aux_columns_random_coins,
+            evaluations,
+        );
 
         // merge transition constraint evaluations into a single value and return it;
         // we can do this here because all transition constraints have the same divisor.

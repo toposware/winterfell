@@ -45,7 +45,7 @@
 extern crate alloc;
 
 pub use air::{
-    proof::{StarkProof, Queries},
+    proof::{Queries, StarkProof},
     Air, AirContext, Assertion, BoundaryConstraint, BoundaryConstraintGroup,
     ConstraintCompositionCoefficients, ConstraintDivisor, DeepCompositionCoefficients,
     EvaluationFrame, FieldExtension, HashFunction, ProofOptions, TraceInfo,
@@ -202,7 +202,7 @@ pub trait Prover {
         // 0 ----- instantiate AIR and prover channel ---------------------------------------------
 
         // serialize public inputs; these will be included in the seed for the public coin
-        let pub_inputs = self.get_pub_inputs(&trace); 
+        let pub_inputs = self.get_pub_inputs(&trace);
         let mut pub_inputs_bytes = Vec::new();
         pub_inputs.write_into(&mut pub_inputs_bytes);
 
@@ -269,9 +269,10 @@ pub trait Prover {
             // 2.1 ----- extend auxiliary columns ---------------------------------------------------------
 
             // sample auxiliary columns random coefficients
-            aux_cols_coeffs = channel.get_aux_columns_composition_coeffs()
+            aux_cols_coeffs = channel
+                .get_aux_columns_composition_coeffs()
                 .map_err(|_| ProverError::RandomCoinError)?;
-            
+
             assert_eq!(trace.number_of_coins(), aux_cols_coeffs.len());
 
             trace.set_random_coeffs(&aux_cols_coeffs);
@@ -281,7 +282,6 @@ pub trait Prover {
             // expensive operation.
             #[cfg(debug_assertions)]
             trace.validate(&air, &aux_cols_coeffs);
-
 
             extended_aux_trace = trace.extend_aux_columns(&domain);
 
@@ -502,7 +502,7 @@ pub trait Prover {
             trace_queries,
             aux_cols_queries,
             constraint_queries,
-            fri_proof
+            fri_proof,
         );
         #[cfg(feature = "std")]
         debug!("Built proof object in {} ms", now.elapsed().as_millis());
