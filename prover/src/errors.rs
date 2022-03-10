@@ -40,6 +40,9 @@ impl fmt::Display for ProverError {
             Self::UnsupportedFieldExtension(degree) => {
                 write!(f, "field extension of degree {} is not supported for the specified base field", degree)
             }
+            Self::RandomCoinError => {
+                write!(f, "failed to samplerandom Air random coins")
+            }
         }
     }
 }

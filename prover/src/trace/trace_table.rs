@@ -453,7 +453,7 @@ impl<B: StarkField> Trace for TraceTable<B> {
 
     // is actually computing the auxiliary columns
     // TODO: should add checks on coeffs
-    fn set_random_coeffs(&mut self, coeffs: Vec<B>) {
+    fn set_random_coeffs(&mut self, coeffs: &[B]) {
         if coeffs.is_empty() {
             self.finished = true;
             return;
@@ -462,12 +462,12 @@ impl<B: StarkField> Trace for TraceTable<B> {
         let mut state = vec![B::ZERO; self.aux_columns_width()];
         let mut trace_state = vec![B::ZERO; self.width()];
         self.read_row_into(0, &mut trace_state);
-        (self.aux_init)(&coeffs, &trace_state, &mut state);
+        (self.aux_init)(coeffs, &trace_state, &mut state);
         self.update_aux_row(0, &state);
 
         for i in 0..self.length() - 1 {
             self.read_row_into(i+1, &mut trace_state);
-            (self.aux_update)(i, &coeffs, &trace_state, &mut state);
+            (self.aux_update)(i, coeffs, &trace_state, &mut state);
             self.update_aux_row(i + 1, &state);
         }
 

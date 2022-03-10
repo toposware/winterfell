@@ -263,23 +263,24 @@ pub trait Prover {
 
         let mut extended_aux_trace = None;
         let mut aux_cols_tree = MerkleTree::<H>::build_empty(1);
+        let mut aux_cols_coeffs = vec![];
 
         if has_rap_columns {
             // 2.1 ----- extend auxiliary columns ---------------------------------------------------------
 
             // sample auxiliary columns random coefficients
-            let aux_cols_coeffs = air.set_aux_columns_random_coefficients(&channel.public_coin);
+            aux_cols_coeffs = channel.get_aux_columns_composition_coeffs()
                 .map_err(|_| ProverError::RandomCoinError)?;
             
             assert_eq!(trace.number_of_coins(), aux_cols_coeffs.len());
 
-            trace.set_random_coeffs(aux_cols_coeffs);
+            trace.set_random_coeffs(&aux_cols_coeffs);
 
             // make sure the specified trace is valid against the AIR. This checks validity of both,
             // assertions and state transitions. we do this in debug mode only because this is a very
             // expensive operation.
             #[cfg(debug_assertions)]
-            trace.validate(&air);
+            trace.validate(&air, &aux_cols_coeffs);
 
 
             extended_aux_trace = trace.extend_aux_columns(&domain);
@@ -325,7 +326,7 @@ pub trait Prover {
         #[cfg(feature = "std")]
         let now = Instant::now();
         let constraint_coeffs = channel.get_constraint_composition_coeffs();
-        let evaluator = ConstraintEvaluator::new(&air, constraint_coeffs);
+        let evaluator = ConstraintEvaluator::new(&air, constraint_coeffs, &aux_cols_coeffs);
         let constraint_evaluations = evaluator.evaluate(&extended_trace, &domain);
         #[cfg(feature = "std")]
         debug!(

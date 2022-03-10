@@ -36,6 +36,7 @@ pub struct ConstraintEvaluator<'a, A: Air, E: FieldElement<BaseField = A::BaseFi
     transition_constraints: Vec<TransitionConstraintGroup<E>>,
     periodic_values: PeriodicValueTable<A::BaseField>,
     divisors: Vec<ConstraintDivisor<A::BaseField>>,
+    aux_columns_random_coins: &'a [A::BaseField],
 
     #[cfg(debug_assertions)]
     transition_constraint_degrees: Vec<usize>,
@@ -46,7 +47,11 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
     // --------------------------------------------------------------------------------------------
     /// Returns a new evaluator which can be used to evaluate transition and boundary constraints
     /// over extended execution trace.
-    pub fn  new(air: &'a A, coefficients: ConstraintCompositionCoefficients<E>) -> Self {
+    pub fn  new(
+        air: &'a A,
+        coefficients: ConstraintCompositionCoefficients<E>,
+        aux_columns_random_coins: &'a [A::BaseField])
+    -> Self {
         // collect expected degrees for all transition constraints to compare them against actual
         // degrees; we do this in debug mode only because this comparison is expensive
         #[cfg(debug_assertions)]
@@ -84,6 +89,7 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
             transition_constraints,
             periodic_values,
             divisors,
+            aux_columns_random_coins,
             #[cfg(debug_assertions)]
             transition_constraint_degrees,
         }
@@ -214,7 +220,7 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
 
         // evaluate transition constraints and save the results into evaluations buffer
         self.air
-            .evaluate_transition(frame, periodic_values, evaluations);
+            .evaluate_transition(frame, periodic_values, self.aux_columns_random_coins, evaluations);
 
         // merge transition constraint evaluations into a single value and return it;
         // we can do this here because all transition constraints have the same divisor.

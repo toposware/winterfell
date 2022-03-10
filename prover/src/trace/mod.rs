@@ -92,7 +92,7 @@ pub trait Trace: Sized {
     }
 
     /// Set the random coeffiecients used for computing the auxiliary columns. By default does nothing
-    fn set_random_coeffs(&mut self, _coeffs: Vec<Self::BaseField>) {}
+    fn set_random_coeffs(&mut self, _coeffs: &[Self::BaseField]) {}
 
     /// Returns trace info for this trace.
     fn get_info(&self) -> TraceInfo {
@@ -104,7 +104,7 @@ pub trait Trace: Sized {
     /// Checks if this trace is valid against the specified AIR, and panics if not.
     ///
     /// NOTE: this is a very expensive operation and is intended for use only in debug mode.
-    fn validate<A: Air<BaseField = Self::BaseField>>(&self, air: &A) {
+    fn validate<A: Air<BaseField = Self::BaseField>>(&self, air: &A, random_coins: &[A::BaseField]) {
         // TODO: eventually, this should return errors instead of panicking
 
         // make sure the trace auxiliary columns where generated
@@ -157,7 +157,11 @@ pub trait Trace: Sized {
             self.read_row_into(step + 1, ev_frame.next_mut());
 
             // evaluate transition constraints
-            air.evaluate_transition(&ev_frame, &periodic_values, &mut evaluations);
+            air.evaluate_transition(
+                &ev_frame, 
+                &periodic_values,
+                random_coins, 
+                &mut evaluations,);
 
             // make sure all constraints evaluated to ZERO
             for (i, &evaluation) in evaluations.iter().enumerate() {

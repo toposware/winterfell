@@ -116,6 +116,7 @@ impl Air for MockAir {
         &self,
         _frame: &EvaluationFrame<E>,
         _periodic_values: &[E],
+        _random_coins: &[E],
         _result: &mut [E],
     ) {
     }

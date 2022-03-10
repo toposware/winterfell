@@ -101,10 +101,9 @@ where
     // PUBLIC COIN METHODS
     // --------------------------------------------------------------------------------------------
 
-    // TODO Should this function return?
     /// Return coefficients for constructing the auxiliary trace columns drawn from the public coins
     pub fn get_aux_columns_composition_coeffs(&mut self) -> Result<Vec<A::BaseField>, RandomCoinError> {
-        self.air.set_aux_columns_random_coefficients(&mut self.public_coin)
+        self.air.get_aux_columns_random_coefficients(&mut self.public_coin)
     }
 
     /// Returns a set of coefficients for constructing a constraint composition polynomial drawn
