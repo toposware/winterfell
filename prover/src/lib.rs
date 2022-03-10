@@ -209,7 +209,7 @@ pub trait Prover {
         // create an instance of AIR for the provided parameters. this takes a generic description
         // of the computation (provided via AIR type), and creates a description of a specific
         // execution of the computation for the provided public inputs.
-        let mut air = Self::Air::new(trace.get_info(), pub_inputs, self.options().clone());
+        let air = Self::Air::new(trace.get_info(), pub_inputs, self.options().clone());
 
         // create a channel which is used to simulate interaction between the prover and the
         // verifier; the channel will be used to commit to values and to draw randomness that
@@ -269,7 +269,7 @@ pub trait Prover {
             // 2.1 ----- extend auxiliary columns ---------------------------------------------------------
 
             // sample auxiliary columns random coefficients
-            aux_cols_coeffs = channel.get_aux_columns_composition_coeffs()
+            aux_cols_coeffs = channel.get_aux_columns_random_coeffs()
                 .map_err(|_| ProverError::RandomCoinError)?;
             
             assert_eq!(trace.number_of_coins(), aux_cols_coeffs.len());

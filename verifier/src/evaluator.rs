@@ -17,6 +17,7 @@ pub fn evaluate_constraints<A: Air, E: FieldElement<BaseField = A::BaseField>>(
     coefficients: ConstraintCompositionCoefficients<E>,
     ood_frame: &EvaluationFrame<E>,
     x: E,
+    random_coins: &[E]
 ) -> E {
     // 1 ----- evaluate transition constraints ----------------------------------------------------
 
@@ -35,7 +36,7 @@ pub fn evaluate_constraints<A: Air, E: FieldElement<BaseField = A::BaseField>>(
         .collect::<Vec<_>>();
 
     // evaluate transition constraints over OOD evaluation frame
-    air.evaluate_transition(ood_frame, &periodic_values, &mut t_evaluations);
+    air.evaluate_transition(ood_frame, &periodic_values, random_coins, &mut t_evaluations);
 
     // merge all constraint evaluations into a single value by computing their random linear
     // combination using coefficients drawn from the public coin

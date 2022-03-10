@@ -185,8 +185,8 @@ where
     //the verifier sends these coefficients to the prover, and prover uses them to compute constraint composition polynomial.
     let trace_commitment = channel.read_trace_commitment();
     public_coin.reseed(trace_commitment);
-    air
-        .set_aux_columns_random_coefficients::<E,H>(&mut public_coin)
+    let aux_columns_random_coins = air
+        .get_aux_columns_random_coefficients::<E,H>(&mut public_coin)
         .map_err(|_| VerifierError::RandomCoinError)?;
     let aux_cols_commitment = channel.read_aux_columns_commitment();
     
@@ -218,7 +218,12 @@ where
     // read the out-of-domain evaluation frame sent by the prover and evaluate constraints over it;
     // also, reseed the public coin with the OOD frame received from the prover
     let ood_frame = channel.read_ood_evaluation_frame();
-    let ood_constraint_evaluation_1 = evaluate_constraints(&air, constraint_coeffs, &ood_frame, z);
+    let ood_constraint_evaluation_1 = evaluate_constraints(
+        &air, 
+        constraint_coeffs,
+        &ood_frame,
+        z,
+        &aux_columns_random_coins);
     public_coin.reseed(H::hash_elements(ood_frame.current()));
     public_coin.reseed(H::hash_elements(ood_frame.next()));
 
