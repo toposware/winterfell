@@ -55,8 +55,9 @@ impl Commitments {
     ///
     /// The parts are (in the order in which they appear in the tuple):
     /// 1. Extended execution trace commitment.
-    /// 2. Constraint composition polynomial evaluation commitment.
-    /// 3. FRI layer commitments.
+    /// 2. Auxiliary extended execution trace commitment.
+    /// 3. Constraint composition polynomial evaluation commitment.
+    /// 4. FRI layer commitments.
     ///
     /// # Errors
     /// Returns an error if the bytes stored in self could not be parsed into the requested number
@@ -65,23 +66,24 @@ impl Commitments {
     pub fn parse<H: Hasher>(
         self,
         num_fri_layers: usize,
-    ) -> Result<(Vec<H::Digest>, H::Digest, Vec<H::Digest>), DeserializationError> {
+    ) -> Result<(H::Digest, Option<H::Digest>, H::Digest, Vec<H::Digest>), DeserializationError> {
         // +1 for trace_root, +1 for constraint root, +1 for FRI remainder commitment
         // the optional auxiliary_trace_root is read after
         let num_commitments = num_fri_layers + 3;
         let mut reader = SliceReader::new(&self.0);
         let commitments = H::Digest::read_batch_from(&mut reader, num_commitments)?;
         // make sure we consumed all available commitment bytes
-        let mut trace_roots = vec![commitments[0]];
-        if reader.has_more_bytes() {
+        let aux_trace_commitment = if reader.has_more_bytes() {
             // TODO: this seems flawky. There should be a better way to know if there
             // is an auxiliary trace root and read it in that case.
-            trace_roots.push(H::Digest::read_from(&mut reader)?);
-        }
+            Some(H::Digest::read_from(&mut reader)?)
+        } else {
+            None
+        };
         if reader.has_more_bytes() {
             return Err(DeserializationError::UnconsumedBytes);
         }
-        Ok((trace_roots, commitments[1], commitments[2..].to_vec()))
+        Ok((commitments[0], aux_trace_commitment, commitments[1], commitments[2..].to_vec()))
     }
 }
 

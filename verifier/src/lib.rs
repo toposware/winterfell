@@ -189,7 +189,12 @@ where
         .set_aux_columns_random_coefficients::<E,H>(&mut public_coin)
         .map_err(|_| VerifierError::RandomCoinError)?;
     let aux_cols_commitment = channel.read_aux_columns_commitment();
-    public_coin.reseed(aux_cols_commitment);
+    
+    // If we have auxiliary columns, reseed the public coin with their commitment.
+    if aux_cols_commitment.is_some() {
+        public_coin.reseed(aux_cols_commitment.unwrap())
+    };
+
     let constraint_coeffs = air
         .get_constraint_composition_coefficients(&mut public_coin)
         .map_err(|_| VerifierError::RandomCoinError)?;

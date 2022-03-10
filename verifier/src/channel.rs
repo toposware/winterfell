@@ -21,9 +21,13 @@ where
     H: ElementHasher<BaseField = B>,
 {
     // trace queries
-    trace_root: [H::Digest; 2],
-    trace_proof: [BatchMerkleProof<H>;2],
+    trace_root: H::Digest,
+    trace_proof: BatchMerkleProof<H>,
     trace_states: Option<Vec<Vec<B>>>,
+    // auxiliary RAP column queries
+    aux_cols_root: Option<H::Digest>,
+    aux_cols_proof: Option<BatchMerkleProof<H>>,
+    aux_cols_states: Option<Vec<Vec<B>>>,
     // constraint queries
     constraint_root: H::Digest,
     constraint_proof: BatchMerkleProof<H>,
@@ -64,13 +68,13 @@ where
         let fri_options = air.options().to_fri_options();
 
         // --- parse commitments ------------------------------------------------------------------
-        let (trace_root, constraint_root, fri_roots) = proof
+        let (trace_root, aux_cols_root, constraint_root, fri_roots) = proof
             .commitments
             .parse::<H>(fri_options.num_fri_layers(lde_domain_size))
             .map_err(|err| VerifierError::ProofDeserializationError(err.to_string()))?;
 
         // --- parse trace queries ----------------------------------------------------------------
-        let (trace_proof, mut trace_states) = proof
+        let (trace_proof, trace_states) = proof
             .trace_queries
             .parse::<H, B>(lde_domain_size, num_queries, air.trace_width())
             .map_err(|err| {
@@ -79,18 +83,22 @@ where
                     err
                 ))
             })?;
-        let (aux_cols_proof, aux_cols_states) = proof
-            .aux_cols_queries
-            .parse::<H, B>(lde_domain_size, num_queries, air.trace_width())
-            .map_err(|err| {
-                VerifierError::ProofDeserializationError(format!(
-                    "trace query deserialization failed: {}",
-                    err
-                ))
-            })?;
-        for (state, mut state_aux) in trace_states.iter_mut().zip(aux_cols_states.into_iter()) {
-            state.append(&mut state_aux);
-        }
+        // TODO: we should have an available method in the Air trait (also possibly in TraceTable
+        // though the information is currently retrievable through its RAP related members) to indicate
+        // whether we have raps or not, so that parsing here can be done properly.
+        let (aux_cols_proof, aux_cols_states) = match proof
+            .aux_cols_queries {
+                Some(q) => {
+                    q.parse::<H, B>(lde_domain_size, num_queries, air.trace_width())
+                        .and_then(|(a,b)| Ok((Some(a), Some(b))))
+                        .map_err(|err| {
+                            VerifierError::ProofDeserializationError(format!(
+                            "trace query deserialization failed: {}", err
+                            ))
+                        })
+                    ?},
+                None => (None, None),
+        };
 
         // --- parse constraint evaluation queries ------------------------------------------------
         let (constraint_proof, constraint_evaluations) = proof
@@ -122,9 +130,13 @@ where
 
         Ok(VerifierChannel {
             // trace queries
-            trace_root: [trace_root[0], trace_root[1]],
-            trace_proof: [trace_proof, aux_cols_proof],
+            trace_root,
+            trace_proof,
             trace_states: Some(trace_states),
+            // trace queries
+            aux_cols_root,
+            aux_cols_proof,
+            aux_cols_states,
             // constraint queries
             constraint_root,
             constraint_proof,
@@ -148,12 +160,12 @@ where
 
     /// Returns execution trace commitment sent by the prover.
     pub fn read_trace_commitment(&self) -> H::Digest {
-        self.trace_root[0]
+        self.trace_root
     }
 
     /// Returns auxiliary columns commitment sent by the prover.
-    pub fn read_aux_columns_commitment(&self) -> H::Digest {
-        self.trace_root[1]
+    pub fn read_aux_columns_commitment(&self) -> Option<H::Digest> {
+        self.aux_cols_root
     }
 
     /// Returns constraint evaluation commitment sent by the prover.
@@ -184,16 +196,24 @@ where
         &mut self,
         positions: &[usize],
         commitment: &H::Digest,
-        aux_commitment: &H::Digest,
+        aux_commitment: &Option<H::Digest>,
     ) -> Result<Vec<Vec<B>>, VerifierError> {
         // make sure the states included in the proof correspond to the trace commitment
-        MerkleTree::verify_batch(commitment, positions, &self.trace_proof[0])
-            .map_err(|_| VerifierError::TraceQueryDoesNotMatchCommitment)?;
-        MerkleTree::verify_batch(aux_commitment, positions, &self.trace_proof[1])
+        MerkleTree::verify_batch(commitment, positions, &self.trace_proof)
             .map_err(|_| VerifierError::TraceQueryDoesNotMatchCommitment)?;
 
-        // TODO: merge trace_states together at this moment
-        Ok(self.trace_states.take().expect("already read"))
+        let mut states = self.trace_states.take().expect("trace states already read");
+
+        // If there are auxiliary columns, perform the same verifications and append
+        // the states of auxiliary proof.
+        if self.aux_cols_proof.is_some() {
+            MerkleTree::verify_batch(&aux_commitment.unwrap(), positions, self.aux_cols_proof.as_ref().unwrap())
+                .map_err(|_| VerifierError::TraceQueryDoesNotMatchCommitment)?;
+
+            states.append(&mut self.aux_cols_states.take().expect("auxiliary column states already read"));
+        }
+
+        Ok(states)
     }
 
     /// Returns constraint evaluations at the specified positions of the LDE domain. This also
