@@ -102,22 +102,18 @@ where
 
     /// Return coefficients for constructing the auxiliary trace columns drawn from the public coins
     pub fn get_aux_columns_composition_coeffs(&mut self, ncoeffs: usize) -> Vec<A::BaseField> {
+        // TODO: we may want to move number_of_coins() method from TraceTable to Air
+        // so that:
+        // - it depends directly on the program (rather than user-specified)
+        // - doesn't have to be mentioned here as argument (hence no sanity check needed for consistency)
         let mut elements = vec![];
-        if ncoeffs > 0 {
-            elements.append(&mut Vec::from(E::as_base_elements(
-                &[self.public_coin.draw().expect("failed to draw auxliary columns first coin")]
-            )));
+        for i in 0..ncoeffs {
+            elements.append(&mut Vec::from(E::as_base_elements(&[self
+                .public_coin
+                .draw()
+                .expect(&format!("failed to draw auxiliary columns {:?}-th coin", i))])));
         }
-        if ncoeffs > 1 {
-            elements.append(&mut Vec::from(E::as_base_elements(
-                &[self.public_coin.draw().expect("failed to draw auxliary columns second coin")]
-            )));
-        }
-        if ncoeffs > 2 {
-            elements.append(&mut Vec::from(E::as_base_elements(
-                &[self.public_coin.draw().expect("failed to draw auxliary columns third coin")]
-            )));
-        }
+
         elements
     }
 
