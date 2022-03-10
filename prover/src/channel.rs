@@ -108,10 +108,11 @@ where
         // - doesn't have to be mentioned here as argument (hence no sanity check needed for consistency)
         let mut elements = vec![];
         for i in 0..ncoeffs {
-            elements.append(&mut Vec::from(E::as_base_elements(&[self
-                .public_coin
-                .draw()
-                .expect(&format!("failed to draw auxiliary columns {:?}-th coin", i))])));
+            elements.push(
+                self.public_coin
+                    .draw()
+                    .expect(&format!("failed to draw auxiliary columns {:?}-th coin", i)),
+            );
         }
 
         elements
