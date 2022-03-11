@@ -102,9 +102,7 @@ where
     // --------------------------------------------------------------------------------------------
 
     /// Return coefficients for constructing the auxiliary trace columns drawn from the public coins
-    pub fn get_aux_columns_composition_coeffs(
-        &mut self,
-    ) -> Result<Vec<A::BaseField>, RandomCoinError> {
+    pub fn get_aux_columns_random_coeffs(&mut self) -> Result<Vec<A::BaseField>, RandomCoinError> {
         self.air
             .get_aux_columns_random_coefficients(&mut self.public_coin)
     }
