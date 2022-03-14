@@ -111,10 +111,10 @@
 //! };
 //!
 //! pub fn build_do_work_trace(start: BaseElement, n: usize) -> TraceTable<BaseElement> {
-//!     // Instantiate the trace with a given width and length; this will allocate all
-//!     // required memory for the trace
+//!     // Instantiate the trace with a given widths, length and number of RAP coins;
+//!     // this will allocate all required memory for the trace.
 //!     let trace_width = 1;
-//!     let mut trace = TraceTable::new(trace_width, n);
+//!     let mut trace = TraceTable::new(trace_width, 0, n, 0);
 //!
 //!     // Fill the trace with data; the first closure initializes the first state of the
 //!     // computation; the second closure computes the next state of the computation based
@@ -214,6 +214,7 @@
 //!         &self,
 //!         frame: &EvaluationFrame<E>,
 //!         _periodic_values: &[E],
+//!         _random_coins: &[E],
 //!         result: &mut [E],
 //!     ) {
 //!         // First, we'll read the current state, and use it to compute the expected next state
@@ -297,6 +298,7 @@
 //! #         &self,
 //! #         frame: &EvaluationFrame<E>,
 //! #         _periodic_values: &[E],
+//! #         _random_coins: &[E],
 //! #         result: &mut [E],
 //! #     ) {
 //! #         let current_state = &frame.current()[0];
@@ -369,7 +371,7 @@
 //! #
 //! # pub fn build_do_work_trace(start: BaseElement, n: usize) -> TraceTable<BaseElement> {
 //! #     let trace_width = 1;
-//! #     let mut trace = TraceTable::new(trace_width, n);
+//! #     let mut trace = TraceTable::new(trace_width, 0, n, 0);
 //! #     trace.fill(
 //! #         |state| {
 //! #             state[0] = start;
@@ -418,6 +420,7 @@
 //! #         &self,
 //! #         frame: &EvaluationFrame<E>,
 //! #         _periodic_values: &[E],
+//! #         _random_coins: &[E],
 //! #         result: &mut [E],
 //! #     ) {
 //! #         let current_state = &frame.current()[0];
@@ -472,7 +475,7 @@
 //! let n = 1024;
 //!
 //! // Build the execution trace and get the result from the last step.
-//! let trace = build_do_work_trace(start, n);
+//! let mut trace = build_do_work_trace(start, n);
 //! let result = trace.get(0, n - 1);
 //!
 //! // Define proof options; these will be enough for ~96-bit security level.
