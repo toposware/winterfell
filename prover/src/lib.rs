@@ -303,7 +303,7 @@ pub trait Prover {
             #[cfg(feature = "std")]
             let now = Instant::now();
             aux_cols_tree = extended_aux_cols.build_commitment::<H>();
-            channel.commit_trace(*aux_cols_tree.root());
+            channel.commit_aux_trace(Some(*aux_cols_tree.root()));
             #[cfg(feature = "std")]
             debug!(
                 "Committed to extended execution trace by building a Merkle tree of depth {} in {} ms",
@@ -314,6 +314,9 @@ pub trait Prover {
             // append the extended auxiliary columns to the extended trace
             extended_trace.append(&extended_aux_cols);
             trace_polys.append(aux_polys.clone());
+        } else {
+            // Inform the channel there is no auxiliary trace.
+            channel.commit_aux_trace(None);
         }
 
         // 3 ----- evaluate constraints -----------------------------------------------------------

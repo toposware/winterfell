@@ -77,6 +77,15 @@ where
         self.public_coin.reseed(trace_root);
     }
 
+    /// Commits the prover to the auxiliary extended execution trace.
+    pub fn commit_aux_trace(&mut self, aux_trace_root: Option<H::Digest>) {
+        self.commitments.add_aux_trace_root::<H>(&aux_trace_root);
+
+        if aux_trace_root.is_some() {
+            self.public_coin.reseed(aux_trace_root.unwrap());
+        }
+    }
+
     /// Commits the prover to the evaluations of the constraint composition polynomial.
     pub fn commit_constraints(&mut self, constraint_root: H::Digest) {
         self.commitments.add::<H>(&constraint_root);

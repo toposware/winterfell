@@ -48,6 +48,12 @@ impl Commitments {
         commitment.write_into(&mut self.0);
     }
 
+    /// Adds the auxiliary extended execution trace commitment to the list
+    /// of commitments.
+    pub fn add_aux_trace_root<H: Hasher>(&mut self, aux_commitment: &Option<H::Digest>) {
+        aux_commitment.write_into(&mut self.0);
+    }
+
     // PARSING
     // --------------------------------------------------------------------------------------------
 
@@ -68,27 +74,28 @@ impl Commitments {
         num_fri_layers: usize,
     ) -> Result<(H::Digest, Option<H::Digest>, H::Digest, Vec<H::Digest>), DeserializationError>
     {
-        // +1 for trace_root, +1 for constraint root, +1 for FRI remainder commitment
-        // the optional auxiliary_trace_root is read after
-        let num_commitments = num_fri_layers + 3;
+        // +1 for constraint root, +1 for FRI remainder commitment
+        // The trace root and the optional auxiliary trace root are read before
+        let num_commitments = num_fri_layers + 2;
         let mut reader = SliceReader::new(&self.0);
+
+        let trace_commitment = H::Digest::read_from(&mut reader)?;
+
+        // Try reading the auxiliary trace root, if any.
+        let aux_trace_commitment = Option::<H::Digest>::read_from(&mut reader)?;
+
         let commitments = H::Digest::read_batch_from(&mut reader, num_commitments)?;
+
         // make sure we consumed all available commitment bytes
-        let aux_trace_commitment = if reader.has_more_bytes() {
-            // TODO: this seems flawky. There should be a better way to know if there
-            // is an auxiliary trace root and read it in that case.
-            Some(H::Digest::read_from(&mut reader)?)
-        } else {
-            None
-        };
         if reader.has_more_bytes() {
             return Err(DeserializationError::UnconsumedBytes);
         }
+
         Ok((
-            commitments[0],
+            trace_commitment,
             aux_trace_commitment,
-            commitments[1],
-            commitments[2..].to_vec(),
+            commitments[0],
+            commitments[1..].to_vec(),
         ))
     }
 }
