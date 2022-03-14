@@ -29,12 +29,15 @@ impl Commitments {
     // --------------------------------------------------------------------------------------------
     /// Returns a new Commitments struct initialized with the provided commitments.
     pub fn new<H: Hasher>(
-        trace_root: Vec<H::Digest>, // What if length of trace_root is > 2?
+        trace_root: H::Digest,
+        // TODO: we may want to handle more than 1 sequence of RAP columns
+        aux_trace_root: Option<H::Digest>,
         constraint_root: H::Digest,
         fri_roots: Vec<H::Digest>,
     ) -> Self {
         let mut bytes = Vec::new();
         bytes.write(trace_root);
+        bytes.write(aux_trace_root);
         bytes.write(constraint_root);
         bytes.write(fri_roots);
         Commitments(bytes)
