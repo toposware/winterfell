@@ -5,6 +5,7 @@
 // LICENSE file in the root directory of this source tree.
 
 pub mod fib2;
+pub mod fib2_rap;
 pub mod fib8;
 pub mod mulfib2;
 pub mod mulfib8;

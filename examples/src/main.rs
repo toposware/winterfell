@@ -34,6 +34,7 @@ fn main() {
         ExampleType::Fib { sequence_length } => {
             fibonacci::fib2::get_example(options, sequence_length)
         }
+        ExampleType::FibRap {} => fibonacci::fib2_rap::get_example(options),
         ExampleType::Fib8 { sequence_length } => {
             fibonacci::fib8::get_example(options, sequence_length)
         }

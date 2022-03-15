@@ -99,6 +99,8 @@ pub enum ExampleType {
         #[structopt(short = "n", default_value = "1048576")]
         sequence_length: usize,
     },
+    /// Compute a RAP Fibonacci sequence
+    FibRap {},
     /// Compute a Fibonacci sequence using trace table with 8 registers
     Fib8 {
         /// Length of Fibonacci sequence; must be a power of two
