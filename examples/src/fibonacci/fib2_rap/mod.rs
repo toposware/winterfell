@@ -32,7 +32,6 @@ pub struct FibRapExample {
     options: ProofOptions,
     sequence_length: usize,
     result: BaseElement,
-    rap_challenges: [BaseElement; 2],
 }
 
 impl FibRapExample {
@@ -53,14 +52,10 @@ impl FibRapExample {
             now.elapsed().as_millis()
         );
 
-        // https://xkcd.com/221/
-        let rap_challenges = [BaseElement::new(1), BaseElement::new(1)];
-
         FibRapExample {
             options,
             sequence_length,
             result,
-            rap_challenges,
         }
     }
 }
@@ -81,7 +76,7 @@ impl Example for FibRapExample {
 
         // generate execution trace
         let now = Instant::now();
-        let mut trace = prover.build_trace(self.sequence_length, self.rap_challenges);
+        let mut trace = prover.build_trace(self.sequence_length);
 
         let trace_width = trace.width();
         let trace_length = trace.length();
@@ -99,7 +94,6 @@ impl Example for FibRapExample {
     fn verify(&self, proof: StarkProof) -> Result<(), VerifierError> {
         let public_inputs = PublicInputs {
             result: self.result,
-            rap_challenges: self.rap_challenges,
         };
         winterfell::verify::<FibRapAir>(proof, public_inputs)
     }
@@ -107,7 +101,6 @@ impl Example for FibRapExample {
     fn verify_with_wrong_inputs(&self, proof: StarkProof) -> Result<(), VerifierError> {
         let public_inputs = PublicInputs {
             result: self.result + BaseElement::ONE,
-            rap_challenges: self.rap_challenges,
         };
         winterfell::verify::<FibRapAir>(proof, public_inputs)
     }

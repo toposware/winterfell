@@ -5,6 +5,7 @@
 
 use crate::utils::{are_equal, EvaluationResult};
 use winterfell::{
+    crypto::{Hasher, RandomCoin, RandomCoinError},
     math::{fields::f128::BaseElement, FieldElement},
     Air, AirContext, Assertion, ByteWriter, EvaluationFrame, ProofOptions, Serializable, TraceInfo,
     TransitionConstraintDegree,
@@ -15,24 +16,21 @@ use winterfell::{
 // We add two columns for adding RAPs. We assume the random values used as Challenges in the RAPs are
 // independent of the trace (or are the output of Random Oracle evaluated on the trace).
 
-pub const TRACE_WIDTH: usize = 2 + 2 + 1;
+pub const TRACE_WIDTH: usize = 2;
 pub const TRACE_LENGTH: usize = 64;
 
 pub struct FibRapAir {
     context: AirContext<BaseElement>,
     result: BaseElement,
-    rap_challenges: [BaseElement; 2],
 }
 
 pub struct PublicInputs {
     pub result: BaseElement,
-    pub rap_challenges: [BaseElement; 2],
 }
 
 impl Serializable for PublicInputs {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         target.write(self.result);
-        target.write(&self.rap_challenges[..]);
     }
 }
 
@@ -55,7 +53,6 @@ impl Air for FibRapAir {
         FibRapAir {
             context: AirContext::new(trace_info, degrees, options),
             result: pub_inputs.result,
-            rap_challenges: pub_inputs.rap_challenges,
         }
     }
 
@@ -63,18 +60,29 @@ impl Air for FibRapAir {
         &self.context
     }
 
+    fn get_aux_columns_random_coefficients<E, H>(
+        &self,
+        public_coin: &mut RandomCoin<Self::BaseField, H>,
+    ) -> Result<Vec<E>, RandomCoinError>
+    where
+        E: FieldElement<BaseField = Self::BaseField>,
+        H: Hasher,
+    {
+        Ok(vec![public_coin.draw()?, public_coin.draw()?])
+    }
+
     fn evaluate_transition<E: FieldElement + From<Self::BaseField>>(
         &self,
         frame: &EvaluationFrame<E>,
         periodic_values: &[E],
-        _random_coins: &[E],
+        random_coins: &[E],
         result: &mut [E],
     ) {
         let current = frame.current();
         let next = frame.next();
         // expected state width is 2 field elements
-        debug_assert_eq!(TRACE_WIDTH, current.len());
-        debug_assert_eq!(TRACE_WIDTH, next.len());
+        debug_assert_eq!(TRACE_WIDTH + 3 /* RAP columns */, current.len());
+        debug_assert_eq!(TRACE_WIDTH + 3 /* RAP columns */, next.len());
 
         let fib_flag = periodic_values[0];
         let step = periodic_values[1];
@@ -95,37 +103,26 @@ impl Air for FibRapAir {
             &mut result[5..],
             &current[4..],
             &next[4..],
-            compress_tuple(
-                vec![next[0], next[1], step],
-                E::from(self.rap_challenges[1]),
-            ),
+            compress_tuple(vec![next[0], next[1], step], E::from(random_coins[1])),
             compress_tuple(
                 vec![next[0], next[1], permuted_step],
-                E::from(self.rap_challenges[1]),
+                E::from(random_coins[1]),
             ),
-            E::from(self.rap_challenges[0]),
+            E::from(random_coins[0]),
             E::ONE,
         );
 
         result[2] = are_equal(
             next[2],
             current[2]
-                * (E::from(self.rap_challenges[0])
-                    + next[0]
-                    + step * E::from(self.rap_challenges[1]))
-                * (E::from(self.rap_challenges[0])
-                    + next[1]
-                    + step * E::from(self.rap_challenges[1])),
+                * (E::from(random_coins[0]) + next[0] + step * E::from(random_coins[1]))
+                * (E::from(random_coins[0]) + next[1] + step * E::from(random_coins[1])),
         );
         result[3] = are_equal(
             next[3],
             current[3]
-                * (E::from(self.rap_challenges[0])
-                    + next[0]
-                    + permuted_step * E::from(self.rap_challenges[1]))
-                * (E::from(self.rap_challenges[0])
-                    + next[1]
-                    + permuted_step * E::from(self.rap_challenges[1])),
+                * (E::from(random_coins[0]) + next[0] + permuted_step * E::from(random_coins[1]))
+                * (E::from(random_coins[0]) + next[1] + permuted_step * E::from(random_coins[1])),
         );
         result.agg_constraint(4, eq_flag, are_equal(next[2], next[3]));
     }
