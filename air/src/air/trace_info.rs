@@ -15,6 +15,7 @@ use utils::collections::Vec;
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct TraceInfo {
     width: usize,
+    aux_width: usize,
     length: usize,
     meta: Vec<u8>,
 }
@@ -35,9 +36,11 @@ impl TraceInfo {
     /// # Panics
     /// Panics if:
     /// * `width` is zero or greater than 255.
+    /// * `aux_width` is greater than 255.
+    /// * `width + aux_width` is greater than 255.
     /// * `length` is smaller than 8 or is not a power of two.
-    pub fn new(width: usize, length: usize) -> Self {
-        Self::with_meta(width, length, vec![])
+    pub fn new(width: usize, aux_width: usize, length: usize) -> Self {
+        Self::with_meta(width, aux_width, length, vec![])
     }
 
     /// Creates a new trace info from the specified length and metadata.
@@ -45,15 +48,29 @@ impl TraceInfo {
     /// # Panics
     /// Panics if:
     /// * `width` is zero or greater than 255.
+    /// * `aux_width` is greater than 255.
+    /// * `width + aux_width` is greater than 255.
     /// * `length` is smaller than 8 or is not a power of two.
     /// * Length of `meta` is greater than 65535;
-    pub fn with_meta(width: usize, length: usize, meta: Vec<u8>) -> Self {
+    pub fn with_meta(width: usize, aux_width: usize, length: usize, meta: Vec<u8>) -> Self {
         assert!(width > 0, "trace width must be greater than 0");
         assert!(
             width <= Self::MAX_TRACE_WIDTH,
             "trace width cannot be greater than {}, but was {}",
             Self::MAX_TRACE_WIDTH,
             width
+        );
+        assert!(
+            aux_width <= Self::MAX_TRACE_WIDTH,
+            "auxiliary trace width cannot be greater than {}, but was {}",
+            Self::MAX_TRACE_WIDTH,
+            aux_width
+        );
+        assert!(
+            width + aux_width <= Self::MAX_TRACE_WIDTH,
+            "trace width + auxiliary trace width cannot be greater than {}, but was {}",
+            Self::MAX_TRACE_WIDTH,
+            width + aux_width
         );
         assert!(
             length >= Self::MIN_TRACE_LENGTH,
@@ -74,6 +91,7 @@ impl TraceInfo {
         );
         TraceInfo {
             width,
+            aux_width,
             length,
             meta,
         }
@@ -87,6 +105,13 @@ impl TraceInfo {
     /// This is guaranteed to be between 1 and 255.
     pub fn width(&self) -> usize {
         self.width
+    }
+
+    /// Returns auxiliary execution trace width;
+    ///
+    /// This is guaranteed to be between 0 and 255.
+    pub fn aux_width(&self) -> usize {
+        self.aux_width
     }
 
     /// Returns execution trace length.

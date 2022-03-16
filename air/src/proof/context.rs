@@ -17,6 +17,7 @@ use utils::{
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Context {
     trace_width: u8,
+    aux_trace_width: u8,
     trace_length: u8, // stored as power of two
     trace_meta: Vec<u8>,
     field_modulus_bytes: Vec<u8>,
@@ -31,6 +32,7 @@ impl Context {
     pub fn new<B: StarkField>(trace_info: &TraceInfo, options: ProofOptions) -> Self {
         Context {
             trace_width: trace_info.width() as u8,
+            aux_trace_width: trace_info.aux_width() as u8,
             trace_length: log2(trace_info.length()) as u8,
             trace_meta: trace_info.meta().to_vec(),
             field_modulus_bytes: B::get_modulus_le_bytes(),
@@ -51,10 +53,16 @@ impl Context {
         self.trace_width as usize
     }
 
+    /// Returns auxiliary execution trace width of the computation described by this context.
+    pub fn aux_trace_width(&self) -> usize {
+        self.aux_trace_width as usize
+    }
+
     /// Returns execution trace info for the computation described by this context.
     pub fn get_trace_info(&self) -> TraceInfo {
         TraceInfo::with_meta(
             self.trace_width(),
+            self.aux_trace_width(),
             self.trace_length(),
             self.trace_meta.clone(),
         )
@@ -97,6 +105,7 @@ impl Serializable for Context {
     /// Serializes `self` and writes the resulting bytes into the `target`.
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         target.write_u8(self.trace_width);
+        target.write_u8(self.aux_trace_width);
         target.write_u8(self.trace_length);
         target.write_u16(self.trace_meta.len() as u16);
         target.write_u8_slice(&self.trace_meta);
@@ -125,6 +134,23 @@ impl Deserializable for Context {
                 "Trace width cannot be greater than {}, but had {}",
                 TraceInfo::MAX_TRACE_WIDTH,
                 trace_width
+            )));
+        }
+
+        // read and validate auxiliary trace width
+        let aux_trace_width = source.read_u8()?;
+        if aux_trace_width as usize >= TraceInfo::MAX_TRACE_WIDTH {
+            return Err(DeserializationError::InvalidValue(format!(
+                "Auxiliary trace width cannot be greater than {}, but had {}",
+                TraceInfo::MAX_TRACE_WIDTH,
+                aux_trace_width
+            )));
+        }
+        if (trace_width + aux_trace_width) as usize >= TraceInfo::MAX_TRACE_WIDTH {
+            return Err(DeserializationError::InvalidValue(format!(
+                "Trace width + auxiliary trace width cannot be greater than {}, but was {}",
+                TraceInfo::MAX_TRACE_WIDTH,
+                trace_width + aux_trace_width
             )));
         }
 
@@ -160,6 +186,7 @@ impl Deserializable for Context {
 
         Ok(Context {
             trace_width,
+            aux_trace_width,
             trace_length,
             trace_meta,
             field_modulus_bytes,

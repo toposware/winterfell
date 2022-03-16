@@ -96,7 +96,12 @@ pub trait Trace: Sized {
 
     /// Returns trace info for this trace.
     fn get_info(&self) -> TraceInfo {
-        TraceInfo::with_meta(self.width(), self.length(), self.meta().to_vec())
+        TraceInfo::with_meta(
+            self.width(),
+            self.aux_columns_width(),
+            self.length(),
+            self.meta().to_vec(),
+        )
     }
 
     // VALIDATION

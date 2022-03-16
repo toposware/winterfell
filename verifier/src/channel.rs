@@ -92,7 +92,7 @@ where
                 .and_then(|(a, b)| Ok((Some(a), Some(b))))
                 .map_err(|err| {
                     VerifierError::ProofDeserializationError(format!(
-                        "trace query deserialization failed: {}",
+                        "auxiliary trace query deserialization failed: {}",
                         err
                     ))
                 })?,

@@ -277,11 +277,12 @@ pub trait Prover {
 
             trace.set_random_coeffs(&aux_cols_coeffs);
 
-            // make sure the specified trace is valid against the AIR. This checks validity of both,
-            // assertions and state transitions. we do this in debug mode only because this is a very
-            // expensive operation.
-            #[cfg(debug_assertions)]
-            trace.validate(&air, &aux_cols_coeffs);
+            // TODO: fix this and perform check also for non-rap programs
+            // // make sure the specified trace is valid against the AIR. This checks validity of both,
+            // // assertions and state transitions. we do this in debug mode only because this is a very
+            // // expensive operation.
+            // #[cfg(debug_assertions)]
+            // trace.validate(&air, &aux_cols_coeffs);
 
             extended_aux_trace = trace.extend_aux_columns(&domain);
 

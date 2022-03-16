@@ -360,6 +360,14 @@ pub trait Air: Send + Sync {
         self.context().trace_info.width()
     }
 
+    /// Returns width of the auxiliary execution trace for an instance of the computation
+    /// described by this AIR.
+    ///
+    /// This is guaranteed to be between 0 and 255.
+    fn aux_trace_width(&self) -> usize {
+        self.context().trace_info.aux_width()
+    }
+
     /// Returns degree of trace polynomials for an instance of the computation described by
     /// this AIR.
     ///
@@ -521,6 +529,9 @@ pub trait Air: Send + Sync {
     {
         let mut t_coefficients = Vec::new();
         for _ in 0..self.trace_width() {
+            t_coefficients.push(public_coin.draw_triple()?);
+        }
+        for _ in 0..self.aux_trace_width() {
             t_coefficients.push(public_coin.draw_triple()?);
         }
 
