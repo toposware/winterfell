@@ -41,7 +41,7 @@ pub struct MockAir {
 impl MockAir {
     pub fn with_trace_length(trace_length: usize) -> Self {
         Self::new(
-            TraceInfo::new(4, trace_length),
+            TraceInfo::new(4, 0, trace_length),
             (),
             ProofOptions::new(
                 32,
@@ -60,7 +60,7 @@ impl MockAir {
         trace_length: usize,
     ) -> Self {
         let mut result = Self::new(
-            TraceInfo::new(4, trace_length),
+            TraceInfo::new(4, 0, trace_length),
             (),
             ProofOptions::new(
                 32,
@@ -78,7 +78,7 @@ impl MockAir {
 
     pub fn with_assertions(assertions: Vec<Assertion<BaseElement>>, trace_length: usize) -> Self {
         let mut result = Self::new(
-            TraceInfo::new(4, trace_length),
+            TraceInfo::new(4, 0, trace_length),
             (),
             ProofOptions::new(
                 32,

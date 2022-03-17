@@ -277,13 +277,12 @@ pub trait Prover {
 
             trace.set_random_coeffs(&aux_cols_coeffs);
 
-            // TODO: fix this and perform check also for non-rap programs
+            // TODO: Fix this
             // // make sure the specified trace is valid against the AIR. This checks validity of both,
             // // assertions and state transitions. we do this in debug mode only because this is a very
             // // expensive operation.
             // #[cfg(debug_assertions)]
             // trace.validate(&air, &aux_cols_coeffs);
-
             extended_aux_trace = trace.extend_aux_columns(&domain);
 
             // extend the auxiliary columns
@@ -316,6 +315,12 @@ pub trait Prover {
             extended_trace.append(&extended_aux_cols);
             trace_polys.append(aux_polys.clone());
         } else {
+            // make sure the specified trace is valid against the AIR. This checks validity of both,
+            // assertions and state transitions. we do this in debug mode only because this is a very
+            // expensive operation.
+            #[cfg(debug_assertions)]
+            trace.validate(&air, &[]);
+
             // Inform the channel there is no auxiliary trace.
             channel.commit_aux_trace(None);
         }

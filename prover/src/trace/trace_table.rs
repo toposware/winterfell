@@ -434,12 +434,28 @@ impl<B: StarkField> Trace for TraceTable<B> {
     }
 
     fn get(&self, register: usize, step: usize) -> B {
-        self.trace[register][step]
+        if register < self.width() {
+            self.trace[register][step]
+        } else {
+            // If the specified register index is greater than the original trace width,
+            // try accessing the auxiliary columns that are kept as a separate member.
+            self.aux_columns[register - self.width()][step]
+        }
     }
 
     fn read_row_into(&self, step: usize, target: &mut [B]) {
         for (i, register) in self.trace.iter().enumerate() {
             target[i] = register[step];
+        }
+    }
+
+    fn read_full_row_into(&self, step: usize, target: &mut [B]) {
+        for (i, register) in self.trace.iter().enumerate() {
+            target[i] = register[step];
+        }
+
+        for (i, register) in self.aux_columns.iter().enumerate() {
+            target[self.width() + i] = register[step];
         }
     }
 

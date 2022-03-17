@@ -65,6 +65,10 @@ pub trait Trace: Sized {
     /// Reads a single row of this trace at the specified index into the specified target.
     fn read_row_into(&self, step: usize, target: &mut [Self::BaseField]);
 
+    /// Reads a single full row of this trace at the specified index into the specified target,
+    /// including the auxiliary RAP columns if any.
+    fn read_full_row_into(&self, step: usize, target: &mut [Self::BaseField]);
+
     /// Gets a copy of the trace columns.
     fn get_columns(&self) -> Vec<Vec<Self::BaseField>>;
 
@@ -75,23 +79,23 @@ pub trait Trace: Sized {
         vec![]
     }
 
-    /// Returns the number of auxiliary columns. By defaul returns 0.
+    /// Returns the number of auxiliary columns. By default, returns 0.
     fn aux_columns_width(&self) -> usize {
         0
     }
 
-    /// Returns wether the trace has been fully computed. By default returns true.
+    /// Returns wether the trace has been fully computed. By default, returns true.
     fn is_finished(&self) -> bool {
         true
     }
 
     /// Returns the number of elements in the STARK field required by the auxiliary columns. The number of
-    /// coins must be a number between 0 and 3. By default returns 0
+    /// coins must be a number between 0 and 3. By default, returns 0.
     fn number_of_coins(&self) -> usize {
         0
     }
 
-    /// Set the random coeffiecients used for computing the auxiliary columns. By default does nothing
+    /// Set the random coeffiecients used for computing the auxiliary columns. By default, does nothing.
     fn set_random_coeffs(&mut self, _coeffs: &[Self::BaseField]) {}
 
     /// Returns trace info for this trace.
@@ -110,7 +114,7 @@ pub trait Trace: Sized {
     ///
     /// NOTE: this is a very expensive operation and is intended for use only in debug mode.
     fn validate<A: Air<BaseField = Self::BaseField>>(
-        &self,
+        &mut self,
         air: &A,
         random_coins: &[A::BaseField],
     ) {
@@ -150,7 +154,7 @@ pub trait Trace: Sized {
 
         // initialize buffers to hold evaluation frames and results of constraint evaluations
         let mut x = Self::BaseField::ONE;
-        let mut ev_frame = EvaluationFrame::new(self.width());
+        let mut ev_frame = EvaluationFrame::new(self.width() + self.aux_columns_width());
         let mut evaluations = vec![Self::BaseField::ZERO; air.num_transition_constraints()];
 
         for step in 0..self.length() - 1 {
@@ -162,8 +166,8 @@ pub trait Trace: Sized {
             }
 
             // build evaluation frame
-            self.read_row_into(step, ev_frame.current_mut());
-            self.read_row_into(step + 1, ev_frame.next_mut());
+            self.read_full_row_into(step, ev_frame.current_mut());
+            self.read_full_row_into(step + 1, ev_frame.next_mut());
 
             // evaluate transition constraints
             air.evaluate_transition(&ev_frame, &periodic_values, random_coins, &mut evaluations);

@@ -88,7 +88,7 @@ where
         // whether we have raps or not, so that parsing here can be done properly.
         let (aux_cols_proof, aux_cols_states) = match proof.aux_cols_queries {
             Some(q) => q
-                .parse::<H, B>(lde_domain_size, num_queries, air.trace_width())
+                .parse::<H, B>(lde_domain_size, num_queries, air.aux_trace_width())
                 .and_then(|(a, b)| Ok((Some(a), Some(b))))
                 .map_err(|err| {
                     VerifierError::ProofDeserializationError(format!(
@@ -124,7 +124,10 @@ where
         // --- parse out-of-domain evaluation frame -----------------------------------------------
         let (ood_frame, ood_evaluations) = proof
             .ood_frame
-            .parse(air.trace_width(), air.ce_blowup_factor())
+            .parse(
+                air.trace_width() + air.aux_trace_width(),
+                air.ce_blowup_factor(),
+            )
             .map_err(|err| VerifierError::ProofDeserializationError(err.to_string()))?;
 
         Ok(VerifierChannel {
@@ -213,12 +216,13 @@ where
             )
             .map_err(|_| VerifierError::TraceQueryDoesNotMatchCommitment)?;
 
-            states.append(
-                &mut self
-                    .aux_cols_states
-                    .take()
-                    .expect("auxiliary column states already read"),
-            );
+            if self.aux_cols_proof.is_some() {
+                let mut aux_states = self.aux_cols_states.take().unwrap();
+
+                for (i, e) in states.iter_mut().enumerate() {
+                    e.append(&mut aux_states[i]);
+                }
+            }
         }
 
         Ok(states)
