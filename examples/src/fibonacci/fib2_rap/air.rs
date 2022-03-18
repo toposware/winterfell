@@ -136,10 +136,8 @@ impl Air for FibRapAir {
             Assertion::single(0, 0, Self::BaseField::ONE),
             Assertion::single(1, 0, Self::BaseField::ONE),
             Assertion::single(1, last_step, self.result),
-            // TODO: removing them for now to fix other issues, would need to be dealt automatically anyway
-            // when abstracting the permutation argument
-            // Assertion::single(4, 0, Self::BaseField::ONE),
-            // Assertion::single(4, last_step, Self::BaseField::ONE),
+            Assertion::single(4, 0, Self::BaseField::ONE),
+            Assertion::single(4, last_step, Self::BaseField::ONE),
         ]
     }
 

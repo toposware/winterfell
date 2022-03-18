@@ -565,7 +565,7 @@ fn prepare_assertions<B: StarkField>(
 
     for assertion in assertions.into_iter() {
         assertion
-            .validate_trace_width(context.trace_info.width())
+            .validate_trace_width(context.trace_info.width() + context.trace_info.aux_width())
             .unwrap_or_else(|err| {
                 panic!("assertion {} is invalid: {}", assertion, err);
             });
