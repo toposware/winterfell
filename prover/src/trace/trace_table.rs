@@ -70,6 +70,7 @@ const MIN_FRAGMENT_LENGTH: usize = 2;
 /// [fill()](TraceTableFragment::fill) method to fill all fragments with data in parallel.
 /// The semantics of the fragment's [TraceTableFragment::fill()] method are identical to the
 /// semantics of the [TraceTable::fill()] method.
+#[allow(clippy::type_complexity)]
 pub struct TraceTable<B: StarkField> {
     trace: Vec<Vec<B>>,
     aux_columns: Vec<Vec<B>>,
@@ -162,8 +163,8 @@ impl<B: StarkField> TraceTable<B> {
             aux_columns: aux_registers,
             aux_init: Box::new(|_, _, _| {}),
             aux_update: Box::new(|_, _, _, _| {}),
-            ncoins: ncoins,
-            finished: if aux_width == 0 { true } else { false },
+            ncoins,
+            finished: aux_width == 0,
             meta,
         }
     }
@@ -223,7 +224,7 @@ impl<B: StarkField> TraceTable<B> {
             aux_columns: aux_registers,
             aux_init: Box::new(|_, _, _| {}),
             aux_update: Box::new(|_, _, _, _| {}),
-            ncoins: ncoins,
+            ncoins,
             finished,
             meta: vec![],
         }

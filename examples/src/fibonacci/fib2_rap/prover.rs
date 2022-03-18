@@ -51,16 +51,16 @@ impl FibRapProver {
             |rap_challenges, state_init, state_aux| {
                 state_aux[0] = (rap_challenges[0]
                     + state_init[0]
-                    + BaseElement::from(0 as u64) * rap_challenges[1])
+                    + BaseElement::from(0u64) * rap_challenges[1])
                     * (rap_challenges[0]
                         + state_init[1]
-                        + BaseElement::from(0 as u64) * rap_challenges[1]);
+                        + BaseElement::from(0u64) * rap_challenges[1]);
                 state_aux[1] = (rap_challenges[0]
                     + state_init[0]
-                    + BaseElement::from(0 as u64) * rap_challenges[1])
+                    + BaseElement::from(0u64) * rap_challenges[1])
                     * (rap_challenges[0]
                         + state_init[1]
-                        + BaseElement::from(0 as u64) * rap_challenges[1]);
+                        + BaseElement::from(0u64) * rap_challenges[1]);
                 state_aux[2] = BaseElement::ONE;
             },
             |step, rap_challenges, state_init, state_aux| {

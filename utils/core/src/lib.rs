@@ -120,7 +120,7 @@ impl<T: Serializable> Serializable for Option<T> {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         if let Some(e) = &self {
             target.write_u8(1u8);
-            T::write_into(&e, target);
+            T::write_into(e, target);
         } else {
             target.write_u8(0u8);
         }

@@ -103,26 +103,23 @@ impl Air for FibRapAir {
             &mut result[5..],
             &current[4..],
             &next[4..],
-            compress_tuple(vec![next[0], next[1], step], E::from(random_coins[1])),
-            compress_tuple(
-                vec![next[0], next[1], permuted_step],
-                E::from(random_coins[1]),
-            ),
-            E::from(random_coins[0]),
+            compress_tuple(vec![next[0], next[1], step], random_coins[1]),
+            compress_tuple(vec![next[0], next[1], permuted_step], random_coins[1]),
+            random_coins[0],
             E::ONE,
         );
 
         result[2] = are_equal(
             next[2],
             current[2]
-                * (E::from(random_coins[0]) + next[0] + step * E::from(random_coins[1]))
-                * (E::from(random_coins[0]) + next[1] + step * E::from(random_coins[1])),
+                * (random_coins[0] + next[0] + step * random_coins[1])
+                * (random_coins[0] + next[1] + step * random_coins[1]),
         );
         result[3] = are_equal(
             next[3],
             current[3]
-                * (E::from(random_coins[0]) + next[0] + permuted_step * E::from(random_coins[1]))
-                * (E::from(random_coins[0]) + next[1] + permuted_step * E::from(random_coins[1])),
+                * (random_coins[0] + next[0] + permuted_step * random_coins[1])
+                * (random_coins[0] + next[1] + permuted_step * random_coins[1]),
         );
         result.agg_constraint(4, eq_flag, are_equal(next[2], next[3]));
     }

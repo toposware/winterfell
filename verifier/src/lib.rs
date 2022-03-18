@@ -191,8 +191,8 @@ where
     let aux_cols_commitment = channel.read_aux_columns_commitment();
 
     // If we have auxiliary columns, reseed the public coin with their commitment.
-    if aux_cols_commitment.is_some() {
-        public_coin.reseed(aux_cols_commitment.unwrap())
+    if let Some(c) = aux_cols_commitment {
+        public_coin.reseed(c)
     };
 
     let constraint_coeffs = air

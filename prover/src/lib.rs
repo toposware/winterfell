@@ -202,7 +202,7 @@ pub trait Prover {
         // 0 ----- instantiate AIR and prover channel ---------------------------------------------
 
         // serialize public inputs; these will be included in the seed for the public coin
-        let pub_inputs = self.get_pub_inputs(&trace);
+        let pub_inputs = self.get_pub_inputs(trace);
         let mut pub_inputs_bytes = Vec::new();
         pub_inputs.write_into(&mut pub_inputs_bytes);
 
@@ -311,7 +311,7 @@ pub trait Prover {
             );
 
             // append the extended auxiliary columns to the extended trace
-            extended_trace.append(&extended_aux_cols);
+            extended_trace.append(extended_aux_cols);
             trace_polys.append(aux_polys.clone());
         } else {
             // make sure the specified trace is valid against the AIR. This checks validity of both,

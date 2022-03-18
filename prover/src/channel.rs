@@ -81,8 +81,8 @@ where
     pub fn commit_aux_trace(&mut self, aux_trace_root: Option<H::Digest>) {
         self.commitments.add_aux_trace_root::<H>(&aux_trace_root);
 
-        if aux_trace_root.is_some() {
-            self.public_coin.reseed(aux_trace_root.unwrap());
+        if let Some(r) = aux_trace_root {
+            self.public_coin.reseed(r);
         }
     }
 

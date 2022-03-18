@@ -225,6 +225,7 @@ pub trait Trace: Sized {
     ///
     /// The extension is done by first interpolating each register into a polynomial over the
     /// trace domain, and then evaluating the polynomial over the LDE domain.
+    #[allow(clippy::type_complexity)]
     fn extend_aux_columns(
         &self,
         domain: &StarkDomain<Self::BaseField>,

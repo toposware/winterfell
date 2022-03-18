@@ -89,7 +89,7 @@ where
         let (aux_cols_proof, aux_cols_states) = match proof.aux_cols_queries {
             Some(q) => q
                 .parse::<H, B>(lde_domain_size, num_queries, air.aux_trace_width())
-                .and_then(|(a, b)| Ok((Some(a), Some(b))))
+                .map(|(a, b)| (Some(a), Some(b)))
                 .map_err(|err| {
                     VerifierError::ProofDeserializationError(format!(
                         "auxiliary trace query deserialization failed: {}",
