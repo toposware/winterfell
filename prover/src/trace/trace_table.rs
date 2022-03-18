@@ -15,6 +15,9 @@ use utils::collections::vec;
 #[cfg(feature = "concurrent")]
 use utils::{iterators::*, rayon};
 
+#[cfg(not(feature = "std"))]
+use alloc::boxed::Box;
+
 // CONSTANTS
 // ================================================================================================
 
