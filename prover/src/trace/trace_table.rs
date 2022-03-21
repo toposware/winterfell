@@ -43,16 +43,20 @@ const MIN_FRAGMENT_LENGTH: usize = 2;
 /// The other approach is to use [TraceTable::new()] function, which takes regular trace width and
 /// length, as well as auxiliary RAP trace width and the number of RAP public coins as parameters.
 /// This function will allocate memory for the trace, but will not fill it with data. To fill the
-/// execution trace, you can use the [fill()](TraceTable::fill) method, which takes four closures
+/// execution trace, you can use the [fill()](TraceTable::fill) method, which takes two closures
 /// as parameters:
 ///
 /// 1. The first closure is responsible for initializing the first state of the computation
 ///    (the first row of the execution trace).
 /// 2. The second closure receives the previous state of the execution trace as input, and must
 ///    update it to the next state of the computation.
-/// 3. The third closure is responsible for initializing the first state of the computation on the
+///
+/// To fill the auxiliary execution trace (copy columns and permutation columns), you can use the
+/// [fill()](TraceTable::fill_aux) method, which takes two closures as parameters:
+///
+/// 1. The first closure is responsible for initializing the first state of the computation on the
 ///    auxiliary RAP columns (their first row).
-/// 4. The fourth closure receives the previous state of the execution trace as input, and must
+/// 2. The second closure receives the previous state of the execution trace as input, and must
 ///    update the next state of the computation of the auxiliary RAP columns.
 ///
 /// The auxiliary RAP columns will be automatically filled once the original trace is commited to

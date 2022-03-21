@@ -30,17 +30,25 @@ In Winterfell, an execution trace can be represented by any struct which impleme
 
 In most cases, defining a custom structure for an execution trace may be an overkill. Thus, Winterfell also provides a `TraceTable` struct which already implements the `Trace` trait. There are two ways to instantiate this struct.
 
-First, you can use the `TraceTable::init()` function which takes a set of vectors as a parameter, where each vector contains values for a given column of the trace. This approach allows you to build the execution trace as you see fit, as long as it meets basic execution trace requirements. These requirements are:
+First, you can use the `TraceTable::init()` function which takes two set of vectors as a parameter, where each vector in the first set contains values
+for a given column of the original trace, and each vector in the second set contains values for the auxiliary columns. This approach allows you to build the execution trace as you see fit, as long as it meets basic execution trace requirements. These requirements are:
 
 1. Lengths of all columns in the execution trace must be the same.
 2. The length of the columns must be some power of two.
 
-The other approach is to instantiate `TraceTable` struct using `TraceTable::new()` function, which takes trace width and length as parameters. This function will allocate memory for the trace, but will not fill it with data. To fill the execution trace, you can use the `fill()` method, which takes two closures as parameters:
+The other approach is to instantiate `TraceTable` struct using `TraceTable::new()` function, which takes trace width, auxiliary columns width, length and number of RAP coins as parameters. This function will allocate memory for the trace, but will not fill it with data. To fill the execution trace, you can use the `fill()` method, which takes two closures as parameters:
 
 1. The first closure is responsible for initializing the first state of the computation (the first row of the execution trace).
 2. The second closure receives the previous state of the execution trace as input, and must update it to the next state of the computation.
 
-This second option is usually simpler to use and also makes it easy to implement concurrent trace generation.
+To fill the auxiliary execution trace, you can use the `fill_aux()` method, which takes two closures as parameters:
+
+1. The first closure is responsible for initializing the first state of the computation on the auxiliary RAP columns (their first row).
+2. The second closure receives the previous state of the execution trace as input, and must update the next state of the computation of the auxiliary RAP columns.
+
+The auxiliary RAP columns will be automatically filled once the original trace is commited to and the verifier has sampled the necessary public coins.
+
+This second approach is usually simpler to use than calling `TraceTable::init()` and also makes it easy to implement concurrent trace generation.
 
 ## Crate features
 This crate can be compiled with the following features:
