@@ -72,7 +72,7 @@ impl<B: StarkField> TracePolyTable<B> {
         self.0
     }
 
-    /// Appends `other` table to `self`
+    /// Appends `other` table to `self`.
     pub fn append(&mut self, mut other: Self) {
         self.0.append(&mut other.0);
     }

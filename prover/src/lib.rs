@@ -258,7 +258,6 @@ pub trait Prover {
 
         // If the trace isn't `finished`, then it means we need to generate the auxiliary RAP columns,
         // commit to them and include the extended auxiliary columns to the extended trace.
-        // TODO: how to deal with it with the verifier?
         let has_rap_columns = !trace.is_finished();
 
         let mut extended_aux_trace = None;
@@ -277,9 +276,9 @@ pub trait Prover {
 
             trace.set_random_coeffs(&aux_cols_coeffs);
 
-            // // make sure the specified trace is valid against the AIR. This checks validity of both,
-            // // assertions and state transitions. we do this in debug mode only because this is a very
-            // // expensive operation.
+            // make sure the specified trace is valid against the AIR. This checks validity of both
+            // assertions and state transitions. We do this in debug mode only because this is a very
+            // expensive operation.
             #[cfg(debug_assertions)]
             trace.validate(&air, &aux_cols_coeffs);
             extended_aux_trace = trace.extend_aux_columns(&domain);
@@ -314,8 +313,8 @@ pub trait Prover {
             extended_trace.append(extended_aux_cols);
             trace_polys.append(aux_polys.clone());
         } else {
-            // make sure the specified trace is valid against the AIR. This checks validity of both,
-            // assertions and state transitions. we do this in debug mode only because this is a very
+            // make sure the specified trace is valid against the AIR. This checks validity of both
+            // assertions and state transitions. We do this in debug mode only because this is a very
             // expensive operation.
             #[cfg(debug_assertions)]
             trace.validate(&air, &[]);
@@ -489,8 +488,8 @@ pub trait Prover {
         // Recall we may have appended auxiliary columns to the extended trace. We need to undo this now
         extended_trace.truncate(extended_trace.width() - trace.aux_columns_width());
 
-        // query the execution trace and the extented aux columns at the selected position; for each
-        // query, we need the state of the trace at that position + Merkle authentication path
+        // query the execution trace and the extended auxiliary columns at the selected position;
+        // for each query, we need the state of the traces at that position + Merkle authentication path
         let trace_queries = extended_trace.query(trace_tree, &query_positions);
         let aux_cols_queries = if has_rap_columns {
             // TODO: is there a way to remove this double unwrapping?

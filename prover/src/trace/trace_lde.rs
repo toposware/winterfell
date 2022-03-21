@@ -67,15 +67,17 @@ impl<B: StarkField> TraceLde<B> {
         }
     }
 
+    /// Appends `other` table to `self`.
     pub fn append(&mut self, other: &Self) {
         self.data.append(&mut other.data.clone())
     }
 
-    /// Drops the last `len` columns of the table
+    /// Drops the last `len` columns of the table.
     pub fn truncate(&mut self, len: usize) {
         self.data.truncate(len)
     }
 
+    /// Returns a vector of the LDE trace columns.
     pub fn into_columns(self) -> Vec<Vec<B>> {
         self.data
     }

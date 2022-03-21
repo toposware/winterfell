@@ -75,6 +75,7 @@ pub trait Trace: Sized {
     // PROVIDED METHODS
     // --------------------------------------------------------------------------------------------
 
+    /// Gets a copy of the auxiliary trace columns. By default, returns an empty vector.
     fn get_aux_columns(&self) -> Vec<Vec<Self::BaseField>> {
         vec![]
     }
@@ -89,13 +90,13 @@ pub trait Trace: Sized {
         true
     }
 
-    /// Returns the number of elements in the STARK field required by the auxiliary columns. The number of
-    /// coins must be a number between 0 and 3. By default, returns 0.
+    /// Returns the number of elements in the STARK field required by the auxiliary columns.
+    /// By default, returns 0.
     fn number_of_coins(&self) -> usize {
         0
     }
 
-    /// Set the random coeffiecients used for computing the auxiliary columns. By default, does nothing.
+    /// Set the random coefficients used for computing the auxiliary columns. By default, does nothing.
     fn set_random_coeffs(&mut self, _coeffs: &[Self::BaseField]) {}
 
     /// Returns trace info for this trace.

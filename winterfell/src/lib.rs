@@ -111,8 +111,8 @@
 //! };
 //!
 //! pub fn build_do_work_trace(start: BaseElement, n: usize) -> TraceTable<BaseElement> {
-//!     // Instantiate the trace with a given widths, length and number of RAP coins;
-//!     // this will allocate all required memory for the trace.
+//!     // Instantiate the trace with given original and auxiliary widths, length and number
+//!     // of RAP coins; this will allocate all required memory for the trace.
 //!     let trace_width = 1;
 //!     let mut trace = TraceTable::new(trace_width, 0, n, 0);
 //!

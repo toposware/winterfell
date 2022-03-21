@@ -181,8 +181,9 @@ where
     // 1 ----- trace and extended columns commitment ----------------------------------------------------------
     // read the commitment to evaluations of the trace polynomials over the LDE domain sent by the
     // prover, use it to update the public coin, and draw a set of random coefficients from the
-    // coin. The do the same with the auxiliary columns commitment in the interactive version of the protocol,
-    //the verifier sends these coefficients to the prover, and prover uses them to compute constraint composition polynomial.
+    // coin. Then do the same with the auxiliary columns commitment. In the interactive version of
+    // the protocol, the verifier sends these coefficients to the prover, and the prover uses them to
+    // compute the constraint composition polynomial.
     let trace_commitment = channel.read_trace_commitment();
     public_coin.reseed(trace_commitment);
     let aux_columns_random_coins = air
