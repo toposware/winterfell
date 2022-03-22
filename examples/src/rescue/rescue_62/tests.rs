@@ -8,13 +8,13 @@ use winterfell::{FieldExtension, HashFunction, ProofOptions};
 
 #[test]
 fn rescue_test_basic_proof_verification() {
-    let rescue_eg = Box::new(super::RescueExample::new(128, build_options()));
+    let rescue_eg = Box::new(super::RescueExample::new(128, 4, build_options()));
     crate::tests::test_basic_proof_verification(rescue_eg);
 }
 
 #[test]
 fn rescue_test_basic_proof_verification_fail() {
-    let rescue_eg = Box::new(super::RescueExample::new(128, build_options()));
+    let rescue_eg = Box::new(super::RescueExample::new(128, 4, build_options()));
     crate::tests::test_basic_proof_verification_fail(rescue_eg);
 }
 

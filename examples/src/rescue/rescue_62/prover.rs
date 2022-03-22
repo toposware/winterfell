@@ -19,18 +19,22 @@ impl RescueProver {
         &self,
         seed: [BaseElement; 2],
         iterations: usize,
+        width: usize,
     ) -> TraceTable<BaseElement> {
         // allocate memory to hold the trace table
         let trace_length = iterations * CYCLE_LENGTH;
-        let mut trace = TraceTable::new(4, trace_length);
+        let mut trace = TraceTable::new(width, trace_length);
+        let steps = width / 4;
 
         trace.fill(
             |state| {
                 // initialize first state of the computation
-                state[0] = seed[0];
-                state[1] = seed[1];
-                state[2] = BaseElement::ZERO;
-                state[3] = BaseElement::ZERO;
+                for i in 0..steps {
+                    state[4 * i] = seed[0];
+                    state[4 * i + 1] = seed[1];
+                    state[4 * i + 2] = BaseElement::ZERO;
+                    state[4 * i + 3] = BaseElement::ZERO;
+                }
             },
             |step, state| {
                 // execute the transition function for all steps
@@ -39,10 +43,14 @@ impl RescueProver {
                 // Rescue hash; for the remaining 2 rounds, just carry over the values
                 // in the first two registers to the next step
                 if (step % CYCLE_LENGTH) < NUM_HASH_ROUNDS {
-                    rescue::apply_round(state, step);
+                    for i in 0..steps {
+                        rescue::apply_round(&mut state[4 * i..4 * i + 4], step);
+                    }
                 } else {
-                    state[2] = BaseElement::ZERO;
-                    state[3] = BaseElement::ZERO;
+                    for i in 0..steps {
+                        state[4 * i + 2] = BaseElement::ZERO;
+                        state[4 * i + 3] = BaseElement::ZERO;
+                    }
                 }
             },
         );
@@ -61,6 +69,7 @@ impl Prover for RescueProver {
         PublicInputs {
             seed: [trace.get(0, 0), trace.get(1, 0)],
             result: [trace.get(0, last_step), trace.get(1, last_step)],
+            width: trace.width(),
         }
     }
 

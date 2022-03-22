@@ -137,6 +137,9 @@ pub enum ExampleType {
         /// Length of the hash chain; must be a power of two
         #[structopt(short = "n", default_value = "1024")]
         chain_length: usize,
+        /// Width of the trace, must be a multiple of 4
+        #[structopt(short = "w", default_value = "4")]
+        width: usize,
     },
     /// Compute a hash chain using Rescue hash function
     RescueF63 {

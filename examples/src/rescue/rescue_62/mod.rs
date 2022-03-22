@@ -33,9 +33,10 @@ const NUM_HASH_ROUNDS: usize = 14;
 // RESCUE HASH CHAIN EXAMPLE
 // ================================================================================================
 
-pub fn get_example(options: ExampleOptions, chain_length: usize) -> Box<dyn Example> {
+pub fn get_example(options: ExampleOptions, chain_length: usize, width: usize) -> Box<dyn Example> {
     Box::new(RescueExample::new(
         chain_length,
+        width,
         options.to_proof_options(42, 4),
     ))
 }
@@ -45,10 +46,11 @@ pub struct RescueExample {
     chain_length: usize,
     seed: [BaseElement; 2],
     result: [BaseElement; 2],
+    width: usize,
 }
 
 impl RescueExample {
-    pub fn new(chain_length: usize, options: ProofOptions) -> RescueExample {
+    pub fn new(chain_length: usize, width: usize, options: ProofOptions) -> RescueExample {
         assert!(
             chain_length.is_power_of_two(),
             "chain length must a power of 2"
@@ -69,6 +71,7 @@ impl RescueExample {
             chain_length,
             seed,
             result,
+            width,
         }
     }
 }
@@ -80,8 +83,9 @@ impl Example for RescueExample {
     fn prove(&self) -> StarkProof {
         // generate the execution trace
         debug!(
-            "Generating proof for computing a chain of {} Rescue hashes\n\
+            "Generating proof for computing {} chains of {} Rescue hashes\n\
             ---------------------",
+            self.width / 4,
             self.chain_length
         );
 
@@ -89,7 +93,7 @@ impl Example for RescueExample {
 
         // generate the execution trace
         let now = Instant::now();
-        let trace = prover.build_trace(self.seed, self.chain_length);
+        let trace = prover.build_trace(self.seed, self.chain_length, self.width);
         let trace_length = trace.length();
         debug!(
             "Generated execution trace of {} registers and 2^{} steps in {} ms",
@@ -106,6 +110,7 @@ impl Example for RescueExample {
         let pub_inputs = PublicInputs {
             seed: self.seed,
             result: self.result,
+            width: self.width,
         };
         winterfell::verify::<RescueAir>(proof, pub_inputs)
     }
@@ -114,6 +119,7 @@ impl Example for RescueExample {
         let pub_inputs = PublicInputs {
             seed: self.seed,
             result: [self.result[0], self.result[1] + BaseElement::ONE],
+            width: self.width,
         };
         winterfell::verify::<RescueAir>(proof, pub_inputs)
     }
