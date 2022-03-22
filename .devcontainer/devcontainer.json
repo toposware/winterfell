@@ -1,0 +1,59 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
+// https://github.com/microsoft/vscode-dev-containers/tree/v0.222.0/containers/rust
+{
+	"name": "Toposware Dev Container",
+	"build": {
+		"dockerfile": "Dockerfile",
+	},
+	"runArgs": [
+		"--cap-add=SYS_PTRACE",
+		"--security-opt",
+		"seccomp=unconfined"
+	],
+
+	// Set *default* container specific settings.json values on container create.
+	"settings": {
+		"lldb.executable": "/usr/bin/lldb",
+		// VS Code don't watch files under ./target
+		"files.watcherExclude": {
+			"**/.git/objects/**": true,
+            "**/.git/subtree-cache/**": true,
+			"**/target/**": true
+		},
+		"files.eol": "\n",
+		"editor.codeActionsOnSaveTimeout": 3000,
+        "rust-analyzer.serverPath": "/usr/local/bin/rust-analyzer",
+        "rust-analyzer.checkOnSave.command": "clippy"
+	},
+
+	// Add the IDs of extensions you want installed when the container is created.
+	"extensions": [
+		"eamodio.gitlens", // IDE Git information
+		"davidanson.vscode-markdownlint",
+		"github.vscode-pull-request-github", // Github interaction
+		"Gruntfuggly.todo-tree", // Highlights TODO comments
+		"hdevalke.rust-test-lens",
+		"IBM.output-colorizer", // Colorize your output/test logs
+		"matklad.rust-analyzer",
+		"mutantdino.resourcemonitor",
+		"serayuzgur.crates",
+		"shardulm94.trailing-spaces", // Show trailing spaces
+		"stkb.rewrap", // rewrap comments after n characters on one line
+		"tamasfe.even-better-toml",
+		"/usr/local/codelldb-x86_64-linux.vsix", // Load the variant of codelldb built for this container OS
+		"vadimcn.vscode-lldb",
+		"vscode-icons-team.vscode-icons" // Better file extension icons
+	],
+
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [
+	// 	3000,
+	// 	9944,
+	// ],
+
+	// Use 'postCreateCommand' to run commands after the container is created.
+	// "postCreateCommand": "rustc --version",
+
+	// Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
+	"remoteUser": "vscode"
+}

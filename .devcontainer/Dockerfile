@@ -1,0 +1,1 @@
+FROM ghcr.io/toposware/containers/rust-dev-topos:sha-590f40c
