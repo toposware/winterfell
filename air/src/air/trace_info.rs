@@ -33,8 +33,8 @@ pub struct TraceInfo {
 impl TraceInfo {
     /// Smallest allowed execution trace length; currently set at 8.
     pub const MIN_TRACE_LENGTH: usize = 8;
-    /// Maximum number of columns in an execution trace (across all segments); currently set at 255.
-    pub const MAX_TRACE_WIDTH: usize = 255;
+    /// Maximum number of columns in an execution trace (across all segments); currently set at 65535.
+    pub const MAX_TRACE_WIDTH: usize = 65535;
     /// Maximum number of bytes in trace metadata; currently set at 65535.
     pub const MAX_META_LENGTH: usize = 65535;
     /// Maximum number of random elements per auxiliary trace segment; currently set to 255.
@@ -273,11 +273,11 @@ impl TraceLayout {
 impl Serializable for TraceLayout {
     /// Serializes `self` and writes the resulting bytes into the `target`.
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
-        target.write_u8(self.main_segment_width as u8);
+        target.write_u16(self.main_segment_width as u16);
         for &w in self.aux_segment_widths.iter() {
             debug_assert!(
-                w <= u8::MAX as usize,
-                "aux segment width does not fit into u8 value"
+                w <= u16::MAX as usize,
+                "aux segment width does not fit into u16 value"
             );
             target.write_u8(w as u8);
         }
@@ -298,7 +298,7 @@ impl Deserializable for TraceLayout {
     /// Returns an error of a valid [TraceLayout] struct could not be read from the specified
     /// `source`.
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
-        let main_width = source.read_u8()? as usize;
+        let main_width = source.read_u16()? as usize;
         if main_width == 0 {
             return Err(DeserializationError::InvalidValue(
                 "main trace segment width must be greater than zero".to_string(),

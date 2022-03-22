@@ -98,6 +98,7 @@ impl Serializable for Context {
     /// Serializes `self` and writes the resulting bytes into the `target`.
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         self.trace_layout.write_into(target);
+        target.write_u16(self.get_trace_info().width() as u16);
         target.write_u8(math::log2(self.trace_length) as u8); // store as power of two
         target.write_u16(self.trace_meta.len() as u16);
         target.write_u8_slice(&self.trace_meta);
@@ -116,6 +117,20 @@ impl Deserializable for Context {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
         // read and validate trace layout info
         let trace_layout = TraceLayout::read_from(source)?;
+        // read and validate trace width
+        let trace_width = source.read_u16()?;
+        if trace_width == 0 {
+            return Err(DeserializationError::InvalidValue(
+                "trace width must be greater than zero".to_string(),
+            ));
+        }
+        if trace_width as usize >= TraceInfo::MAX_TRACE_WIDTH {
+            return Err(DeserializationError::InvalidValue(format!(
+                "Trace width cannot be greater than {}, but had {}",
+                TraceInfo::MAX_TRACE_WIDTH,
+                trace_width
+            )));
+        }
 
         // read and validate trace length (which was stored as a power of two)
         let trace_length = source.read_u8()?;

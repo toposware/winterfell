@@ -6,7 +6,7 @@ use math::FieldElement;
 // ================================================================================================
 
 const MAX_ROWS: usize = 255;
-const MAX_COLS: usize = 255;
+const MAX_COLS: usize = 65536;
 
 // TABLE
 // ================================================================================================
@@ -46,7 +46,7 @@ impl<E: FieldElement> Table<E> {
         );
         assert!(num_cols > 0, "number of columns must be greater than 0");
         assert!(
-            num_cols < MAX_ROWS,
+            num_cols < MAX_COLS,
             "number of columns cannot exceed {}, but was {}",
             MAX_COLS,
             num_cols
