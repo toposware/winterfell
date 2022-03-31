@@ -45,7 +45,7 @@
 extern crate alloc;
 
 pub use air::{
-    proof::StarkProof, Air, AirContext, Assertion, AuxTraceSegmentRandElements, BoundaryConstraint,
+    proof::StarkProof, Air, AirContext, Assertion, AuxTraceRandElements, BoundaryConstraint,
     BoundaryConstraintGroup, ConstraintCompositionCoefficients, ConstraintDivisor,
     DeepCompositionCoefficients, EvaluationFrame, FieldExtension, HashFunction, ProofOptions,
     TraceInfo, TransitionConstraintDegree, TransitionConstraintGroup,
@@ -91,7 +91,7 @@ use composer::DeepCompositionPoly;
 
 mod trace;
 pub use trace::{Trace, TraceTable, TraceTableFragment};
-use trace::{TraceCommitment, TracePolyTable};
+use trace::{TraceCommitment, TraceLde, TracePolyTable};
 
 mod channel;
 use channel::ProverChannel;
@@ -233,7 +233,7 @@ pub trait Prover {
 
         // extend the main execution trace and build a Merkle tree from the extended trace
         let (main_trace_lde, main_trace_tree, main_trace_polys) =
-            self.build_trace_commitment::<H>(trace.main_segment(), &domain);
+            self.build_trace_commitment::<Self::BaseField, H>(trace.main_segment(), &domain);
 
         // commit to the LDE of the main trace by writing the root of its Merkle tree into
         // the channel
@@ -251,7 +251,7 @@ pub trait Prover {
 
         // build auxiliary trace segments (if any), and append the resulting segments to trace
         // commitment and trace polynomial table structs
-        let mut aux_trace_rand_elements = AuxTraceSegmentRandElements::new();
+        let mut aux_trace_rand_elements = AuxTraceRandElements::new();
         for i in 0..trace.layout().num_aux_segments() {
             // draw a set of random elements required to build an auxiliary trace segment
             let rand_elements = channel.get_aux_trace_segment_rand_elements(i);
@@ -263,7 +263,7 @@ pub trait Prover {
 
             // extend the auxiliary trace segment and build a Merkle tree from the extended trace
             let (aux_segment_lde, aux_segment_tree, aux_segment_polys) =
-                self.build_trace_commitment::<H>(aux_segment, &domain);
+                self.build_trace_commitment::<E, H>(aux_segment, &domain);
 
             // commit to the LDE of the extended auxiliary trace segment  by writing the root of
             // its Merkle tree into the channel
@@ -292,7 +292,7 @@ pub trait Prover {
         let now = Instant::now();
         let constraint_coeffs = channel.get_constraint_composition_coeffs();
         let evaluator = ConstraintEvaluator::new(&air, constraint_coeffs);
-        let constraint_evaluations = evaluator.evaluate(&trace_commitment, &domain);
+        let constraint_evaluations = evaluator.evaluate(trace_commitment.trace_table(), &domain);
         #[cfg(feature = "std")]
         debug!(
             "Evaluated constraints over domain of 2^{} elements in {} ms",
@@ -454,16 +454,13 @@ pub trait Prover {
     ///
     /// Trace commitment is computed by hashing each row of the extended execution trace, and then
     /// building a Merkle tree from the resulting hashes.
-    fn build_trace_commitment<H>(
+    fn build_trace_commitment<E, H>(
         &self,
-        trace: &Matrix<Self::BaseField>,
+        trace: &Matrix<E>,
         domain: &StarkDomain<Self::BaseField>,
-    ) -> (
-        Matrix<Self::BaseField>,
-        MerkleTree<H>,
-        Matrix<Self::BaseField>,
-    )
+    ) -> (Matrix<E>, MerkleTree<H>, Matrix<E>)
     where
+        E: FieldElement<BaseField = Self::BaseField>,
         H: ElementHasher<BaseField = Self::BaseField>,
     {
         // extend the execution trace

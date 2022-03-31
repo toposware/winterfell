@@ -5,8 +5,11 @@
 // LICENSE file in the root directory of this source tree.
 
 use super::Matrix;
-use air::{Air, AuxTraceSegmentRandElements, EvaluationFrame, TraceInfo, TraceLayout};
+use air::{Air, AuxTraceRandElements, EvaluationFrame, TraceInfo, TraceLayout};
 use math::{polynom, FieldElement, StarkField};
+
+mod trace_lde;
+pub use trace_lde::TraceLde;
 
 mod poly_table;
 pub use poly_table::TracePolyTable;
@@ -65,7 +68,7 @@ pub trait Trace: Sized {
 
     /// Builds and returns the next auxiliary trace segment. If there are no more segments to
     /// build (i.e., the trace is complete), None is returned.
-    fn build_aux_segment<E>(&mut self, rand_elements: &[E]) -> Option<&Matrix<Self::BaseField>>
+    fn build_aux_segment<E>(&mut self, rand_elements: &[E]) -> Option<&Matrix<E>>
     where
         E: FieldElement<BaseField = Self::BaseField>;
 
@@ -78,8 +81,8 @@ pub trait Trace: Sized {
     }
 
     /// Returns number of columns in the main segment this trace.
-    fn width(&self) -> usize {
-        self.layout().main_segment_width()
+    fn main_trace_width(&self) -> usize {
+        self.layout().main_trace_width()
     }
 
     // VALIDATION
@@ -87,7 +90,7 @@ pub trait Trace: Sized {
     /// Checks if this trace is valid against the specified AIR, and panics if not.
     ///
     /// NOTE: this is a very expensive operation and is intended for use only in debug mode.
-    fn validate<A, E>(&self, air: &A, _aux_segment_rand_elements: &AuxTraceSegmentRandElements<E>)
+    fn validate<A, E>(&self, air: &A, _aux_trace_rand_elements: &AuxTraceRandElements<E>)
     where
         A: Air<BaseField = Self::BaseField>,
         E: FieldElement<BaseField = Self::BaseField>,
@@ -96,11 +99,11 @@ pub trait Trace: Sized {
 
         // make sure the width align; if they don't something went terribly wrong
         assert_eq!(
-            self.width(),
-            air.trace_full_width(),
+            self.main_trace_width(),
+            air.trace_layout().main_trace_width(),
             "inconsistent trace width: expected {}, but was {}",
-            self.width(),
-            air.trace_full_width()
+            self.main_trace_width(),
+            air.trace_layout().main_trace_width(),
         );
 
         // --- 1. make sure the assertions are valid ----------------------------------------------
@@ -125,7 +128,7 @@ pub trait Trace: Sized {
 
         // initialize buffers to hold evaluation frames and results of constraint evaluations
         let mut x = Self::BaseField::ONE;
-        let mut ev_frame = EvaluationFrame::new(self.width());
+        let mut ev_frame = EvaluationFrame::new(self.main_trace_width());
         let mut evaluations = vec![Self::BaseField::ZERO; air.num_transition_constraints()];
 
         for step in 0..self.length() - 1 {
