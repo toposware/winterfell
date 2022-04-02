@@ -47,4 +47,5 @@ pub use air::{
     Air, AirContext, Assertion, AuxTraceRandElements, BoundaryConstraint, BoundaryConstraintGroup,
     ConstraintCompositionCoefficients, ConstraintDivisor, DeepCompositionCoefficients,
     EvaluationFrame, TraceInfo, TraceLayout, TransitionConstraintDegree, TransitionConstraintGroup,
+    TransitionConstraints,
 };
