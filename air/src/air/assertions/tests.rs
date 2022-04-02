@@ -15,7 +15,7 @@ use utils::collections::Vec;
 fn single_assertion() {
     let value = rand_value::<BaseElement>();
     let a = Assertion::single(2, 8, value);
-    assert_eq!(2, a.register);
+    assert_eq!(2, a.column);
     assert_eq!(8, a.first_step);
     assert_eq!(vec![value], a.values);
     assert_eq!(0, a.stride);
@@ -47,7 +47,7 @@ fn single_assertion() {
 fn periodic_assertion() {
     let value = rand_value::<BaseElement>();
     let a = Assertion::periodic(4, 1, 16, value);
-    assert_eq!(4, a.register);
+    assert_eq!(4, a.column);
     assert_eq!(1, a.first_step);
     assert_eq!(vec![value], a.values);
     assert_eq!(16, a.stride);
@@ -80,21 +80,21 @@ fn periodic_assertion() {
 
 #[test]
 #[should_panic(
-    expected = "invalid assertion for register 0: stride must be a power of two, but was 3"
+    expected = "invalid assertion for column 0: stride must be a power of two, but was 3"
 )]
 fn periodic_assertion_stride_not_power_of_two() {
     let _ = Assertion::periodic(0, 1, 3, BaseElement::ONE);
 }
 
 #[test]
-#[should_panic(expected = "invalid assertion for register 0: stride must be at least 2, but was 1")]
+#[should_panic(expected = "invalid assertion for column 0: stride must be at least 2, but was 1")]
 fn periodic_assertion_stride_too_small() {
     let _ = Assertion::periodic(0, 1, 1, BaseElement::ONE);
 }
 
 #[test]
 #[should_panic(
-    expected = "invalid assertion for register 0: first step must be smaller than stride (4 steps), but was 5"
+    expected = "invalid assertion for column 0: first step must be smaller than stride (4 steps), but was 5"
 )]
 fn periodic_assertion_first_step_greater_than_stride() {
     let _ = Assertion::periodic(0, 5, 4, BaseElement::ONE);
@@ -116,7 +116,7 @@ fn periodic_assertion_get_num_steps_error() {
 fn sequence_assertion() {
     let values = rand_vector::<BaseElement>(2);
     let a = Assertion::sequence(3, 2, 4, values.clone());
-    assert_eq!(3, a.register);
+    assert_eq!(3, a.column);
     assert_eq!(2, a.first_step);
     assert_eq!(values, a.values);
     assert_eq!(4, a.stride);
@@ -152,21 +152,21 @@ fn sequence_assertion() {
 
 #[test]
 #[should_panic(
-    expected = "invalid assertion for register 3: stride must be a power of two, but was 5"
+    expected = "invalid assertion for column 3: stride must be a power of two, but was 5"
 )]
 fn sequence_assertion_stride_not_power_of_two() {
     let _ = Assertion::sequence(3, 2, 5, vec![BaseElement::ONE, BaseElement::ZERO]);
 }
 
 #[test]
-#[should_panic(expected = "invalid assertion for register 3: stride must be at least 2, but was 1")]
+#[should_panic(expected = "invalid assertion for column 3: stride must be at least 2, but was 1")]
 fn sequence_assertion_stride_too_small() {
     let _ = Assertion::sequence(3, 2, 1, vec![BaseElement::ONE, BaseElement::ZERO]);
 }
 
 #[test]
 #[should_panic(
-    expected = "invalid assertion for register 3: first step must be smaller than stride (4 steps), but was 5"
+    expected = "invalid assertion for column 3: first step must be smaller than stride (4 steps), but was 5"
 )]
 fn sequence_assertion_first_step_greater_than_stride() {
     let _ = Assertion::sequence(3, 5, 4, vec![BaseElement::ONE, BaseElement::ZERO]);
@@ -181,7 +181,7 @@ fn sequence_assertion_inconsistent_trace() {
 
 #[test]
 #[should_panic(
-    expected = "invalid assertion for register 3: number of asserted values must be greater than zero"
+    expected = "invalid assertion for column 3: number of asserted values must be greater than zero"
 )]
 fn sequence_assertion_empty_values() {
     let _ = Assertion::sequence(3, 2, 4, Vec::<BaseElement>::new());
@@ -189,7 +189,7 @@ fn sequence_assertion_empty_values() {
 
 #[test]
 #[should_panic(
-    expected = "invalid assertion for register 3: number of asserted values must be a power of two, but was 3"
+    expected = "invalid assertion for column 3: number of asserted values must be a power of two, but was 3"
 )]
 fn sequence_assertion_num_values_not_power_of_two() {
     let _ = Assertion::sequence(
@@ -211,7 +211,7 @@ fn assertion_overlap() {
     let b = Assertion::single(3, 2, BaseElement::ONE);
     assert!(a.overlaps_with(&b));
 
-    // different registers: no overlap
+    // different columns: no overlap
     let b = Assertion::single(1, 2, BaseElement::ONE);
     assert!(!a.overlaps_with(&b));
 
@@ -234,7 +234,7 @@ fn assertion_overlap() {
     assert!(a.overlaps_with(&b));
     assert!(b.overlaps_with(&a));
 
-    // different registers: no overlap
+    // different columns: no overlap
     let b = Assertion::single(1, 2, BaseElement::ONE);
     assert!(!a.overlaps_with(&b));
     assert!(!b.overlaps_with(&a));
@@ -260,7 +260,7 @@ fn assertion_overlap() {
     assert!(a.overlaps_with(&b));
     assert!(b.overlaps_with(&a));
 
-    // different registers: no overlap
+    // different columns: no overlap
     let b = Assertion::single(1, 2, BaseElement::ONE);
     assert!(!a.overlaps_with(&b));
     assert!(!b.overlaps_with(&a));
@@ -285,7 +285,7 @@ fn assertion_overlap() {
     assert!(a.overlaps_with(&b));
     assert!(b.overlaps_with(&a));
 
-    // different registers: no overlap
+    // different columns: no overlap
     let b = Assertion::periodic(1, 4, 8, BaseElement::ONE);
     assert!(!a.overlaps_with(&b));
     assert!(!b.overlaps_with(&a));
@@ -317,7 +317,7 @@ fn assertion_overlap() {
     assert!(a.overlaps_with(&b));
     assert!(b.overlaps_with(&a));
 
-    // different registers: no overlap
+    // different columns: no overlap
     let b = Assertion::sequence(1, 4, 8, values.clone());
     assert!(!a.overlaps_with(&b));
     assert!(!b.overlaps_with(&a));
@@ -349,7 +349,7 @@ fn assertion_overlap() {
     assert!(a.overlaps_with(&b));
     assert!(b.overlaps_with(&a));
 
-    // different registers: no overlap
+    // different columns: no overlap
     let b = Assertion::periodic(1, 4, 8, BaseElement::ONE);
     assert!(!a.overlaps_with(&b));
     assert!(!b.overlaps_with(&a));

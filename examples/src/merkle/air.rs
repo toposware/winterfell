@@ -47,7 +47,7 @@ impl Air for MerkleAir {
         ];
         assert_eq!(TRACE_WIDTH, trace_info.width());
         MerkleAir {
-            context: AirContext::new(trace_info, degrees, options),
+            context: AirContext::new(trace_info, degrees, 4, options),
             tree_root: pub_inputs.tree_root,
         }
     }
