@@ -75,7 +75,7 @@ impl Air for RescueAir {
         ];
         assert_eq!(TRACE_WIDTH, trace_info.width());
         RescueAir {
-            context: AirContext::new(trace_info, degrees, options),
+            context: AirContext::new(trace_info, degrees, 14, options),
             seed: pub_inputs.seed,
             result: pub_inputs.result,
         }
