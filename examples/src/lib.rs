@@ -14,6 +14,8 @@ pub mod lamport;
 #[cfg(feature = "std")]
 pub mod merkle;
 pub mod rescue;
+#[cfg(feature = "std")]
+pub mod rescue_raps;
 pub mod utils;
 pub mod vdf;
 
@@ -101,7 +103,7 @@ pub enum ExampleType {
         #[structopt(short = "n", default_value = "42")]
         input_value: usize,
         /// Length of Collatz sequence; must be a power of two
-        #[structopt(short = "n", default_value = "4096")]
+        #[structopt(short = "s", default_value = "4096")]
         sequence_length: usize,
     },
     /// Compute a Fibonacci sequence using trace table with 2 registers
@@ -147,14 +149,15 @@ pub enum ExampleType {
         chain_length: usize,
     },
     /// Compute a hash chain using Rescue hash function
-    RescueF63 {
+    RescueF128 {
         /// Length of the hash chain; must be a power of two
         #[structopt(short = "n", default_value = "1024")]
         chain_length: usize,
     },
-    /// Compute a hash chain using Rescue hash function
-    RescueF128 {
-        /// Length of the hash chain; must be a power of two
+    /// Compute two hash chains absorbing sequences that are a permutation of each other
+    #[cfg(feature = "std")]
+    RescueRaps {
+        /// Length of the hash chain; must be a power of two and at least 4
         #[structopt(short = "n", default_value = "1024")]
         chain_length: usize,
     },
