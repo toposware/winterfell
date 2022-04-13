@@ -46,10 +46,10 @@ impl Air for CollatzAir {
         // TODO 4: You must specify the type and degree of the constraints
         // of your AIR program, based on what you did in TODO 3.
         let degrees = vec![];
-
+        let num_assertions = 2; // to change
         assert_eq!(TRACE_WIDTH, trace_info.width());
         CollatzAir {
-            context: AirContext::new(trace_info, degrees, options),
+            context: AirContext::new(trace_info, degrees, num_assertions, options),
             input_value: pub_inputs.input_value,
             final_value: pub_inputs.final_value,
             sequence_length: pub_inputs.sequence_length,

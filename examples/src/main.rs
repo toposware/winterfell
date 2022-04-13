@@ -10,7 +10,7 @@ use std::time::Instant;
 use structopt::StructOpt;
 use winterfell::StarkProof;
 
-use examples::{fibonacci, collatz, rescue::*, ExampleOptions, ExampleType};
+use examples::{fibonacci, collatz, vdf, rescue::*, ExampleOptions, ExampleType};
 #[cfg(feature = "std")]
 use examples::{lamport, merkle};
 
@@ -49,6 +49,7 @@ fn main() {
         ExampleType::RescueF62 { chain_length } => rescue_62::get_example(options, chain_length),
         ExampleType::RescueF63 { chain_length } => rescue_63::get_example(options, chain_length),
         ExampleType::RescueF128 { chain_length } => rescue_128::get_example(options, chain_length),
+        ExampleType::Vdf { num_steps } => vdf::get_example(options, num_steps),
         #[cfg(feature = "std")]
         ExampleType::Merkle { tree_depth } => merkle::get_example(options, tree_depth),
         #[cfg(feature = "std")]
