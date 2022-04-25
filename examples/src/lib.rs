@@ -13,6 +13,7 @@ pub mod lamport;
 #[cfg(feature = "std")]
 pub mod merkle;
 pub mod rescue;
+#[cfg(feature = "std")]
 pub mod rescue_raps;
 pub mod utils;
 pub mod vdf;
@@ -149,9 +150,10 @@ pub enum ExampleType {
         #[structopt(short = "n", default_value = "1024")]
         chain_length: usize,
     },
-    /// Compute a hash chain split in two subchains using Rescue hash function
+    /// Compute two hash chains absorbing sequences that are a permutation of each other
+    #[cfg(feature = "std")]
     RescueRaps {
-        /// Length of the hash chain; must be a power of two
+        /// Length of the hash chain; must be a power of two and at least 4
         #[structopt(short = "n", default_value = "1024")]
         chain_length: usize,
     },

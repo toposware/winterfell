@@ -10,9 +10,9 @@ use std::time::Instant;
 use structopt::StructOpt;
 use winterfell::StarkProof;
 
-use examples::{fibonacci, rescue::*, rescue_raps, vdf, ExampleOptions, ExampleType};
+use examples::{fibonacci, rescue::*, vdf, ExampleOptions, ExampleType};
 #[cfg(feature = "std")]
-use examples::{lamport, merkle};
+use examples::{lamport, merkle, rescue_raps};
 
 // EXAMPLE RUNNER
 // ================================================================================================
@@ -43,11 +43,12 @@ fn main() {
         ExampleType::Mulfib8 { sequence_length } => {
             fibonacci::mulfib8::get_example(options, sequence_length)
         }
-        ExampleType::Vdf { num_steps } => vdf::get_example(options, num_steps),
+        ExampleType::Vdf { num_steps } => vdf::regular::get_example(options, num_steps),
         ExampleType::VdfExempt { num_steps } => vdf::exempt::get_example(options, num_steps),
         ExampleType::RescueF62 { chain_length } => rescue_62::get_example(options, chain_length),
         ExampleType::RescueF63 { chain_length } => rescue_63::get_example(options, chain_length),
         ExampleType::RescueF128 { chain_length } => rescue_128::get_example(options, chain_length),
+        #[cfg(feature = "std")]
         ExampleType::RescueRaps { chain_length } => rescue_raps::get_example(options, chain_length),
         #[cfg(feature = "std")]
         ExampleType::Merkle { tree_depth } => merkle::get_example(options, tree_depth),
