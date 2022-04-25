@@ -51,6 +51,7 @@ fn main() {
         ExampleType::RescueF62 { chain_length } => rescue_62::get_example(options, chain_length),
         //ExampleType::RescueF63 { chain_length } => rescue_63::get_example(options, chain_length),
         ExampleType::RescueF128 { chain_length } => rescue_128::get_example(options, chain_length),
+        #[cfg(feature = "std")]
         ExampleType::RescueRaps { chain_length } => rescue_raps::get_example(options, chain_length),
         #[cfg(feature = "std")]
         ExampleType::Merkle { tree_depth } => merkle::get_example(options, tree_depth),
