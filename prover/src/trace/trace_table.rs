@@ -109,7 +109,7 @@ impl<B: StarkField> TraceTable<B> {
         );
         assert!(
             length >= TraceInfo::MIN_TRACE_LENGTH,
-            "execution trace must be at lest {} steps long, but was {}",
+            "execution trace must be at least {} steps long, but was {}",
             TraceInfo::MIN_TRACE_LENGTH,
             length
         );
@@ -160,7 +160,7 @@ impl<B: StarkField> TraceTable<B> {
         let trace_length = columns[0].len();
         assert!(
             trace_length >= TraceInfo::MIN_TRACE_LENGTH,
-            "execution trace must be at lest {} steps long, but was {}",
+            "execution trace must be at least {} steps long, but was {}",
             TraceInfo::MIN_TRACE_LENGTH,
             trace_length
         );
