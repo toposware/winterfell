@@ -7,19 +7,19 @@
 use super::super::utils::build_proof_options;
 
 #[test]
-fn fib2_test_basic_proof_verification() {
-    let fib = Box::new(super::FibExample::new(16, build_proof_options(false)));
-    crate::tests::test_basic_proof_verification(fib);
+fn cairo_test_basic_proof_verification() {
+    let cairo = Box::new(super::CairoExample::new(build_proof_options(false)));
+    crate::tests::test_basic_proof_verification(cairo);
 }
 
 #[test]
-fn fib2_test_basic_proof_verification_extension() {
-    let fib = Box::new(super::FibExample::new(16, build_proof_options(true)));
-    crate::tests::test_basic_proof_verification(fib);
+fn cairo_test_basic_proof_verification_extension() {
+    let cairo = Box::new(super::CairoExample::new(build_proof_options(true)));
+    crate::tests::test_basic_proof_verification(cairo);
 }
 
 #[test]
-fn fib2_test_basic_proof_verification_fail() {
-    let fib = Box::new(super::FibExample::new(16, build_proof_options(false)));
-    crate::tests::test_basic_proof_verification_fail(fib);
+fn cairo_test_basic_proof_verification_fail() {
+    let cairo = Box::new(super::CairoExample::new(build_proof_options(false)));
+    crate::tests::test_basic_proof_verification_fail(cairo);
 }
