@@ -7,6 +7,8 @@
 use structopt::StructOpt;
 use winterfell::{FieldExtension, HashFunction, ProofOptions, StarkProof, VerifierError};
 
+pub mod cairo;
+#[cfg(feature = "std")]
 pub mod fibonacci;
 #[cfg(feature = "std")]
 pub mod lamport;
@@ -96,6 +98,12 @@ impl ExampleOptions {
 #[derive(StructOpt, Debug)]
 //#[structopt(about = "available examples")]
 pub enum ExampleType {
+    /// Prove a Cairo program using trace table with 33 registers per step
+    Cairo {
+        /// Path to the serialized trace file
+        #[structopt(short = "p", default_value = "")]
+        trace_file_path: String,
+    },
     /// Compute a Fibonacci sequence using trace table with 2 registers
     Fib {
         /// Length of Fibonacci sequence; must be a power of two

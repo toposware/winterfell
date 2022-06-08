@@ -12,7 +12,8 @@ use winterfell::StarkProof;
 
 use examples::{fibonacci, rescue::*, vdf, ExampleOptions, ExampleType};
 #[cfg(feature = "std")]
-use examples::{lamport, merkle, rescue_raps};
+
+use examples::{cairo, lamport, merkle, rescue_raps};
 
 // EXAMPLE RUNNER
 // ================================================================================================
@@ -31,6 +32,9 @@ fn main() {
 
     // instantiate and prepare the example
     let example = match options.example {
+        ExampleType::Cairo { ref trace_file_path } => {
+            cairo::get_example(options, trace_file_path)
+        }
         ExampleType::Fib { sequence_length } => {
             fibonacci::fib2::get_example(options, sequence_length)
         }
