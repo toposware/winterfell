@@ -7,8 +7,8 @@
 use structopt::StructOpt;
 use winterfell::{FieldExtension, HashFunction, ProofOptions, StarkProof, VerifierError};
 
-pub mod cairo;
 #[cfg(feature = "std")]
+pub mod cairo;
 pub mod fibonacci;
 #[cfg(feature = "std")]
 pub mod lamport;
