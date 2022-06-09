@@ -100,7 +100,7 @@ impl Air for MockAir {
     type PublicInputs = ();
 
     fn new(trace_info: TraceInfo, _pub_inputs: (), _options: ProofOptions) -> Self {
-        let context = build_context(trace_info, 8);
+        let context = build_context(trace_info, 8, 1);
         MockAir {
             context,
             assertions: Vec::new(),
@@ -132,7 +132,11 @@ impl Air for MockAir {
 // HELPER FUNCTIONS
 // ================================================================================================
 
-fn build_context<B: StarkField>(trace_info: TraceInfo, blowup_factor: usize) -> AirContext<B> {
+fn build_context<B: StarkField>(
+    trace_info: TraceInfo,
+    blowup_factor: usize,
+    num_assertions: usize,
+) -> AirContext<B> {
     let options = ProofOptions::new(
         32,
         blowup_factor,
@@ -143,5 +147,5 @@ fn build_context<B: StarkField>(trace_info: TraceInfo, blowup_factor: usize) -> 
         256,
     );
     let t_degrees = vec![TransitionConstraintDegree::new(2)];
-    AirContext::new(trace_info, t_degrees, options)
+    AirContext::new(trace_info, t_degrees, num_assertions, options)
 }

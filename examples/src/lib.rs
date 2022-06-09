@@ -13,7 +13,10 @@ pub mod lamport;
 #[cfg(feature = "std")]
 pub mod merkle;
 pub mod rescue;
+#[cfg(feature = "std")]
+pub mod rescue_raps;
 pub mod utils;
+pub mod vdf;
 
 #[cfg(test)]
 mod tests;
@@ -117,6 +120,18 @@ pub enum ExampleType {
         #[structopt(short = "n", default_value = "1048576")]
         sequence_length: usize,
     },
+    /// Execute a simple VDF function
+    Vdf {
+        /// Number of steps in the VDF function; must be a power of two
+        #[structopt(short = "n", default_value = "1048576")]
+        num_steps: usize,
+    },
+    /// Similar to the VDF example, but exempts an extra row from transition constraints.
+    VdfExempt {
+        /// Number of steps in the VDF function; must be one less than a power of two
+        #[structopt(short = "n", default_value = "1048575")]
+        num_steps: usize,
+    },
     /// Compute a hash chain using Rescue hash function
     RescueF62 {
         /// Length of the hash chain; must be a power of two
@@ -132,6 +147,13 @@ pub enum ExampleType {
     /// Compute a hash chain using Rescue hash function
     RescueF128 {
         /// Length of the hash chain; must be a power of two
+        #[structopt(short = "n", default_value = "1024")]
+        chain_length: usize,
+    },
+    /// Compute two hash chains absorbing sequences that are a permutation of each other
+    #[cfg(feature = "std")]
+    RescueRaps {
+        /// Length of the hash chain; must be a power of two and at least 4
         #[structopt(short = "n", default_value = "1024")]
         chain_length: usize,
     },

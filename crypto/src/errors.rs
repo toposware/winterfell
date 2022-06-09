@@ -10,7 +10,7 @@ use core::fmt;
 // ================================================================================================
 
 /// Defines errors which can occur when using Merkle trees.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum MerkleTreeError {
     /// Fewer than two leaves were used to construct a Merkle tree.
     TooFewLeaves(usize, usize),
@@ -76,7 +76,7 @@ impl fmt::Display for MerkleTreeError {
 // ================================================================================================
 
 /// Defines errors which can occur when drawing values from a random coin.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum RandomCoinError {
     /// A valid element could not be drawn from the field after the specified number of tries.
     FailedToDrawFieldElement(usize),

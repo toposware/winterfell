@@ -438,6 +438,13 @@ impl ExtensibleField<2> for BaseElement {
     }
 
     #[inline(always)]
+    fn mul_base(a: [Self; 2], b: Self) -> [Self; 2] {
+        // multiplying an extension field element by a base field element requires just 2
+        // multiplications in the base field.
+        [a[0] * b, a[1] * b]
+    }
+
+    #[inline(always)]
     fn frobenius(x: [Self; 2]) -> [Self; 2] {
         [x[0] + x[1].double(), -x[1]]
     }
@@ -469,6 +476,13 @@ impl ExtensibleField<3> for BaseElement {
         let res2 = a0b0_a0b2_a2b0_a2b2 - a0b0_a1b1_a2b2 - a2b2 + a1b1.double();
 
         [res0, res1, res2]
+    }
+
+    #[inline(always)]
+    fn mul_base(a: [Self; 3], b: Self) -> [Self; 3] {
+        // multiplying an extension field element by a base field element requires just 3
+        // multiplications in the base field.
+        [a[0] * b, a[1] * b, a[2] * b]
     }
 
     #[inline(always)]

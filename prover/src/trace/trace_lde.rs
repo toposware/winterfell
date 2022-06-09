@@ -1,132 +1,110 @@
 // Copyright (c) Facebook, Inc. and its affiliates.
-// Copyright (c) 2021-2022 Toposware, Inc.
 //
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-use air::{proof::Queries, EvaluationFrame};
-use crypto::{ElementHasher, Hasher, MerkleTree};
-use math::StarkField;
-use utils::{batch_iter_mut, collections::Vec, uninit_vector};
+use crate::Matrix;
+use air::EvaluationFrame;
+use math::FieldElement;
+use utils::collections::Vec;
 
-#[cfg(feature = "concurrent")]
-use utils::iterators::*;
-
-// TRACE LDE
+// TRACE LOW DEGREE EXTENSION
 // ================================================================================================
-
-/// Trace low-degree extension.
-pub struct TraceLde<B: StarkField> {
-    data: Vec<Vec<B>>,
+/// TODO: add docs
+pub struct TraceLde<E: FieldElement> {
+    main_segment_lde: Matrix<E::BaseField>,
+    aux_segment_ldes: Vec<Matrix<E>>,
     blowup: usize,
 }
 
-impl<B: StarkField> TraceLde<B> {
+impl<E: FieldElement> TraceLde<E> {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    /// Creates a new trace low-degree extension from a list of provided columns.
-    pub(super) fn new(data: Vec<Vec<B>>, blowup: usize) -> Self {
-        TraceLde { data, blowup }
+    /// Creates a new trace low-degree extension table from the provided main trace segment LDE.
+    pub fn new(main_trace_lde: Matrix<E::BaseField>, blowup: usize) -> Self {
+        Self {
+            main_segment_lde: main_trace_lde,
+            aux_segment_ldes: Vec::new(),
+            blowup,
+        }
+    }
+
+    // STATE MUTATORS
+    // --------------------------------------------------------------------------------------------
+
+    /// Adds the provided auxiliary segment LDE to this trace LDE.
+    pub fn add_aux_segment(&mut self, aux_segment_lde: Matrix<E>) {
+        assert_eq!(
+            self.main_segment_lde.num_rows(),
+            aux_segment_lde.num_rows(),
+            "number of rows in auxiliary segment must be of the same as in the main segment"
+        );
+        self.aux_segment_ldes.push(aux_segment_lde);
     }
 
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
 
-    /// Returns number of columns in this trace LDE.
-    pub fn width(&self) -> usize {
-        self.data.len()
+    /// Returns number of columns in the main segment of the execution trace.
+    pub fn main_trace_width(&self) -> usize {
+        self.main_segment_lde.num_cols()
     }
 
-    /// Returns the number of rows in this trace LDE.
-    #[allow(clippy::len_without_is_empty)]
-    pub fn len(&self) -> usize {
-        self.data[0].len()
+    /// Returns number of columns in the auxiliary segments of the execution trace.
+    pub fn aux_trace_width(&self) -> usize {
+        self.aux_segment_ldes
+            .iter()
+            .fold(0, |s, m| s + m.num_cols())
     }
 
-    /// Returns blowup factor which was used to extend original execution trace into this LDE.
+    /// Returns the number of rows in the execution trace.
+    pub fn trace_len(&self) -> usize {
+        self.main_segment_lde.num_rows()
+    }
+
+    /// Returns blowup factor which was used to extend original execution trace into trace LDE.
     pub fn blowup(&self) -> usize {
         self.blowup
     }
 
-    /// Returns value of a trace cell in the column at the specified index at the specified step.
-    pub fn get(&self, col_idx: usize, step: usize) -> B {
-        self.data[col_idx][step]
-    }
-
-    /// Returns the entire trace for the column at the specified index.
-    #[cfg(test)]
-    pub fn get_column(&self, col_idx: usize) -> &[B] {
-        &self.data[col_idx]
-    }
-
-    /// Copies values of all columns at the specified `step` into the `destination` slice.
-    pub fn read_row_into(&self, step: usize, row: &mut [B]) {
-        for (column, value) in self.data.iter().zip(row.iter_mut()) {
-            *value = column[step];
-        }
-    }
-
-    /// Reads current and next rows from the execution trace table into the specified frame.
-    pub fn read_frame_into(&self, lde_step: usize, frame: &mut EvaluationFrame<B>) {
+    /// Reads current and next rows from the main trace segment into the specified frame.
+    pub fn read_main_trace_frame_into(
+        &self,
+        lde_step: usize,
+        frame: &mut EvaluationFrame<E::BaseField>,
+    ) {
         // at the end of the trace, next state wraps around and we read the first step again
-        let next_lde_step = (lde_step + self.blowup()) % self.len();
+        let next_lde_step = (lde_step + self.blowup()) % self.trace_len();
 
-        self.read_row_into(lde_step, frame.current_mut());
-        self.read_row_into(next_lde_step, frame.next_mut());
+        // copy main trace segment values into the frame
+        self.main_segment_lde
+            .read_row_into(lde_step, frame.current_mut());
+        self.main_segment_lde
+            .read_row_into(next_lde_step, frame.next_mut());
     }
 
-    // TRACE COMMITMENT
-    // --------------------------------------------------------------------------------------------
-    /// Builds a Merkle tree out of trace table rows (hash of each row becomes a leaf in the tree).
-    pub fn build_commitment<H: ElementHasher<BaseField = B>>(&self) -> MerkleTree<H> {
-        // allocate vector to store row hashes
-        let mut hashed_states = unsafe { uninit_vector::<H::Digest>(self.len()) };
+    /// Reads current and next rows from the auxiliary trace segment into the specified frame.
+    pub fn read_aux_trace_frame_into(&self, lde_step: usize, frame: &mut EvaluationFrame<E>) {
+        // at the end of the trace, next state wraps around and we read the first step again
+        let next_lde_step = (lde_step + self.blowup()) % self.trace_len();
 
-        // iterate though table rows, hashing each row; the hashing is done by first copying
-        // the state into trace_state buffer to avoid unneeded allocations, and then by applying
-        // the hash function to the buffer.
-        batch_iter_mut!(
-            &mut hashed_states,
-            128, // min batch size
-            |batch: &mut [H::Digest], batch_offset: usize| {
-                let mut trace_state = vec![B::ZERO; self.width()];
-                for (i, row_hash) in batch.iter_mut().enumerate() {
-                    self.read_row_into(i + batch_offset, &mut trace_state);
-                    *row_hash = H::hash_elements(&trace_state);
-                }
-            }
-        );
-
-        // build Merkle tree out of hashed rows
-        MerkleTree::new(hashed_states).expect("failed to construct trace Merkle tree")
-    }
-
-    // QUERY TRACE
-    // --------------------------------------------------------------------------------------------
-    /// Returns trace table rows at the specified positions along with Merkle authentication paths
-    /// from the `commitment` root to these rows.
-    pub fn query<H: Hasher>(&self, commitment: MerkleTree<H>, positions: &[usize]) -> Queries {
-        assert_eq!(
-            self.len(),
-            commitment.leaves().len(),
-            "inconsistent trace table commitment"
-        );
-
-        // allocate memory for queried trace states
-        let mut trace_states = Vec::with_capacity(positions.len());
-
-        // copy values from the trace table at the specified positions into rows
-        // and append the rows to trace_states
-        for &i in positions.iter() {
-            let row = self.data.iter().map(|r| r[i]).collect();
-            trace_states.push(row);
+        //copy auxiliary trace segment values into the frame
+        let mut offset = 0;
+        for segment in self.aux_segment_ldes.iter() {
+            segment.read_row_into(lde_step, &mut frame.current_mut()[offset..]);
+            segment.read_row_into(next_lde_step, &mut frame.next_mut()[offset..]);
+            offset += segment.num_cols();
         }
+    }
 
-        // build Merkle authentication paths to the leaves specified by positions
-        let trace_proof = commitment
-            .prove_batch(positions)
-            .expect("failed to generate a Merkle proof for trace queries");
+    /// Returns a reference to [Matrix] representing the main trace segment.
+    pub fn get_main_segment(&self) -> &Matrix<E::BaseField> {
+        &self.main_segment_lde
+    }
 
-        Queries::new(trace_proof, trace_states)
+    /// Returns a reference to a [Matrix] representing an auxiliary trace segment at the specified
+    /// index.
+    pub fn get_aux_segment(&self, aux_segment_idx: usize) -> &Matrix<E> {
+        &self.aux_segment_ldes[aux_segment_idx]
     }
 }

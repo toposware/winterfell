@@ -3,8 +3,8 @@
 <a href="https://github.com/novifinancial/winterfell/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
 <img src="https://github.com/novifinancial/winterfell/workflows/CI/badge.svg?branch=main">
 <a href="https://deps.rs/repo/github/novifinancial/winterfell"><img src="https://deps.rs/repo/github/novifinancial/winterfell/status.svg"></a>
-<img src="https://img.shields.io/badge/prover-rustc_1.57+-lightgray.svg">
-<img src="https://img.shields.io/badge/verifier-rustc_1.57+-lightgray.svg">
+<img src="https://img.shields.io/badge/prover-rustc_1.60+-lightgray.svg">
+<img src="https://img.shields.io/badge/verifier-rustc_1.60+-lightgray.svg">
 <a href="https://crates.io/crates/winterfell"><img src="https://img.shields.io/crates/v/winterfell"></a>
 
 This is a fork of novifinancial/winterfell, a STARK prover and verifier for arbitrary computations.
@@ -21,7 +21,9 @@ The aim of this project is to build a feature-rich, easy to use, and highly perf
 
 Winterfell is a fully-functional, multi-threaded STARK prover and verifier with the following nice properties:
 
-**A simple interface.** This library provides a relatively simple interface for describing general computations. See [usage](#Usage) for a quick tutorial, [air crate](air) for the description of the interface, and [examples crate](examples) for a few real-world examples.
+**A simple interface.** The library provides a relatively simple interface for describing general computations. See [usage](#Usage) for a quick tutorial, [air crate](air) for the description of the interface, and [examples crate](examples) for a few real-world examples.
+
+**Randomized AIR support.** The library supports multi-stage trace commitments, which enables support for [randomized AIR](air/#randomized-air). This greatly increases the expressivity of AIR constraints, and enables, among other things, multiset and permutation checks similar to the ones available in PLONKish systems.
 
 **Multi-threaded proof generation.** When compiled with `concurrent` feature enabled, the proof generation process will run in multiple threads. The library also supports concurrent construction of execution trace tables. The [performance](#Performance) section showcases the benefits of multi-threading.
 
@@ -89,19 +91,19 @@ First, we need to define an *execution trace* for our computation. This trace sh
 | ...       |
 | 1,048,575 | 247770943907079986105389697876176586605 |
 
-To record the trace, we'll use the `ExecutionTrace` struct provided by the library. The function below, is just a modified version of the `do_work()` function which records every intermediate state of the computation in the `ExecutionTrace` struct:
+To record the trace, we'll use the `TraceTable` struct provided by the library. The function below, is just a modified version of the `do_work()` function which records every intermediate state of the computation in the `TraceTable` struct:
 
 ```Rust
 use winterfell::{
     math::{fields::f128::BaseElement, FieldElement},
-    ExecutionTrace,
+    TraceTable,
 };
 
-pub fn build_do_work_trace(start: BaseElement, n: usize) -> ExecutionTrace<BaseElement> {
+pub fn build_do_work_trace(start: BaseElement, n: usize) -> TraceTable<BaseElement> {
     // Instantiate the trace with a given width and length; this will allocate all
     // required memory for the trace
     let trace_width = 1;
-    let mut trace = ExecutionTrace::new(trace_width, n);
+    let mut trace = TraceTable::new(trace_width, n);
 
     // Fill the trace with data; the first closure initializes the first state of the
     // computation; the second closure computes the next state of the computation based
@@ -164,8 +166,8 @@ impl Air for WorkAir {
     type PublicInputs = PublicInputs;
 
     // Here, we'll construct a new instance of our computation which is defined by 3 parameters:
-    // starting value, number of steps, and the end result. Another way to think about it is that
-    // an instance of our computation is a specific invocation of the do_work() function.
+    // starting value, number of steps, and the end result. Another way to think about it is
+    // that an instance of our computation is a specific invocation of the do_work() function.
     fn new(trace_info: TraceInfo, pub_inputs: PublicInputs, options: ProofOptions) -> Self {
         // our execution trace should have only one column.
         assert_eq!(1, trace_info.width());
@@ -176,8 +178,14 @@ impl Air for WorkAir {
         // constraints don't match, an error will be thrown in the debug mode, but in release
         // mode, an invalid proof will be generated which will not be accepted by any verifier.
         let degrees = vec![TransitionConstraintDegree::new(3)];
+
+        // We also need to specify the exact number of assertions we will place against the
+        // execution trace. This number must be the same as the number of items in a vector
+        // returned from the get_assertions() method below.
+        let num_assertions = 2;
+
         WorkAir {
-            context: AirContext::new(trace_info, degrees, options),
+            context: AirContext::new(trace_info, degrees, num_assertions, options),
             start: pub_inputs.start,
             result: pub_inputs.result,
         }

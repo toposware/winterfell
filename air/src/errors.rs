@@ -9,10 +9,10 @@ use core::fmt;
 // ASSERTION ERROR
 // ================================================================================================
 /// Represents an error returned during assertion evaluation.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum AssertionError {
     /// This error occurs when an assertion is evaluated against an execution trace which does not
-    /// contain a register specified by the assertion.
+    /// contain a column specified by the assertion.
     TraceWidthTooShort(usize, usize),
     /// This error occurs when an assertion is evaluated against an execution trace with length
     /// which is not a power of two.
