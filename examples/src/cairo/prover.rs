@@ -37,13 +37,16 @@ impl CairoProver {
 
         let reader = Mutex::new(BufReader::new(file));
 
-        let mut trace = TraceTable::new(TRACE_WIDTH, 2);
+        let mut trace = TraceTable::new(33, 8);
 
         trace.fill(
             |state| {
                 let mut line = String::new();
                 for i in 0..33 {
+                    line.clear();
                     reader.lock().unwrap().read_line(&mut line).unwrap();
+                    line.pop();
+                    //println!("{}", &line);
                     let x = u64::from_str(&line).unwrap();
                     state[i] = BaseElement::new(x.into());
                 }
@@ -51,7 +54,10 @@ impl CairoProver {
             |_, state| {
                 let mut line = String::new();
                 for i in 0..33 {
+                    line.clear();
                     reader.lock().unwrap().read_line(&mut line).unwrap();
+                    line.pop();
+                    //println!("{}", &line);
                     let x = u64::from_str(&line).unwrap();
                     state[i] = BaseElement::new(x.into());
                 }
