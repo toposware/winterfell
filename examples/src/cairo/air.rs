@@ -31,7 +31,7 @@ impl Air for CairoAir {
         ];
         assert_eq!(TRACE_WIDTH, trace_info.width());
         CairoAir {
-            context: AirContext::new(trace_info, degrees, options),
+            context: AirContext::new(trace_info, degrees, 2, options),
             result: pub_inputs,
         }
     }

@@ -12,7 +12,7 @@ use winterfell::StarkProof;
 
 #[cfg(feature = "std")]
 use examples::{cairo, lamport, merkle, rescue_raps};
-use examples::{fibonacci, rescue::*, ExampleOptions, ExampleType};
+use examples::{fibonacci, rescue::*, vdf, ExampleOptions, ExampleType};
 
 // EXAMPLE RUNNER
 // ================================================================================================
