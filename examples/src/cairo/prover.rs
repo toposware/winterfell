@@ -37,7 +37,7 @@ impl CairoProver {
 
         let reader = Mutex::new(BufReader::new(file));
 
-        let mut trace = TraceTable::new(33, 8);
+        let mut trace = TraceTable::new(TRACE_WIDTH, 8);
 
         trace.fill(
             |state| {
