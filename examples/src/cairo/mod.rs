@@ -24,6 +24,8 @@ use prover::CairoProver;
 #[cfg(test)]
 mod tests;
 
+use crate::utils::print_trace;
+
 // CONSTANTS
 // ================================================================================================
 
@@ -80,6 +82,9 @@ impl Example for CairoExample {
             log2(trace_length),
             now.elapsed().as_millis()
         );
+
+        // print the trace
+        print_trace(&trace, 1, 0, 0..trace.width());
 
         // generate the proof
         prover.prove(trace).unwrap()
