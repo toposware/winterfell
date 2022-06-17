@@ -74,15 +74,26 @@ impl<E: FieldElement> TraceLde<E> {
         frame: &mut EvaluationFrame<E::BaseField>,
     ) {
         // at the end of the trace, next state wraps around and we read the first step again
-        let next_lde_step = (lde_step + self.blowup()) % self.trace_len();
+        let virtual_width = frame.current().len();
+        let real_width = self.main_trace_width();
+        for index in 0..virtual_width/real_width {
+            let lde_step = (lde_step + index*self.blowup()) % self.trace_len();
+            let offset = index*real_width;
+            self.main_segment_lde
+            .read_row_into(lde_step, &mut frame.current_mut()[offset.. offset + real_width]);
+        }
+        for index in virtual_width/real_width..2*virtual_width/real_width {
+            let lde_step = (lde_step + index*self.blowup()) % self.trace_len();
+            let offset = index*real_width % virtual_width;
+            self.main_segment_lde
+            .read_row_into(lde_step, &mut frame.next_mut()[offset.. offset + real_width]);
+        }
+        // NOTE: the extended trace domain is <g_lde^self.blowup()>
 
         // copy main trace segment values into the frame
-        self.main_segment_lde
-            .read_row_into(lde_step, frame.current_mut());
-        self.main_segment_lde
-            .read_row_into(next_lde_step, frame.next_mut());
     }
 
+    // TODO: Cheack again that auxiliar virtual columms are not needed
     /// Reads current and next rows from the auxiliary trace segment into the specified frame.
     pub fn read_aux_trace_frame_into(&self, lde_step: usize, frame: &mut EvaluationFrame<E>) {
         // at the end of the trace, next state wraps around and we read the first step again
@@ -90,6 +101,7 @@ impl<E: FieldElement> TraceLde<E> {
 
         //copy auxiliary trace segment values into the frame
         let mut offset = 0;
+
         for segment in self.aux_segment_ldes.iter() {
             segment.read_row_into(lde_step, &mut frame.current_mut()[offset..]);
             segment.read_row_into(next_lde_step, &mut frame.next_mut()[offset..]);
