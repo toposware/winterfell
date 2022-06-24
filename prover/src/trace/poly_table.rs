@@ -76,7 +76,10 @@ impl<E: FieldElement> TracePolyTable<E> {
         .flatten()
         .collect();
         let next = self.evaluate_at(z * g.exp((ratio as u64).into()));
-        vec![current, next]
+        vec![
+            current,
+            next
+        ]
     }
 
     /// Returns an iterator over the polynomials of the main trace segment.

@@ -71,9 +71,6 @@ use composer::DeepComposer;
 mod errors;
 pub use errors::VerifierError;
 
-//TODO: Im setting this value here but should be parts of the proof options.
-const N_COLUMNS: usize = 3;
-
 // VERIFIER
 // ================================================================================================
 /// Verifies that the specified computation was executed correctly against the specified inputs.
@@ -108,17 +105,17 @@ pub fn verify<AIR: Air>(
         FieldExtension::None => match air.options().hash_fn() {
             HashFunction::Blake3_256 => {
                 let public_coin = RandomCoin::new(&public_coin_seed);
-                let channel = VerifierChannel::new(&air, proof, N_COLUMNS)?;
+                let channel = VerifierChannel::new(&air, proof)?;
                 perform_verification::<AIR, AIR::BaseField, Blake3_256<AIR::BaseField>>(air, channel, public_coin)
             }
             HashFunction::Blake3_192 => {
                 let public_coin = RandomCoin::new(&public_coin_seed);
-                let channel = VerifierChannel::new(&air, proof, N_COLUMNS)?;
+                let channel = VerifierChannel::new(&air, proof)?;
                 perform_verification::<AIR, AIR::BaseField, Blake3_192<AIR::BaseField>>(air, channel, public_coin)
             }
             HashFunction::Sha3_256 => {
                 let public_coin = RandomCoin::new(&public_coin_seed);
-                let channel = VerifierChannel::new(&air, proof, N_COLUMNS)?;
+                let channel = VerifierChannel::new(&air, proof)?;
                 perform_verification::<AIR, AIR::BaseField, Sha3_256<AIR::BaseField>>(air, channel, public_coin)
             }
         },
@@ -129,17 +126,17 @@ pub fn verify<AIR: Air>(
             match air.options().hash_fn() {
                 HashFunction::Blake3_256 => {
                     let public_coin = RandomCoin::new(&public_coin_seed);
-                    let channel = VerifierChannel::new(&air, proof, N_COLUMNS)?;
+                    let channel = VerifierChannel::new(&air, proof)?;
                     perform_verification::<AIR, QuadExtension<AIR::BaseField>, Blake3_256<AIR::BaseField>>(air, channel, public_coin)
                 }
                 HashFunction::Blake3_192 => {
                     let public_coin = RandomCoin::new(&public_coin_seed);
-                    let channel = VerifierChannel::new(&air, proof, N_COLUMNS)?;
+                    let channel = VerifierChannel::new(&air, proof)?;
                     perform_verification::<AIR, QuadExtension<AIR::BaseField>, Blake3_192<AIR::BaseField>>(air, channel, public_coin)
                 }
                 HashFunction::Sha3_256 => {
                     let public_coin = RandomCoin::new(&public_coin_seed);
-                    let channel = VerifierChannel::new(&air, proof, N_COLUMNS)?;
+                    let channel = VerifierChannel::new(&air, proof)?;
                     perform_verification::<AIR, QuadExtension<AIR::BaseField>, Sha3_256<AIR::BaseField>>(air, channel, public_coin)
                 }
             }
@@ -151,17 +148,17 @@ pub fn verify<AIR: Air>(
             match air.options().hash_fn() {
                 HashFunction::Blake3_256 => {
                     let public_coin = RandomCoin::new(&public_coin_seed);
-                    let channel = VerifierChannel::new(&air, proof, N_COLUMNS)?;
+                    let channel = VerifierChannel::new(&air, proof)?;
                     perform_verification::<AIR, CubeExtension<AIR::BaseField>, Blake3_256<AIR::BaseField>>(air, channel, public_coin)
                 }
                 HashFunction::Blake3_192 => {
                     let public_coin = RandomCoin::new(&public_coin_seed);
-                    let channel = VerifierChannel::new(&air, proof, N_COLUMNS)?;
+                    let channel = VerifierChannel::new(&air, proof)?;
                     perform_verification::<AIR, CubeExtension<AIR::BaseField>, Blake3_192<AIR::BaseField>>(air, channel, public_coin)
                 }
                 HashFunction::Sha3_256 => {
                     let public_coin = RandomCoin::new(&public_coin_seed);
-                    let channel = VerifierChannel::new(&air, proof, N_COLUMNS)?;
+                    let channel = VerifierChannel::new(&air, proof)?;
                     perform_verification::<AIR, CubeExtension<AIR::BaseField>, Sha3_256<AIR::BaseField>>(air, channel, public_coin)
                 }
             }
@@ -281,7 +278,7 @@ where
     // interactive version of the protocol, the verifier sends these coefficients to the prover
     // and the prover uses them to compute the DEEP composition polynomial. the prover, then
     // applies FRI protocol to the evaluations of the DEEP composition polynomial.
-    let max_pow = air.trace_layout().main_trace_width()/N_COLUMNS + 1;
+    let max_pow = air.trace_layout().last_real_trace_used_row();
     let deep_coefficients = air
         .get_deep_composition_coefficients::<E, H>(&mut public_coin, max_pow)
         .map_err(|_| VerifierError::RandomCoinError)?;

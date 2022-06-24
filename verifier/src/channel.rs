@@ -49,7 +49,6 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> VerifierChanne
     pub fn new<A: Air<BaseField = E::BaseField>>(
         air: &A,
         proof: StarkProof,
-        next_row_width: usize
     ) -> Result<Self, VerifierError> {
         let StarkProof {
             context,
@@ -68,6 +67,7 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> VerifierChanne
 
         let num_trace_segments = air.trace_layout().num_segments();
         let main_trace_width = air.trace_layout().main_trace_width();
+        let next_row_width = air.trace_layout().virtual_trace_width();
         let aux_trace_width = air.trace_layout().aux_trace_width();
         let lde_domain_size = air.lde_domain_size();
         let fri_options = air.options().to_fri_options();
