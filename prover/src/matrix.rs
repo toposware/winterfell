@@ -251,17 +251,18 @@ impl<E: FieldElement> Matrix<E> {
         self.columns
     }
 
+    /// Returns a new Matrix with `ncolumns` columns and `self.num_rows()*self.num_cols()/ncolumns` rows
+    /// containing the same entries of self rearanged
     pub fn rearange(&self, ncolumns: usize) -> Self {
         
-        let columns_ratio = self.num_cols()/ncolumns;
-        assert!(columns_ratio.is_power_of_two(), "Columns ratio should be a power of two");
+        let columns_ratio = (self.num_cols()/ncolumns).next_power_of_two();
         let mut new_columns = vec![vec![E::ZERO; self.num_rows()*columns_ratio]; ncolumns];
 
-        //TODO: write it with supler fluffy functional or Rust idiomatic style
+        //TODO: write it in a supler fluffy functional or Rust idiomatic style
         for old_col_index in 0..self.num_cols() {
             for old_row_index in 0..self.num_rows() {
                 let new_col_index = old_col_index % ncolumns;
-                let new_row_index = old_row_index*columns_ratio*ncolumns + old_col_index/ncolumns;
+                let new_row_index = old_row_index*columns_ratio + old_col_index/ncolumns;
                 new_columns[new_col_index][new_row_index] = self.columns[old_col_index][old_row_index];
             }
         }

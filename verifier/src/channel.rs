@@ -49,6 +49,7 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> VerifierChanne
     pub fn new<A: Air<BaseField = E::BaseField>>(
         air: &A,
         proof: StarkProof,
+        next_row_width: usize
     ) -> Result<Self, VerifierError> {
         let StarkProof {
             context,
@@ -94,7 +95,7 @@ impl<E: FieldElement, H: ElementHasher<BaseField = E::BaseField>> VerifierChanne
 
         // --- parse out-of-domain evaluation frame -----------------------------------------------
         let (ood_main_trace_frame, ood_aux_trace_frame, ood_constraint_evaluations) = ood_frame
-            .parse(main_trace_width, aux_trace_width, air.ce_blowup_factor())
+            .parse(main_trace_width, next_row_width, aux_trace_width, air.ce_blowup_factor())
             .map_err(|err| VerifierError::ProofDeserializationError(err.to_string()))?;
         let ood_trace_frame = TraceOodFrame::new(ood_main_trace_frame, ood_aux_trace_frame);
 

@@ -233,7 +233,7 @@ impl MockAir {
         trace_length: usize,
     ) -> Self {
         let mut result = Self::new(
-            TraceInfo::with_meta(4, trace_length, vec![1]),
+            TraceInfo::with_meta(4, trace_length, 4, vec![1]),
             (),
             ProofOptions::new(
                 32,
@@ -251,7 +251,7 @@ impl MockAir {
 
     pub fn with_assertions(assertions: Vec<Assertion<BaseElement>>, trace_length: usize) -> Self {
         let mut result = Self::new(
-            TraceInfo::with_meta(4, trace_length, vec![assertions.len() as u8]),
+            TraceInfo::with_meta(4, trace_length, 4, vec![assertions.len() as u8]),
             (),
             ProofOptions::new(
                 32,
@@ -274,7 +274,7 @@ impl Air for MockAir {
 
     fn new(trace_info: TraceInfo, _pub_inputs: (), _options: ProofOptions) -> Self {
         let num_assertions = trace_info.meta()[0] as usize;
-        let context = build_context(trace_info.length(), trace_info.width(), num_assertions);
+        let context = build_context(trace_info.length(), trace_info.width(), trace_info.length(), num_assertions);
         MockAir {
             context,
             assertions: Vec::new(),
@@ -309,6 +309,7 @@ impl Air for MockAir {
 pub fn build_context<B: StarkField>(
     trace_length: usize,
     trace_width: usize,
+    real_trace_width: usize,
     num_assertions: usize,
 ) -> AirContext<B> {
     let options = ProofOptions::new(
@@ -321,7 +322,7 @@ pub fn build_context<B: StarkField>(
         256,
     );
     let t_degrees = vec![TransitionConstraintDegree::new(2)];
-    let trace_info = TraceInfo::new(trace_width, trace_length);
+    let trace_info = TraceInfo::new_virtual(trace_width, trace_length, real_trace_width);
     AirContext::new(trace_info, t_degrees, num_assertions, options)
 }
 

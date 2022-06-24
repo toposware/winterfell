@@ -30,7 +30,7 @@ const TRACE_WIDTH: usize = 33;
 
 pub fn get_example(options: ExampleOptions, sequence_length: usize) -> Box<dyn Example> {
     Box::new(CairoCpuExample::new(
-        options.to_proof_options(28, 2),
+        options.to_proof_options(8, 2),
     ))
 }
 

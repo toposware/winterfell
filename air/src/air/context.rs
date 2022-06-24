@@ -164,11 +164,22 @@ impl<B: StarkField> AirContext<B> {
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
 
-    /// Returns length of the execution trace for an instance of a computation.
+    /// Returns length of the virtual execution trace for an instance of a computation.
+    ///
+    // This is guaranteed to be a power of two greater than or equal to 8.
+    pub fn virtual_trace_len(&self) -> usize {
+        self.trace_info.length()
+    }
+
+    /// Returns length of the execution (non virtual) trace for an instance of a computation.
     ///
     // This is guaranteed to be a power of two greater than or equal to 8.
     pub fn trace_len(&self) -> usize {
-        self.trace_info.length()
+        self.virtual_trace_len()*self.virtual_to_real_ratio()
+    }
+
+    pub fn virtual_to_real_ratio(&self) -> usize {
+        self.trace_info.layout().virtual_to_real_ratio()
     }
 
     /// Returns degree of trace polynomials for an instance of a computation.
@@ -182,7 +193,7 @@ impl<B: StarkField> AirContext<B> {
     ///
     /// This is guaranteed to be a power of two, and is equal to `trace_length * ce_blowup_factor`.
     pub fn ce_domain_size(&self) -> usize {
-        self.trace_info.length() * self.ce_blowup_factor
+        self.trace_len() * self.ce_blowup_factor
     }
 
     /// Returns the degree to which all constraint polynomials are normalized before they are
@@ -197,7 +208,7 @@ impl<B: StarkField> AirContext<B> {
     ///
     /// This is guaranteed to be a power of two, and is equal to `trace_length * lde_blowup_factor`.
     pub fn lde_domain_size(&self) -> usize {
-        self.trace_info.length() * self.options.blowup_factor()
+        self.trace_len() * self.options.blowup_factor()
     }
 
     /// Returns the number of transition constraints for a computation.
@@ -257,9 +268,9 @@ impl<B: StarkField> AirContext<B> {
         );
         // exemptions which are for more than half the trace are probably a mistake
         assert!(
-            n <= self.trace_len() / 2,
+            n <= self.virtual_trace_len() / 2,
             "number of transition exemptions cannot exceed {}, but was {}",
-            self.trace_len() / 2,
+            self.virtual_trace_len() / 2,
             n
         );
         // make sure the composition polynomial can be computed correctly with the specified
@@ -269,8 +280,8 @@ impl<B: StarkField> AirContext<B> {
             .iter()
             .chain(self.aux_transition_constraint_degrees.iter())
         {
-            let eval_degree = degree.get_evaluation_degree(self.trace_len());
-            let max_exemptions = self.composition_degree() + self.trace_len() - eval_degree;
+            let eval_degree = degree.get_evaluation_degree(self.virtual_trace_len());
+            let max_exemptions = self.composition_degree() + self.virtual_trace_len() - eval_degree;
             assert!(
                 n <= max_exemptions,
                 "number of transition exemptions cannot exceed: {}, but was {}",

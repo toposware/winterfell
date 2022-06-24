@@ -99,6 +99,11 @@ impl ExampleOptions {
 #[derive(StructOpt, Debug)]
 //#[structopt(about = "available examples")]
 pub enum ExampleType {
+    CairoCpu {
+        /// Number of steps must be a power of two
+        #[structopt(short = "n", default_value = "1048576")]
+        num_steps: usize,
+    },
     /// Compute a Fibonacci sequence using trace table with 2 registers
     Fib {
         /// Length of Fibonacci sequence; must be a power of two

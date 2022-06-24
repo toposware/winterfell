@@ -52,7 +52,11 @@ impl TraceInfo {
     /// * Trace width is zero or greater than 255.
     /// * Trace length is smaller than 8 or is not a power of two.
     pub fn new(width: usize, length: usize) -> Self {
-        Self::with_meta(width, length, vec![])
+        Self::with_meta(width, length, width, vec![])
+    }
+
+    pub fn new_virtual(width: usize, length: usize, num_real_columns: usize) -> Self {
+        Self::with_meta(width, length, num_real_columns, vec![])
     }
 
     /// Creates a new [TraceInfo] from the specified trace width, length, and metadata.
@@ -64,9 +68,9 @@ impl TraceInfo {
     /// * Trace width is zero or greater than 255.
     /// * Trace length is smaller than 8 or is not a power of two.
     /// * Length of `meta` is greater than 65535;
-    pub fn with_meta(width: usize, length: usize, meta: Vec<u8>) -> Self {
+    pub fn with_meta(width: usize, length: usize, num_real_columns: usize, meta: Vec<u8>) -> Self {
         assert!(width > 0, "trace width must be greater than 0");
-        let layout = TraceLayout::new(width, [0], [0]);
+        let layout = TraceLayout::new_virtual(width, num_real_columns, [0], [0]);
         Self::new_multi_segment(layout, length, meta)
     }
 
@@ -161,6 +165,9 @@ pub struct TraceLayout {
     aux_segment_widths: [usize; NUM_AUX_SEGMENTS],
     aux_segment_rands: [usize; NUM_AUX_SEGMENTS],
     num_aux_segments: usize,
+    virtual_width: usize,
+    ratio: usize,
+    last_used_row: usize
 }
 
 impl TraceLayout {
@@ -179,7 +186,7 @@ impl TraceLayout {
     pub fn new(
         main_width: usize,
         aux_widths: [usize; NUM_AUX_SEGMENTS],
-        aux_rands: [usize; NUM_AUX_SEGMENTS],
+        aux_rands: [usize; NUM_AUX_SEGMENTS]
     ) -> Self {
         // validate trace segment widths
         assert!(
@@ -228,7 +235,28 @@ impl TraceLayout {
             aux_segment_widths: aux_widths,
             aux_segment_rands: aux_rands,
             num_aux_segments,
+            virtual_width: main_width,
+            ratio: 1,
+            last_used_row: 0
         }
+    }
+
+    pub fn new_virtual(
+        main_real_width: usize,
+        main_virtual_width: usize,
+        aux_widths: [usize; NUM_AUX_SEGMENTS],
+        aux_rands: [usize; NUM_AUX_SEGMENTS],
+    ) -> Self {
+        let mut trace_info = Self::new(main_real_width, aux_widths, aux_rands);
+        trace_info.virtual_width = main_virtual_width;
+
+        let ratio = (main_virtual_width/main_real_width).next_power_of_two();
+        assert!(ratio >= 1,
+            "the number of virtual trace columns must be at least the number of real columns"
+        );
+        trace_info.ratio = ratio;
+        trace_info.last_used_row = main_virtual_width/main_real_width - 1;
+        trace_info
     }
 
     // PUBLIC ACCESSORS
@@ -239,6 +267,20 @@ impl TraceLayout {
     /// This is guaranteed to be between 1 and 255.
     pub fn main_trace_width(&self) -> usize {
         self.main_segment_width
+    }
+
+    /// Returns the number of real columns when using virtual columns.
+    pub fn virtual_trace_width(&self) -> usize {
+        self.virtual_width
+    }
+
+    pub fn virtual_to_real_ratio(&self) -> usize {
+        self.ratio
+    }
+
+    // TODO: Rename
+    pub fn last_real_trace_used_row(&self) -> usize {
+        self.last_used_row
     }
 
     /// Returns the number of columns in all auxiliary segments of an execution trace.
@@ -288,6 +330,7 @@ impl Serializable for TraceLayout {
             );
             target.write_u8(rc as u8);
         }
+        target.write_u8(self.virtual_width as u8);
     }
 }
 
@@ -351,7 +394,8 @@ impl Deserializable for TraceLayout {
                 )));
             }
         }
+        let num_real_columns = source.read_u8()? as usize;
 
-        Ok(TraceLayout::new(main_width, aux_widths, aux_rands))
+        Ok(TraceLayout::new_virtual(main_width, num_real_columns, aux_widths, aux_rands))
     }
 }

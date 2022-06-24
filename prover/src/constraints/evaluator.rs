@@ -144,8 +144,9 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         domain: &StarkDomain<A::BaseField>,
         fragment: &mut EvaluationTableFragment<E>,
     ) {
+        let ratio = self.air.context().virtual_to_real_ratio();
         // initialize buffers to hold trace values and evaluation results at each step;
-        let mut main_frame = EvaluationFrame::new(trace.main_trace_width());
+        let mut main_frame = EvaluationFrame::new(self.air.trace_layout().virtual_trace_width());
         let mut evaluations = vec![E::ZERO; fragment.num_columns()];
         let mut t_evaluations = vec![E::BaseField::ZERO; self.num_main_transition_constraints()];
 
@@ -164,7 +165,7 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
             // read current and next rows from the trace into the buffer; data in the trace
             // table is extended over the LDE domain, so, we need to convert step in constraint
             // evaluation domain, into a step in LDE domain, in case these domains are different
-            trace.read_main_trace_frame_into(step << lde_shift, &mut main_frame);
+            trace.read_main_trace_frame_into(step*ratio << lde_shift, &mut main_frame);
 
             // evaluate transition constraints and save the merged result the first slot of the
             // evaluations buffer

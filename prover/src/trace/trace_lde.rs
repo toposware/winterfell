@@ -76,21 +76,22 @@ impl<E: FieldElement> TraceLde<E> {
         // at the end of the trace, next state wraps around and we read the first step again
         let virtual_width = frame.current().len();
         let real_width = self.main_trace_width();
-        for index in 0..virtual_width/real_width {
+        let ratio = virtual_width/real_width;
+        for index in 0..ratio {
             let lde_step = (lde_step + index*self.blowup()) % self.trace_len();
             let offset = index*real_width;
             self.main_segment_lde
             .read_row_into(lde_step, &mut frame.current_mut()[offset.. offset + real_width]);
         }
-        for index in virtual_width/real_width..2*virtual_width/real_width {
-            let lde_step = (lde_step + index*self.blowup()) % self.trace_len();
-            let offset = index*real_width % virtual_width;
-            self.main_segment_lde
-            .read_row_into(lde_step, &mut frame.next_mut()[offset.. offset + real_width]);
-        }
-        // NOTE: the extended trace domain is <g_lde^self.blowup()>
+        // Next row only contains the first (non virtual) of the rows corresponding to the
+        // next virtual row this is an optimization
+        let lde_step = (lde_step + ratio*self.blowup()) % self.trace_len();
+        self.main_segment_lde
+        .read_row_into(lde_step, &mut frame.next_mut()[..real_width]);
+        // NOTE1: the extended trace domain is <g_lde^self.blowup()>
 
-        // copy main trace segment values into the frame
+        // NOTE2: Every row, but the last, is read twice? do we gain something by reading it 
+        // only once? this seems more important when ratio = 1
     }
 
     // TODO: Cheack again that auxiliar virtual columms are not needed

@@ -47,7 +47,7 @@ impl<B: StarkField> PeriodicValueTable<B> {
             .iter()
             .map(|poly| {
                 let poly_size = poly.len();
-                let num_cycles = (air.trace_length() / poly_size) as u64;
+                let num_cycles = (air.virtual_trace_length() / poly_size) as u64;
                 let offset = air.domain_offset().exp(num_cycles.into());
                 let twiddles = twiddle_map
                     .entry(poly_size)

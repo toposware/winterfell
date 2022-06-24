@@ -15,7 +15,7 @@ pub struct DeepComposer<E: FieldElement> {
     field_extension: FieldExtension,
     cc: DeepCompositionCoefficients<E>,
     x_coordinates: Vec<E>,
-    z: [E; 2],
+    z: Vec<E>,
 }
 
 impl<E: FieldElement> DeepComposer<E> {
@@ -25,6 +25,7 @@ impl<E: FieldElement> DeepComposer<E> {
         query_positions: &[usize],
         z: E,
         cc: DeepCompositionCoefficients<E>,
+        max_pow: usize
     ) -> Self {
         // compute LDE domain coordinates for all query positions
         let g_lde = air.lde_domain_generator();
@@ -33,12 +34,14 @@ impl<E: FieldElement> DeepComposer<E> {
             .iter()
             .map(|&p| E::from(g_lde.exp((p as u64).into()) * domain_offset))
             .collect();
-
+        let g_trace = E::from(air.trace_domain_generator());
         DeepComposer {
             field_extension: air.options().field_extension(),
             cc,
             x_coordinates,
-            z: [z, z * E::from(air.trace_domain_generator())],
+            z:  (0..max_pow)
+            .map(|i| z * g_trace.exp((i as u64).into()))
+            .collect()
         }
     }
 
@@ -67,6 +70,8 @@ impl<E: FieldElement> DeepComposer<E> {
         ood_aux_frame: Option<EvaluationFrame<E>>,
     ) -> Vec<E> {
         let ood_main_trace_states = [ood_main_frame.current(), ood_main_frame.next()];
+        let main_frame_length = ood_main_frame.current().len();
+        let max_pow = self.z.len();
 
         // when field extension is enabled, these will be set to conjugates of trace values at
         // z as well as conjugate of z itself. we do this only for the main trace since auxiliary
@@ -83,21 +88,18 @@ impl<E: FieldElement> DeepComposer<E> {
         {
             for (i, &value) in row.iter().enumerate() {
                 let value = E::from(value);
-                // compute T'_i(x) = (T_i(x) - T_i(z)) / (x - z), multiply it by a composition
-                // coefficient, and add the result to T(x)
-                let t1 = (value - ood_main_trace_states[0][i]) / (x - self.z[0]);
-                *result += t1 * self.cc.trace[i].0;
-
-                // compute T''_i(x) = (T_i(x) - T_i(z * g)) / (x - z * g), multiply it by a
-                // composition coefficient, and add the result to T(x)
-                let t2 = (value - ood_main_trace_states[1][i]) / (x - self.z[1]);
-                *result += t2 * self.cc.trace[i].1;
+                for j in 0..max_pow {
+                    // compute T^j_i(x) = (T_i(x) - T_i(z * g^j)) / (x - z * g^j), multiply it by a composition
+                    // coefficient, and add the result to T(x)
+                    let t1 = (value - ood_main_trace_states[j/main_frame_length][j%main_frame_length]) / (x - self.z[j]);
+                    *result += t1 * self.cc.trace[i][j];
+                }
 
                 // when extension field is enabled compute
                 // T'''_i(x) = (T_i(x) - T_i(z_conjugate)) / (x - z_conjugate)
                 if let Some((z_conjugate, ref trace_at_z1_conjugates)) = conjugate_values {
                     let t3 = (value - trace_at_z1_conjugates[i]) / (x - z_conjugate);
-                    *result += t3 * self.cc.trace[i].2;
+                    *result += t3 * self.cc.trace[i][max_pow];
                 }
             }
         }
@@ -120,12 +122,12 @@ impl<E: FieldElement> DeepComposer<E> {
                     // compute T'_i(x) = (T_i(x) - T_i(z)) / (x - z), multiply it by a composition
                     // coefficient, and add the result to T(x)
                     let t1 = (value - ood_aux_trace_states[0][i]) / (x - self.z[0]);
-                    *result += t1 * self.cc.trace[cc_offset + i].0;
+                    *result += t1 * self.cc.trace[cc_offset + i][0];
 
                     // compute T''_i(x) = (T_i(x) - T_i(z * g)) / (x - z * g), multiply it by a
                     // composition coefficient, and add the result to T(x)
                     let t2 = (value - ood_aux_trace_states[1][i]) / (x - self.z[1]);
-                    *result += t2 * self.cc.trace[cc_offset + i].1;
+                    *result += t2 * self.cc.trace[cc_offset + i][1];
                 }
             }
         }

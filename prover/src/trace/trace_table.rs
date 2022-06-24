@@ -83,6 +83,14 @@ impl<B: StarkField> TraceTable<B> {
     pub fn new(width: usize, length: usize) -> Self {
         Self::with_meta(width, length, vec![])
     }
+    
+    /// Creates a new execution trace consisting of width vrtual columns of length `length`
+    /// and `real_width` real columns
+    pub fn new_virtual(width: usize, length: usize, real_width: usize) -> Self {
+        let mut trace_table = Self::with_meta(width, length, vec![]);
+        trace_table.layout = TraceLayout::new_virtual(real_width, width, [0], [0]);
+        trace_table
+    }
 
     /// Creates a new execution trace of the specified width and length, and with the specified
     /// metadata.

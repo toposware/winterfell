@@ -89,6 +89,7 @@ impl OodFrame {
     pub fn parse<E: FieldElement>(
         self,
         main_trace_width: usize,
+        next_row_width: usize, // The next row in general contain just a few elements (the real number of columns)
         aux_trace_width: usize,
         num_evaluations: usize,
     ) -> Result<ParsedOodFrame<E>, DeserializationError> {
@@ -99,7 +100,7 @@ impl OodFrame {
         let mut reader = SliceReader::new(&self.trace_states);
         let current = E::read_batch_from(&mut reader, main_trace_width)?;
         let current_aux = E::read_batch_from(&mut reader, aux_trace_width)?;
-        let next = E::read_batch_from(&mut reader, main_trace_width)?;
+        let next = E::read_batch_from(&mut reader, next_row_width)?;
         let next_aux = E::read_batch_from(&mut reader, aux_trace_width)?;
         if reader.has_more_bytes() {
             return Err(DeserializationError::UnconsumedBytes);

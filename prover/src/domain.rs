@@ -49,7 +49,7 @@ impl<B: StarkField> StarkDomain<B> {
         &self.trace_twiddles.len() * 2
     }
 
-    /// Returns twiddles which can be used to evaluate trace polynomials.
+    /// Returns twiddles which can be used to evaluate (non virtual) trace polynomials.
     pub fn trace_twiddles(&self) -> &[B] {
         &self.trace_twiddles
     }
@@ -94,4 +94,5 @@ impl<B: StarkField> StarkDomain<B> {
     pub fn offset(&self) -> B {
         self.domain_offset
     }
+    
 }

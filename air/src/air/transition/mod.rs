@@ -53,7 +53,7 @@ impl<E: FieldElement> TransitionConstraints<E> {
 
         // build constraint divisor; the same divisor applies to all transition constraints
         let divisor = ConstraintDivisor::from_transition(
-            context.trace_len(),
+            context.virtual_trace_len(),
             context.num_transition_exemptions(),
         );
 

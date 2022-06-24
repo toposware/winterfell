@@ -328,9 +328,9 @@ pub trait Air: Send + Sync {
                     "number of values in a periodic column must be a power of two, but was {}",
                     cycle_length
                 );
-                assert!(cycle_length <= self.trace_length(),
+                assert!(cycle_length <= self.virtual_trace_length(),
                     "number of values in a periodic column cannot exceed trace length {}, but was {}",
-                    self.trace_length(),
+                    self.virtual_trace_length(),
                     cycle_length
                 );
 
@@ -396,9 +396,17 @@ pub trait Air: Send + Sync {
     ///
     // This is guaranteed to be a power of two greater than or equal to 8.
     fn trace_length(&self) -> usize {
-        self.context().trace_info.length()
+        self.context().trace_len()
     }
 
+    /// Returns length of the execution trace for an instance of the computation described by
+    /// this AIR.
+    ///
+    // This is guaranteed to be a power of two greater than or equal to 8.
+    fn virtual_trace_length(&self) -> usize {
+        self.context().virtual_trace_len()
+    }
+    
     /// Returns a description of how execution trace columns are arranged into segments for
     /// an instance of a computation described by this AIR.
     fn trace_layout(&self) -> &TraceLayout {
@@ -538,15 +546,27 @@ pub trait Air: Send + Sync {
     fn get_deep_composition_coefficients<E, H>(
         &self,
         public_coin: &mut RandomCoin<Self::BaseField, H>,
+        max_pow: usize
     ) -> Result<DeepCompositionCoefficients<E>, RandomCoinError>
     where
         E: FieldElement<BaseField = Self::BaseField>,
         H: Hasher,
     {
         let mut t_coefficients = Vec::new();
-        for _ in 0..self.trace_info().width() {
-            t_coefficients.push(public_coin.draw_triple()?);
+        for _ in 0..self.trace_info().layout().main_trace_width() {
+            let mut values = Vec::new();
+            // Last entry in values is for the proof of memb in the base field
+            for _ in 0..max_pow + 1 {
+                values.push(public_coin.draw()?);
+            }
+            t_coefficients.push(values);
         }
+        // Auxiliar columns have no virtual columns and are already in the extension field
+        for _ in 0..self.trace_info().layout().aux_trace_width() {
+            let random_coins = public_coin.draw_pair()?;
+            t_coefficients.push(vec![random_coins.0, random_coins.1]);
+        }
+
 
         // self.ce_blowup_factor() is the same as number of composition columns
         let mut c_coefficients = Vec::new();

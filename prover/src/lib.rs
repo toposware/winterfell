@@ -103,6 +103,9 @@ pub use errors::ProverError;
 #[cfg(test)]
 pub mod tests;
 
+//TODO: Add this to proof options
+const N_COLUMNS: usize = 3;
+
 // PROVER
 // ================================================================================================
 
@@ -219,6 +222,8 @@ pub trait Prover {
         // should come from the verifier.
         let mut channel = ProverChannel::<Self::Air, E, H>::new(&air, pub_inputs_bytes);
 
+        let _ncols_real_trace = trace.main_segment().num_cols();
+
         // 1 ----- Commit to the execution trace --------------------------------------------------
 
         // build computation domain; this is used later for polynomial evaluations
@@ -234,7 +239,8 @@ pub trait Prover {
 
         // extend the main execution trace and build a Merkle tree from the extended trace
         let (main_trace_lde, main_trace_tree, main_trace_polys) =
-            self.build_trace_commitment::<Self::BaseField, H>(trace.main_segment(), &domain);
+            self.build_trace_commitment::<Self::BaseField, H>(
+                &trace.main_segment().rearange(trace.layout().main_trace_width()), &domain);
 
         // commit to the LDE of the main trace by writing the root of its Merkle tree into
         // the channel
@@ -346,7 +352,9 @@ pub trait Prover {
         // evaluate trace and constraint polynomials at the OOD point z, and send the results to
         // the verifier. the trace polynomials are actually evaluated over two points: z and z * g,
         // where g is the generator of the trace domain.
-        let ood_trace_states = trace_polys.get_ood_frame(z);
+        let max_pow = trace.layout().last_real_trace_used_row() + 1;
+        let ratio = trace.layout().virtual_to_real_ratio();
+        let ood_trace_states = trace_polys.get_ood_frame(z, max_pow, ratio);
         channel.send_ood_trace_states(&ood_trace_states);
 
         let ood_evaluations = composition_poly.evaluate_at(z);
@@ -354,12 +362,12 @@ pub trait Prover {
 
         // draw random coefficients to use during DEEP polynomial composition, and use them to
         // initialize the DEEP composition polynomial
-        let deep_coefficients = channel.get_deep_composition_coeffs();
+        let deep_coefficients = channel.get_deep_composition_coeffs(max_pow);
         let mut deep_composition_poly = DeepCompositionPoly::new(&air, z, deep_coefficients);
 
         // combine all trace polynomials together and merge them into the DEEP composition
         // polynomial
-        deep_composition_poly.add_trace_polys(trace_polys, ood_trace_states);
+        deep_composition_poly.add_trace_polys(trace_polys, ood_trace_states, max_pow);
 
         // merge columns of constraint composition polynomial into the DEEP composition polynomial;
         deep_composition_poly.add_composition_poly(composition_poly, ood_evaluations);

@@ -44,7 +44,7 @@ impl Air for CairoCpuAir {
     fn new(trace_info: TraceInfo, _pub_inputs: Self::PublicInputs, options: ProofOptions) -> Self {
         let mut degrees = vec![TransitionConstraintDegree::new(2); 16];
         degrees.push(TransitionConstraintDegree::new(1));
-        assert_eq!(TRACE_WIDTH, trace_info.width());
+        assert_eq!(TRACE_WIDTH, trace_info.layout().virtual_trace_width());
         let context =
             // Why does Air context require at least 1 assertion?
             AirContext::new(
