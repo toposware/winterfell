@@ -12,9 +12,6 @@ use winterfell::{
     ProofOptions, Prover, StarkProof, Trace, TraceTable, VerifierError,
 };
 
-use std::fs::File;
-use std::io::{self, BufRead};
-
 mod air;
 use air::CairoAir;
 
@@ -44,7 +41,6 @@ pub fn get_example(options: ExampleOptions, trace_file_path: String) -> Box<dyn 
 pub struct CairoExample {
     options: ProofOptions,
     trace_file_path: String,
-    result: BaseElement,
 }
 
 impl CairoExample {
@@ -52,8 +48,6 @@ impl CairoExample {
         CairoExample {
             options,
             trace_file_path,
-            // TODO: use this for boundary constraints
-            result: BaseElement::ONE,
         }
     }
 }
@@ -65,7 +59,8 @@ impl Example for CairoExample {
     fn prove(&self) -> StarkProof {
         debug!(
             "Generating a proof for running a Cairo program\n\
-            ---------------------");
+            ---------------------"
+        );
 
         // create a prover
         let prover = CairoProver::new(self.options.clone());
@@ -91,7 +86,7 @@ impl Example for CairoExample {
     }
 
     fn verify(&self, proof: StarkProof) -> Result<(), VerifierError> {
-        winterfell::verify::<CairoAir>(proof, self.result)
+        winterfell::verify::<CairoAir>(proof, ())
     }
 
     //TODO: implement wrong trace checking

@@ -51,7 +51,7 @@ impl CairoProver {
                     state[i] = BaseElement::new(x.into());
                 }
             },
-            |_, state| {
+            |row, state| {
                 let mut line = String::new();
                 for i in 0..33 {
                     line.clear();
@@ -60,6 +60,12 @@ impl CairoProver {
                     //println!("{}", &line);
                     let x = u64::from_str(&line).unwrap();
                     state[i] = BaseElement::new(x.into());
+                }
+
+                // TODO: would need dynamic checking to turn the last row into garbage
+                // or add extra ones if needed
+                if row == 6 {
+                    state.copy_from_slice(&mut rand_utils::rand_array::<BaseElement, 33>());
                 }
             },
         );
@@ -73,9 +79,8 @@ impl Prover for CairoProver {
     type Air = CairoAir;
     type Trace = TraceTable<BaseElement>;
 
-    fn get_pub_inputs(&self, trace: &Self::Trace) -> BaseElement {
-        let last_step = trace.length() - 1;
-        trace.get(1, last_step)
+    fn get_pub_inputs(&self, trace: &Self::Trace) -> () {
+        ()
     }
 
     fn options(&self) -> &ProofOptions {
