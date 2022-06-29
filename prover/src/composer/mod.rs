@@ -9,6 +9,8 @@ use air::{Air, DeepCompositionCoefficients};
 use math::{add_in_place, fft, log2, mul_acc, polynom, ExtensionOf, FieldElement, StarkField};
 use utils::{collections::Vec, iter_mut};
 
+use std::iter::once;
+
 #[cfg(feature = "concurrent")]
 use utils::iterators::*;
 
@@ -73,21 +75,23 @@ impl<E: FieldElement> DeepCompositionPoly<E> {
         &mut self,
         trace_polys: TracePolyTable<E>,
         ood_trace_states: Vec<Vec<E>>,
-        max_pow: usize
+        max_pow: usize,
+        ratio: usize
     ) {
         assert!(self.coefficients.is_empty());
 
         // compute a second out-of-domain point offset from z by exactly trace generator; this
         // point defines the "next" computation state in relation to point z
         let trace_length = trace_polys.poly_size();
+        let main_trace_width = trace_polys.main_trace_polys().len();
         let g = E::from(E::BaseField::get_root_of_unity(log2(trace_length)));
-        let mut z: Vec<E> = (0..max_pow)
+        let mut z: Vec<E> = (0..max_pow).chain(once(ratio))
             .map(|i| self.z * g.exp((i as u64).into()))
             .collect();
 
         // combine trace polynomials into composition polynomials T^j(x), j=0,..,n where
         // n is the frame size, and if we are using a field extension, also T^{n+1}(x)
-        let mut tj_composition = vec![E::zeroed_vector(trace_length); max_pow];
+        let mut tj_composition = vec![E::zeroed_vector(trace_length); max_pow + 1];
         let mut tn_composition = if self.field_extension {
             E::zeroed_vector(trace_length)
         } else {
@@ -105,10 +109,17 @@ impl<E: FieldElement> DeepCompositionPoly<E> {
                 acc_trace_poly::<E::BaseField, E>(
                     &mut tj_composition[j],
                     poly,
-                    ood_trace_states[j][i],
-                    self.cc.trace[i][j],
+                    ood_trace_states[0][j*main_trace_width + i],
+                    self.cc.trace[j*main_trace_width + i][0],
                 );
             }
+
+            acc_trace_poly::<E::BaseField, E>(
+                &mut tj_composition[max_pow],
+                poly,
+                ood_trace_states[0][i],
+                self.cc.trace[i][1],
+            );
 
             // when extension field is enabled, compute T'''(x) = T(x) - T(z_conjugate), multiply
             // it by a pseudo-random coefficient, and add the result into composition polynomial
@@ -117,7 +128,7 @@ impl<E: FieldElement> DeepCompositionPoly<E> {
                     &mut tn_composition,
                     poly,
                     ood_trace_states[0][i].conjugate(),
-                    self.cc.trace[i][max_pow],
+                    self.cc.trace[i][2],
                 );
             }
 

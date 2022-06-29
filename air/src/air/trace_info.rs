@@ -55,8 +55,8 @@ impl TraceInfo {
         Self::with_meta(width, length, width, vec![])
     }
 
-    pub fn new_virtual(width: usize, length: usize, num_real_columns: usize) -> Self {
-        Self::with_meta(width, length, num_real_columns, vec![])
+    pub fn new_virtual(width: usize, length: usize, real_width: usize) -> Self {
+        Self::with_meta(width, length, real_width, vec![])
     }
 
     /// Creates a new [TraceInfo] from the specified trace width, length, and metadata.
@@ -68,9 +68,9 @@ impl TraceInfo {
     /// * Trace width is zero or greater than 255.
     /// * Trace length is smaller than 8 or is not a power of two.
     /// * Length of `meta` is greater than 65535;
-    pub fn with_meta(width: usize, length: usize, num_real_columns: usize, meta: Vec<u8>) -> Self {
+    pub fn with_meta(width: usize, length: usize, real_width: usize, meta: Vec<u8>) -> Self {
         assert!(width > 0, "trace width must be greater than 0");
-        let layout = TraceLayout::new_virtual(width, num_real_columns, [0], [0]);
+        let layout = TraceLayout::new_virtual(width, real_width, [0], [0]);
         Self::new_multi_segment(layout, length, meta)
     }
 
@@ -255,7 +255,10 @@ impl TraceLayout {
             "the number of virtual trace columns must be at least the number of real columns"
         );
         trace_info.ratio = ratio;
-        trace_info.last_used_row = main_virtual_width/main_real_width - 1;
+
+        let last_used_row = main_virtual_width/main_real_width - 1;
+        trace_info.last_used_row = last_used_row;
+        
         trace_info
     }
 

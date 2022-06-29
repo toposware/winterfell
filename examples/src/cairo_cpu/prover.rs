@@ -65,7 +65,7 @@ impl CairoCpuProver {
         ).collect();
         let ap_column = get_ap_column(&f, BaseElement::ONE, &res);
 
-        let mut trace = TraceTable::new(N_COLS, 8);
+        let mut trace = TraceTable::new_virtual(N_COLS, 8, 3);
         trace.fill(
             |state| {
                 state[..16].copy_from_slice(&f_tilde[0]);

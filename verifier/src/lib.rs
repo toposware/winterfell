@@ -278,9 +278,8 @@ where
     // interactive version of the protocol, the verifier sends these coefficients to the prover
     // and the prover uses them to compute the DEEP composition polynomial. the prover, then
     // applies FRI protocol to the evaluations of the DEEP composition polynomial.
-    let max_pow = air.trace_layout().last_real_trace_used_row();
     let deep_coefficients = air
-        .get_deep_composition_coefficients::<E, H>(&mut public_coin, max_pow)
+        .get_deep_composition_coefficients::<E, H>(&mut public_coin)
         .map_err(|_| VerifierError::RandomCoinError)?;
 
     // instantiates a FRI verifier with the FRI layer commitments read from the channel. From the
@@ -323,7 +322,7 @@ where
 
     // 6 ----- DEEP composition -------------------------------------------------------------------
     // compute evaluations of the DEEP composition polynomial at the queried positions
-    let composer = DeepComposer::new(&air, &query_positions, z, deep_coefficients, max_pow);
+    let composer = DeepComposer::new(&air, &query_positions, z, deep_coefficients);
     let t_composition = composer.compose_trace_columns(
         queried_main_trace_states,
         queried_aux_trace_states,

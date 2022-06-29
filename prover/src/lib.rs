@@ -60,7 +60,7 @@ use utils::collections::Vec;
 
 pub use math;
 use math::{
-    fft::infer_degree,
+    fft::{evaluate_poly_with_offset, infer_degree},
     fields::{CubeExtension, QuadExtension},
     ExtensibleField, FieldElement, StarkField,
 };
@@ -222,8 +222,6 @@ pub trait Prover {
         // should come from the verifier.
         let mut channel = ProverChannel::<Self::Air, E, H>::new(&air, pub_inputs_bytes);
 
-        let _ncols_real_trace = trace.main_segment().num_cols();
-
         // 1 ----- Commit to the execution trace --------------------------------------------------
 
         // build computation domain; this is used later for polynomial evaluations
@@ -241,6 +239,28 @@ pub trait Prover {
         let (main_trace_lde, main_trace_tree, main_trace_polys) =
             self.build_trace_commitment::<Self::BaseField, H>(
                 &trace.main_segment().rearange(trace.layout().main_trace_width()), &domain);
+
+
+        let _original_trace: Vec<_> = main_trace_polys.columns()
+        .map(|poly| {
+            evaluate_poly_with_offset(
+                poly,
+                domain.trace_twiddles(),
+                Self::BaseField::ONE,
+                1,
+            )
+        })
+        .collect();
+
+        for column in _original_trace {
+            let _trace_degree = infer_degree(&column, Self::BaseField::ONE);
+            let _x = 2 + 2;
+        }
+
+        for column in main_trace_polys.columns() {
+            let _trace_degree = math::polynom::degree_of(&column);
+            let _x = 2 + 2;
+        }
 
         // commit to the LDE of the main trace by writing the root of its Merkle tree into
         // the channel
@@ -362,12 +382,12 @@ pub trait Prover {
 
         // draw random coefficients to use during DEEP polynomial composition, and use them to
         // initialize the DEEP composition polynomial
-        let deep_coefficients = channel.get_deep_composition_coeffs(max_pow);
+        let deep_coefficients = channel.get_deep_composition_coeffs();
         let mut deep_composition_poly = DeepCompositionPoly::new(&air, z, deep_coefficients);
 
         // combine all trace polynomials together and merge them into the DEEP composition
         // polynomial
-        deep_composition_poly.add_trace_polys(trace_polys, ood_trace_states, max_pow);
+        deep_composition_poly.add_trace_polys(trace_polys, ood_trace_states, max_pow, ratio);
 
         // merge columns of constraint composition polynomial into the DEEP composition polynomial;
         deep_composition_poly.add_composition_poly(composition_poly, ood_evaluations);

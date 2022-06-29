@@ -545,21 +545,24 @@ pub trait Air: Send + Sync {
     /// composition polynomial.
     fn get_deep_composition_coefficients<E, H>(
         &self,
-        public_coin: &mut RandomCoin<Self::BaseField, H>,
-        max_pow: usize
+        public_coin: &mut RandomCoin<Self::BaseField, H>
     ) -> Result<DeepCompositionCoefficients<E>, RandomCoinError>
     where
         E: FieldElement<BaseField = Self::BaseField>,
         H: Hasher,
     {
+        let main_trace_width = self.trace_layout().main_trace_width();
         let mut t_coefficients = Vec::new();
-        for _ in 0..self.trace_info().layout().main_trace_width() {
-            let mut values = Vec::new();
-            // Last entry in values is for the proof of memb in the base field
-            for _ in 0..max_pow + 1 {
-                values.push(public_coin.draw()?);
-            }
-            t_coefficients.push(values);
+        for i in 0..self.trace_layout().virtual_trace_width() {
+            t_coefficients.push(
+                // Maybe not all columns need to have 3 random coeffs
+                // if i < main_trace_width {
+                //     vec![public_coin.draw()?, public_coin.draw()?, public_coin.draw()?]
+                // } else {
+                //     vec![public_coin.draw()?, public_coin.draw()?]
+                // }
+                vec![public_coin.draw()?, public_coin.draw()?, public_coin.draw()?]
+            );
         }
         // Auxiliar columns have no virtual columns and are already in the extension field
         for _ in 0..self.trace_info().layout().aux_trace_width() {

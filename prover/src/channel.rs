@@ -128,9 +128,9 @@ where
     /// Returns a set of coefficients for constructing a DEEP composition polynomial.
     ///
     /// The coefficients are drawn from the public coin uniformly at random.
-    pub fn get_deep_composition_coeffs(&mut self, max_pow: usize) -> DeepCompositionCoefficients<E> {
+    pub fn get_deep_composition_coeffs(&mut self) -> DeepCompositionCoefficients<E> {
         self.air
-            .get_deep_composition_coefficients(&mut self.public_coin, max_pow)
+            .get_deep_composition_coefficients(&mut self.public_coin)
             .expect("failed to draw DEEP composition coefficients")
     }
 

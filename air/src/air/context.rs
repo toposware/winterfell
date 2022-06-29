@@ -186,7 +186,7 @@ impl<B: StarkField> AirContext<B> {
     ///
     /// The degree is always `trace_length` - 1.
     pub fn trace_poly_degree(&self) -> usize {
-        self.trace_info.length() - 1
+        self.trace_len() - 1
     }
 
     /// Returns size of the constraint evaluation domain.

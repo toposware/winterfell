@@ -76,8 +76,9 @@ impl<E: FieldElement> TraceLde<E> {
         // at the end of the trace, next state wraps around and we read the first step again
         let virtual_width = frame.current().len();
         let real_width = self.main_trace_width();
-        let ratio = virtual_width/real_width;
-        for index in 0..ratio {
+        let last_used_row = virtual_width/real_width;
+        let ratio = last_used_row.next_power_of_two();
+        for index in 0..last_used_row {
             let lde_step = (lde_step + index*self.blowup()) % self.trace_len();
             let offset = index*real_width;
             self.main_segment_lde
