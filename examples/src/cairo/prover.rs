@@ -28,16 +28,22 @@ impl CairoProver {
     /// Builds an execution trace for computing a Fibonacci sequence of the specified length such
     /// that each row advances the sequence by 2 terms.
     pub fn build_trace_from_file(&self, trace_file_path: &String) -> TraceTable<BaseElement> {
-        /*        assert!(
-            sequence_length.is_power_of_two(),
-            "sequence length must be a power of 2"
-        );*/
 
         let file = File::open(trace_file_path).expect("Cannot open the file.");
 
         let reader = Mutex::new(BufReader::new(file));
 
-        let mut trace = TraceTable::new(TRACE_WIDTH, 128);
+        let mut line = String::new();
+        reader.lock().unwrap().read_line(&mut line).unwrap();
+        line.pop();
+        let length = usize::from_str(&line).unwrap();
+
+        assert!(
+            length.is_power_of_two(),
+            "program length must be a power of 2"
+        );
+
+        let mut trace = TraceTable::new(TRACE_WIDTH, length);
 
         trace.fill(
             |state| {
@@ -46,7 +52,6 @@ impl CairoProver {
                     line.clear();
                     reader.lock().unwrap().read_line(&mut line).unwrap();
                     line.pop();
-                    //println!("{}", &line);
                     let x = u128::from_str(&line).unwrap();
                     state[i] = BaseElement::new(x.into());
                 }
@@ -57,14 +62,14 @@ impl CairoProver {
                     line.clear();
                     reader.lock().unwrap().read_line(&mut line).unwrap();
                     line.pop();
-                    println!("{}", &line);
+                    println!("{:?} - {:?} - {:?}", row, i, &line);
                     let x = u128::from_str(&line).unwrap();
                     state[i] = BaseElement::new(x.into());
                 }
 
                 // TODO: would need dynamic checking to turn the last row into garbage
                 // or add extra ones if needed
-                if row == 126 {
+                if row == length - 2 {
                     state.copy_from_slice(&mut rand_utils::rand_array::<BaseElement, TRACE_WIDTH>());
                 }
             },
