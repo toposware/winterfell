@@ -74,12 +74,12 @@ impl Air for CairoAir {
         _periodic_values: &[E],
         result: &mut [E],
     ) {
-        let one = E::from(1u128);
-        let two = E::from(2u128);
+        let one = E::ONE;
+        let two = one.double();
         let two_to_15 = E::from(1u128 << 15);
-        let two_to_16 = E::from(1u128 << 16);
-        let two_to_32 = E::from(1u128 << 32);
-        let two_to_48 = E::from(1u128 << 48);
+        let two_to_16 = two_to_15.double();
+        let two_to_32 = two_to_16.square();
+        let two_to_48 = two_to_32 * two_to_16;
 
         let current = frame.current();
         let next = frame.next();
@@ -89,21 +89,21 @@ impl Air for CairoAir {
         debug_assert_eq!(TRACE_WIDTH, next.len());
 
         // Flag definitions
-        let f_0 = current[0] - two * current[1];
-        let f_1 = current[1] - two * current[2];
-        let f_2 = current[2] - two * current[3];
-        let f_3 = current[3] - two * current[4];
-        let f_4 = current[4] - two * current[5];
-        let f_5 = current[5] - two * current[6];
-        let f_6 = current[6] - two * current[7];
-        let f_7 = current[7] - two * current[8];
-        let f_8 = current[8] - two * current[9];
-        let f_9 = current[9] - two * current[10];
-        let f_10 = current[10] - two * current[11];
-        let f_11 = current[11] - two * current[12];
-        let f_12 = current[12] - two * current[13];
-        let f_13 = current[13] - two * current[14];
-        let f_14 = current[14] - two * current[15];
+        let f_0 = current[0] - current[1].double();
+        let f_1 = current[1] - current[2].double();
+        let f_2 = current[2] - current[3].double();
+        let f_3 = current[3] - current[4].double();
+        let f_4 = current[4] - current[5].double();
+        let f_5 = current[5] - current[6].double();
+        let f_6 = current[6] - current[7].double();
+        let f_7 = current[7] - current[8].double();
+        let f_8 = current[8] - current[9].double();
+        let f_9 = current[9] - current[10].double();
+        let f_10 = current[10] - current[11].double();
+        let f_11 = current[11] - current[12].double();
+        let f_12 = current[12] - current[13].double();
+        let f_13 = current[13] - current[14].double();
+        let f_14 = current[14] - current[15].double();
         let f_15 = current[15];
 
         let instruction_size = f_2 + one;
@@ -134,7 +134,7 @@ impl Air for CairoAir {
         result[14] = is_binary(f_13);
         result[15] = is_binary(f_14);
 
-        result[16] = current[15];
+        result[16] = f_15;
 
         // Operand constraints
         result[17] = are_equal(
@@ -157,7 +157,7 @@ impl Air for CairoAir {
         // ap and fp registers
         result[20] = are_equal(
             next[27],
-            current[27] + f_10 * current[32] + f_11 + f_12 * two,
+            current[27] + f_10 * current[32] + f_11 + f_12.double(),
         );
         result[21] = are_equal(
             next[28],

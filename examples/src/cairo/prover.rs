@@ -9,9 +9,9 @@ use super::{
 
 use std::fs::File;
 use std::io::prelude::*;
-use std::io::{self, BufReader};
+use std::io::{BufReader};
 use std::str::FromStr;
-use std::sync::{Arc, Mutex};
+use std::sync::{Mutex};
 
 // CAIRO PROVER
 // ================================================================================================
