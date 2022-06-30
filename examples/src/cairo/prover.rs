@@ -42,7 +42,7 @@ impl CairoProver {
         trace.fill(
             |state| {
                 let mut line = String::new();
-                for i in 0..33 {
+                for i in 0..TRACE_WIDTH {
                     line.clear();
                     reader.lock().unwrap().read_line(&mut line).unwrap();
                     line.pop();
@@ -53,7 +53,7 @@ impl CairoProver {
             },
             |row, state| {
                 let mut line = String::new();
-                for i in 0..33 {
+                for i in 0..TRACE_WIDTH {
                     line.clear();
                     reader.lock().unwrap().read_line(&mut line).unwrap();
                     line.pop();
@@ -65,7 +65,7 @@ impl CairoProver {
                 // TODO: would need dynamic checking to turn the last row into garbage
                 // or add extra ones if needed
                 if row == 6 {
-                    state.copy_from_slice(&mut rand_utils::rand_array::<BaseElement, 33>());
+                    state.copy_from_slice(&mut rand_utils::rand_array::<BaseElement, TRACE_WIDTH>());
                 }
             },
         );
