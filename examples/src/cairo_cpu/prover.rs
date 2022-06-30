@@ -68,18 +68,18 @@ impl CairoCpuProver {
         let mut trace = TraceTable::new_virtual(N_COLS, 8, 3);
         trace.fill(
             |state| {
-                state[..16].copy_from_slice(&f_tilde[0]);
-                state[16..].copy_from_slice(&[BaseElement::ZERO; 17]);
-                // Set res and ap, respectively
-                state[32] = res[0]; 
-                state[27] = ap_column[0];
+                state[0] = ap_column[0];
+                state[1..3].copy_from_slice(&[BaseElement::ZERO; 2]);
+                state[3..19].copy_from_slice(&f_tilde[0]);
+                state[19..].copy_from_slice(&[BaseElement::ZERO; 14]);
+                state[32] = res[0];
             },
             |step, state| {
-                state[..16].copy_from_slice(&f_tilde[step + 1]);
-                state[16..].copy_from_slice(&[BaseElement::ZERO; 17]);
-                // Set res and ap, respectively, to some values
-                state[32] = res[step + 1]; 
-                state[27] = ap_column[step + 1];
+                state[0] = ap_column[step + 1];
+                state[1..3].copy_from_slice(&[BaseElement::ZERO; 2]);
+                state[3..19].copy_from_slice(&f_tilde[step + 1]);
+                state[19..].copy_from_slice(&[BaseElement::ZERO; 14]);
+                state[32] = res[step + 1];
             }
         );
         print_trace(&trace, 1, 0, 0..33);

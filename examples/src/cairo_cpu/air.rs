@@ -78,7 +78,6 @@ impl Air for CairoCpuAir {
         let next = frame.next();
         // expected state width is nb_columns field elements
         debug_assert_eq!(TRACE_WIDTH, current.len());
-        debug_assert_eq!(TRACE_WIDTH, next.len());
         let (
             f_prefix_0,     f_prefix_1,     f_prefix_2,     f_prefix_3,     f_prefix_4,
             f_prefix_5,     f_prefix_6,     f_prefix_7,     f_prefix_8,     f_prefix_9,
@@ -88,16 +87,16 @@ impl Air for CairoCpuAir {
             op1_addr,       op1,            ap,             fp,             mul,
             t0,             t1,             res
         ) = (
-            current[0], current[1], current[2], current[3], current[4],
-            current[5], current[6], current[7], current[8], current[9],
-            current[10], current[11], current[12], current[13], current[14],
-            current[15], current[16], current[17], current[18], current[19],
-            current[20], current[21], current[22], current[23], current[24],
-            current[25], current[26], current[27], current[28], current[29],
+            current[3], current[4], current[5], current[6], current[7],
+            current[8], current[9], current[10], current[11], current[12],
+            current[13], current[14], current[15], current[16], current[17],
+            current[18], current[19], current[20], current[21], current[2],
+            current[22], current[23], current[24], current[25], current[26],
+            current[27], current[28], current[0], current[1], current[29],
             current[30], current[31], current[32],
         );
 
-        let (next_pc, next_ap, next_fp) = (next[19], next[27], next[28]);
+        let (next_ap, next_fp, next_pc) = (next[0], next[1], next[2]);
 
         // Flag definitions
         let f_dst_reg = f_prefix_0 - two*f_prefix_1;
@@ -171,7 +170,7 @@ impl Air for CairoCpuAir {
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
         // Add a dummy assetion for now.
         vec![
-            Assertion::single(27, 0, Self::BaseField::ONE)
+            Assertion::single(0, 0, Self::BaseField::ONE)
         ]
     }
 }

@@ -256,7 +256,7 @@ impl TraceLayout {
         );
         trace_info.ratio = ratio;
 
-        let last_used_row = main_virtual_width/main_real_width - 1;
+        let last_used_row = main_virtual_width/main_real_width;
         trace_info.last_used_row = last_used_row;
         
         trace_info

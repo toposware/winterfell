@@ -117,7 +117,7 @@ impl<E: FieldElement> DeepCompositionPoly<E> {
             acc_trace_poly::<E::BaseField, E>(
                 &mut tj_composition[max_pow],
                 poly,
-                ood_trace_states[0][i],
+                ood_trace_states[1][i],
                 self.cc.trace[i][1],
             );
 

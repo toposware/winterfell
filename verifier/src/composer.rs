@@ -44,7 +44,7 @@ impl<E: FieldElement> DeepComposer<E> {
             field_extension: air.options().field_extension(),
             cc,
             x_coordinates,
-            z:  (0..last_current_row + 1).chain(once(ratio))
+            z:  (0..last_current_row).chain(once(ratio))
             .map(|i| z * g_trace.exp((i as u64).into()))
             .collect()
         }

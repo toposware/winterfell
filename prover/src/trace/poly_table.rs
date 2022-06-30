@@ -68,7 +68,7 @@ impl<E: FieldElement> TracePolyTable<E> {
     }
 
     /// Returns an out-of-domain evaluation frame constructed by evaluating trace polynomials
-    /// for all columns at points z and z * g, .., z*g^{max_pow - 1}, where g is the generator of the trace domain.
+    /// for all columns at points z and z * g, .., z*g^{max_pow-1}, where g is the generator of the trace domain.
     pub fn get_ood_frame(&self, z: E, max_pow: usize, ratio: usize) -> Vec<Vec<E>> {
         let g = E::from(E::BaseField::get_root_of_unity(log2(self.poly_size())));
         let current  = (0..max_pow)
