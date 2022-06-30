@@ -48,24 +48,17 @@ impl CairoProver {
         trace.fill(
             |state| {
                 let mut line = String::new();
-                for i in 0..TRACE_WIDTH {
-                    line.clear();
-                    reader.lock().unwrap().read_line(&mut line).unwrap();
-                    line.pop();
-                    let x = u128::from_str(&line).unwrap();
-                    state[i] = BaseElement::new(x.into());
-                }
+                line.clear();
+                reader.lock().unwrap().read_line(&mut line).unwrap();
+                line.pop();
+                state.copy_from_slice(&mut line.split([','].as_ref()).map(|a| BaseElement::new(u128::from_str(&a).unwrap())).collect::<Vec<BaseElement>>());
             },
             |row, state| {
                 let mut line = String::new();
-                for i in 0..TRACE_WIDTH {
-                    line.clear();
-                    reader.lock().unwrap().read_line(&mut line).unwrap();
-                    line.pop();
-                    println!("{:?} - {:?} - {:?}", row, i, &line);
-                    let x = u128::from_str(&line).unwrap();
-                    state[i] = BaseElement::new(x.into());
-                }
+                line.clear();
+                reader.lock().unwrap().read_line(&mut line).unwrap();
+                line.pop();
+                state.copy_from_slice(&mut line.split([','].as_ref()).map(|a| BaseElement::new(u128::from_str(&a).unwrap())).collect::<Vec<BaseElement>>());
 
                 // TODO: would need dynamic checking to turn the last row into garbage
                 // or add extra ones if needed
