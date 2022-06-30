@@ -37,7 +37,7 @@ impl CairoProver {
 
         let reader = Mutex::new(BufReader::new(file));
 
-        let mut trace = TraceTable::new(TRACE_WIDTH, 8);
+        let mut trace = TraceTable::new(TRACE_WIDTH, 128);
 
         trace.fill(
             |state| {
@@ -47,7 +47,7 @@ impl CairoProver {
                     reader.lock().unwrap().read_line(&mut line).unwrap();
                     line.pop();
                     //println!("{}", &line);
-                    let x = u64::from_str(&line).unwrap();
+                    let x = u128::from_str(&line).unwrap();
                     state[i] = BaseElement::new(x.into());
                 }
             },
@@ -57,14 +57,14 @@ impl CairoProver {
                     line.clear();
                     reader.lock().unwrap().read_line(&mut line).unwrap();
                     line.pop();
-                    //println!("{}", &line);
-                    let x = u64::from_str(&line).unwrap();
+                    println!("{}", &line);
+                    let x = u128::from_str(&line).unwrap();
                     state[i] = BaseElement::new(x.into());
                 }
 
                 // TODO: would need dynamic checking to turn the last row into garbage
                 // or add extra ones if needed
-                if row == 6 {
+                if row == 126 {
                     state.copy_from_slice(&mut rand_utils::rand_array::<BaseElement, TRACE_WIDTH>());
                 }
             },

@@ -168,7 +168,7 @@ impl Air for CairoAir {
         result[22] = are_equal(current[29], f_9 * current[22]);
         result[23] = are_equal(current[30], current[29] * current[32]);
         result[24] = (current[30] - f_9) * (next[19] - (current[19] + instruction_size));
-        result[25] = current[29] * (current[19] - (next[19] + current[26]))
+        result[25] = current[29] * (next[19] - (current[19] + current[26]))
             + (one - f_9) * next[19]
             - ((one - f_7 - f_8 - f_9) * (current[19] + instruction_size)
                 + f_7 * current[32]
