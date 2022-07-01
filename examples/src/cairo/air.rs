@@ -104,7 +104,6 @@ impl Air for CairoAir {
         let f_12 = current[12] - current[13].double();
         let f_13 = current[13] - current[14].double();
         let f_14 = current[14] - current[15].double();
-        let f_15 = current[15];
 
         let instruction_size = f_2 + one;
 
@@ -134,7 +133,7 @@ impl Air for CairoAir {
         result[14] = is_binary(f_13);
         result[15] = is_binary(f_14);
 
-        result[16] = f_15;
+        result[16] = current[15];
 
         // Operand constraints
         result[17] = are_equal(
