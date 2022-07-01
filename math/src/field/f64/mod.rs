@@ -74,6 +74,34 @@ impl FieldElement for BaseElement {
     const IS_CANONICAL: bool = false;
 
     #[inline]
+    fn double(self) -> Self {
+        let ret = (self.0 as u128) << 1;
+        let (result, over) = (ret as u64, (ret >> 64) as u64);
+        Self(result.wrapping_sub(M * (over as u64)))
+    }
+
+    #[inline]
+    fn exp(self, power: Self::Representation) -> Self {
+        let mut b = self;
+
+        if power == 0 {
+            return Self::ONE;
+        } else if b == Self::ZERO {
+            return Self::ZERO;
+        }
+
+        let mut r = if power & 1 == 1 { b } else { Self::ONE };
+        for i in 1..64 - power.leading_zeros() {
+            b = b.square();
+            if (power >> i) & 1 == 1 {
+                r *= b;
+            }
+        }
+
+        r
+    }
+
+    #[inline]
     #[allow(clippy::many_single_char_names)]
     fn inv(self) -> Self {
         // compute base^(M - 2) using 72 multiplications
