@@ -55,6 +55,11 @@ where
         bench.iter(|| black_box(x) + black_box(y))
     });
 
+    group.bench_function("double", |bench| {
+        let x = rand_value::<B>();
+        bench.iter(|| black_box(x).double())
+    });
+
     group.bench_function("sub", |bench| {
         let x = rand_value::<B>();
         let y = rand_value::<B>();
@@ -90,6 +95,11 @@ where
             bench.iter(|| black_box(x) + black_box(y))
         });
 
+        group.bench_function("quad/double", |bench| {
+            let x = rand_value::<QuadExtension<B>>();
+            bench.iter(|| black_box(x).double())
+        });
+
         group.bench_function("quad/sub", |bench| {
             let x = rand_value::<QuadExtension<B>>();
             let y = rand_value::<QuadExtension<B>>();
@@ -113,6 +123,11 @@ where
             let x = rand_value::<CubeExtension<B>>();
             let y = rand_value::<CubeExtension<B>>();
             bench.iter(|| black_box(x) + black_box(y))
+        });
+
+        group.bench_function("cube/double", |bench| {
+            let x = rand_value::<CubeExtension<B>>();
+            bench.iter(|| black_box(x).double())
         });
 
         group.bench_function("cube/sub", |bench| {
