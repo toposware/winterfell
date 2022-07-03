@@ -4,9 +4,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-use super::{
-    AsBytes, BaseElement, DeserializationError, FieldElement, Serializable, StarkField, E, M,
-};
+use super::{BaseElement, DeserializationError, FieldElement, Serializable, StarkField, M};
 use crate::field::{CubeExtension, ExtensionOf, QuadExtension};
 use core::convert::TryFrom;
 use num_bigint::BigUint;
@@ -32,11 +30,6 @@ fn add() {
     let t = BaseElement::new(M - 1);
     assert_eq!(BaseElement::ZERO, t + BaseElement::ONE);
     assert_eq!(BaseElement::ONE, t + BaseElement::new(2));
-
-    // test non-canonical representation
-    let a = BaseElement::new(M - 1) + BaseElement::new(E);
-    let expected = ((((M - 1 + E) as u128) * 2) % (M as u128)) as u64;
-    assert_eq!(expected, (a + a).to_repr());
 }
 
 #[test]
@@ -130,10 +123,6 @@ fn equals() {
     assert_eq!(a, b);
     assert_eq!(a.to_repr(), b.to_repr());
     assert_eq!(a.to_bytes(), b.to_bytes());
-
-    // but their internal representation is not
-    assert_ne!(a.0, b.0);
-    assert_ne!(a.as_bytes(), b.as_bytes());
 }
 
 // ROOTS OF UNITY
