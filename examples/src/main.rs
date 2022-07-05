@@ -10,7 +10,7 @@ use std::time::Instant;
 use structopt::StructOpt;
 use winterfell::StarkProof;
 
-use examples::{fibonacci, rescue::*, vdf, ExampleOptions, ExampleType};
+use examples::{fibonacci, rescue::*, vcminimal, vdf, ExampleOptions, ExampleType};
 #[cfg(feature = "std")]
 use examples::{lamport, merkle, rescue_raps};
 
@@ -43,6 +43,7 @@ fn main() {
         ExampleType::Mulfib8 { sequence_length } => {
             fibonacci::mulfib8::get_example(options, sequence_length)
         }
+        ExampleType::VCMinimal { num_steps, a, b } => vcminimal::get_example(options, a, b, num_steps),
         ExampleType::Vdf { num_steps } => vdf::regular::get_example(options, num_steps),
         ExampleType::VdfExempt { num_steps } => vdf::exempt::get_example(options, num_steps),
         ExampleType::RescueF62 { chain_length } => rescue_62::get_example(options, chain_length),
