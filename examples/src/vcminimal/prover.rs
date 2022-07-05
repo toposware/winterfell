@@ -35,10 +35,9 @@ impl VCMinimalProver {
         let two = BaseElement::from(2u128);
 
         //ALEX: modify for virtual trace
-        //let mut trace = TraceTable::new_virtual(N_COLS, 8, 3);
-        let mut trace = TraceTable::new(N_COLS, sequence_length);
+        let mut trace = TraceTable::new_virtual(N_COLS, 8, 3);
+        //let mut trace = TraceTable::new(N_COLS, sequence_length);
 
-        //ALEX: modify to not need hardcoded inputs
         trace.fill(
             |state| {
                 state[0] = a;

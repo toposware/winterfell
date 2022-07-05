@@ -35,8 +35,8 @@ impl Air for VCMinimalAir {
     fn new(trace_info: TraceInfo, pub_inputs: Self::PublicInputs, options: ProofOptions) -> Self {
         let degrees = vec![TransitionConstraintDegree::new(2); 4];
         // ALEX: change for virtual width
-        //assert_eq!(TRACE_WIDTH, trace_info.layout().virtual_trace_width());
-        assert_eq!(TRACE_WIDTH, trace_info.layout().main_trace_width());
+        assert_eq!(TRACE_WIDTH, trace_info.layout().virtual_trace_width());
+        //assert_eq!(TRACE_WIDTH, trace_info.layout().main_trace_width());
         let context =
             AirContext::new(
                 trace_info, 
