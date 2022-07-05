@@ -48,7 +48,7 @@ impl Context {
     }
 
     /// Returns execution trace length of the computation described by this context.
-    pub fn trace_length(&self) -> usize {
+    pub fn virtual_trace_length(&self) -> usize {
         self.trace_length
     }
 
@@ -56,14 +56,14 @@ impl Context {
     pub fn get_trace_info(&self) -> TraceInfo {
         TraceInfo::new_multi_segment(
             self.trace_layout.clone(),
-            self.trace_length(),
+            self.virtual_trace_length(),
             self.trace_meta.clone(),
         )
     }
 
     /// Returns the size of the LDE domain for the computation described by this context.
     pub fn lde_domain_size(&self) -> usize {
-        self.trace_length() * self.options.blowup_factor()
+        self.virtual_trace_length() * self.trace_layout().virtual_to_real_ratio() * self.options.blowup_factor()
     }
 
     /// Returns modulus of the field for the computation described by this context.

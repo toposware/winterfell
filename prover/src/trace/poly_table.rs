@@ -11,6 +11,8 @@ use crate::{
 use math::{log2, FieldElement, StarkField};
 use utils::collections::Vec;
 
+use std::iter;
+
 // TRACE POLYNOMIAL TABLE
 // ================================================================================================
 
@@ -66,10 +68,18 @@ impl<E: FieldElement> TracePolyTable<E> {
     }
 
     /// Returns an out-of-domain evaluation frame constructed by evaluating trace polynomials
-    /// for all columns at points z and z * g, where g is the generator of the trace domain.
-    pub fn get_ood_frame(&self, z: E) -> Vec<Vec<E>> {
+    /// for all columns at points z and z * g, .., z*g^{max_pow-1}, where g is the generator of the trace domain.
+    pub fn get_ood_frame(&self, z: E, max_pow: usize, ratio: usize) -> Vec<Vec<E>> {
         let g = E::from(E::BaseField::get_root_of_unity(log2(self.poly_size())));
-        vec![self.evaluate_at(z), self.evaluate_at(z * g)]
+        let current  = (0..max_pow)
+        .map(|i| self.evaluate_at(z * g.exp((i as u64).into())))
+        .flatten()
+        .collect();
+        let next = self.evaluate_at(z * g.exp((ratio as u64).into()));
+        vec![
+            current,
+            next
+        ]
     }
 
     /// Returns an iterator over the polynomials of the main trace segment.

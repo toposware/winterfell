@@ -8,6 +8,8 @@ use air::{proof::Table, Air, DeepCompositionCoefficients, EvaluationFrame, Field
 use math::FieldElement;
 use utils::collections::Vec;
 
+use std::iter::once;
+
 // DEEP COMPOSER
 // ================================================================================================
 
@@ -15,7 +17,8 @@ pub struct DeepComposer<E: FieldElement> {
     field_extension: FieldExtension,
     cc: DeepCompositionCoefficients<E>,
     x_coordinates: Vec<E>,
-    z: [E; 2],
+    z: Vec<E>,
+    
 }
 
 impl<E: FieldElement> DeepComposer<E> {
@@ -26,6 +29,9 @@ impl<E: FieldElement> DeepComposer<E> {
         z: E,
         cc: DeepCompositionCoefficients<E>,
     ) -> Self {
+        let last_current_row = air.trace_layout().last_real_trace_used_row();
+        let ratio = air.trace_layout().virtual_to_real_ratio();
+
         // compute LDE domain coordinates for all query positions
         let g_lde = air.lde_domain_generator();
         let domain_offset = air.domain_offset();
@@ -33,12 +39,14 @@ impl<E: FieldElement> DeepComposer<E> {
             .iter()
             .map(|&p| E::from(g_lde.exp((p as u64).into()) * domain_offset))
             .collect();
-
+        let g_trace = E::from(air.trace_domain_generator());
         DeepComposer {
             field_extension: air.options().field_extension(),
             cc,
             x_coordinates,
-            z: [z, z * E::from(air.trace_domain_generator())],
+            z:  (0..last_current_row).chain(once(ratio))
+            .map(|i| z * g_trace.exp((i as u64).into()))
+            .collect()
         }
     }
 
@@ -67,39 +75,49 @@ impl<E: FieldElement> DeepComposer<E> {
         ood_aux_frame: Option<EvaluationFrame<E>>,
     ) -> Vec<E> {
         let ood_main_trace_states = [ood_main_frame.current(), ood_main_frame.next()];
+        // Virtual width
+        let main_frame_length = ood_main_frame.current().len();
+        let last_pow = self.z.len()-1;
 
         // when field extension is enabled, these will be set to conjugates of trace values at
         // z as well as conjugate of z itself. we do this only for the main trace since auxiliary
         // trace columns are in the extension field.
         let conjugate_values =
-            get_conjugate_values(self.field_extension, ood_main_trace_states[0], self.z[0]);
+            get_conjugate_values(
+                self.field_extension, 
+                &ood_main_trace_states[0][..main_frame_length], 
+                self.z[0]);
 
         // compose columns of of the main trace segment
+        let main_trace_width = queried_main_trace_states.num_columns();
         let mut result = E::zeroed_vector(queried_main_trace_states.num_rows());
         for ((result, row), &x) in result
             .iter_mut()
             .zip(queried_main_trace_states.rows())
             .zip(&self.x_coordinates)
         {
-            for (i, &value) in row.iter().enumerate() {
-                let value = E::from(value);
-                // compute T'_i(x) = (T_i(x) - T_i(z)) / (x - z), multiply it by a composition
-                // coefficient, and add the result to T(x)
-                let t1 = (value - ood_main_trace_states[0][i]) / (x - self.z[0]);
-                *result += t1 * self.cc.trace[i].0;
+            // row is of size (real) trace width
 
-                // compute T''_i(x) = (T_i(x) - T_i(z * g)) / (x - z * g), multiply it by a
-                // composition coefficient, and add the result to T(x)
-                let t2 = (value - ood_main_trace_states[1][i]) / (x - self.z[1]);
-                *result += t2 * self.cc.trace[i].1;
+            for (j, &value) in row.iter().enumerate() {
+                let value = E::from(value);
+                // current and conjugate
+                for i in 0..last_pow {    
+                    // compute T^j_i(x) = (T_i(x) - T_i(z * g^j)) / (x - z * g^j), multiply it by a composition
+                    // coefficient, and add the result to T(x)
+                    let t1 = (value - ood_main_trace_states[0][i*main_trace_width + j]) / (x - self.z[i]);
+                    *result += t1 * self.cc.trace[i*main_trace_width + j][0];
+                }
+                let t2 = (value - ood_main_trace_states[1][j]) / (x - self.z[last_pow]);
+                *result += t2 * self.cc.trace[j][1];
 
                 // when extension field is enabled compute
                 // T'''_i(x) = (T_i(x) - T_i(z_conjugate)) / (x - z_conjugate)
                 if let Some((z_conjugate, ref trace_at_z1_conjugates)) = conjugate_values {
-                    let t3 = (value - trace_at_z1_conjugates[i]) / (x - z_conjugate);
-                    *result += t3 * self.cc.trace[i].2;
+                    let t3 = (value - trace_at_z1_conjugates[j]) / (x - z_conjugate);
+                    *result += t3 * self.cc.trace[j][2];
                 }
             }
+            
         }
 
         // if the trace has auxiliary segments, compose columns from these segments as well
@@ -120,12 +138,12 @@ impl<E: FieldElement> DeepComposer<E> {
                     // compute T'_i(x) = (T_i(x) - T_i(z)) / (x - z), multiply it by a composition
                     // coefficient, and add the result to T(x)
                     let t1 = (value - ood_aux_trace_states[0][i]) / (x - self.z[0]);
-                    *result += t1 * self.cc.trace[cc_offset + i].0;
+                    *result += t1 * self.cc.trace[cc_offset + i][0];
 
                     // compute T''_i(x) = (T_i(x) - T_i(z * g)) / (x - z * g), multiply it by a
                     // composition coefficient, and add the result to T(x)
                     let t2 = (value - ood_aux_trace_states[1][i]) / (x - self.z[1]);
-                    *result += t2 * self.cc.trace[cc_offset + i].1;
+                    *result += t2 * self.cc.trace[cc_offset + i][1];
                 }
             }
         }

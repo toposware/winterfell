@@ -84,7 +84,7 @@ impl<E: FieldElement> BoundaryConstraints<E> {
         );
 
         let trace_length = context.trace_info.length();
-        let main_trace_width = context.trace_info.layout().main_trace_width();
+        let main_trace_width = context.trace_info.layout().virtual_trace_width();
         let aux_trace_width = context.trace_info.layout().aux_trace_width();
 
         // make sure the assertions are valid in the context of their respective trace segments;
@@ -168,7 +168,7 @@ where
         let key = (assertion.stride(), assertion.first_step());
         let group = groups.entry(key).or_insert_with(|| {
             BoundaryConstraintGroup::new(
-                ConstraintDivisor::from_assertion(&assertion, context.trace_len()),
+                ConstraintDivisor::from_assertion(&assertion, context.virtual_trace_len()),
                 context.trace_poly_degree(),
                 context.composition_degree(),
             )

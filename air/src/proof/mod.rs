@@ -81,16 +81,16 @@ impl StarkProof {
     }
 
     /// Returns trace length for the computation described by this proof.
-    pub fn trace_length(&self) -> usize {
-        self.context.trace_length()
-    }
+    // pub fn trace_length(&self) -> usize {
+    //     self.context.trace_length()
+    // }
 
     /// Returns trace info for the computation described by this proof.
     pub fn get_trace_info(&self) -> TraceInfo {
         self.context.get_trace_info()
     }
 
-    /// Returns the size of the LDE domain for the computation described by this proof.
+    // /// Returns the size of the LDE domain for the computation described by this proof.
     pub fn lde_domain_size(&self) -> usize {
         self.context.lde_domain_size()
     }

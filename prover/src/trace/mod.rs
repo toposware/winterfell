@@ -86,7 +86,7 @@ pub trait Trace: Sized {
 
     /// Returns the number of columns in the main segment of this trace.
     fn main_trace_width(&self) -> usize {
-        self.layout().main_trace_width()
+        self.layout().virtual_trace_width()
     }
 
     /// Returns the number of columns in all auxiliary trace segments.
@@ -111,7 +111,7 @@ pub trait Trace: Sized {
         // make sure the width align; if they don't something went terribly wrong
         assert_eq!(
             self.main_trace_width(),
-            air.trace_layout().main_trace_width(),
+            air.trace_layout().virtual_trace_width(),
             "inconsistent trace width: expected {}, but was {}",
             self.main_trace_width(),
             air.trace_layout().main_trace_width(),
@@ -183,7 +183,7 @@ pub trait Trace: Sized {
         for step in 0..self.length() - air.context().num_transition_exemptions() {
             // build periodic values
             for (p, v) in periodic_values_polys.iter().zip(periodic_values.iter_mut()) {
-                let num_cycles = air.trace_length() / p.len();
+                let num_cycles = air.virtual_trace_length() / p.len();
                 let x = x.exp((num_cycles as u32).into());
                 *v = polynom::eval(p, x);
             }

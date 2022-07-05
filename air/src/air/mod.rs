@@ -328,9 +328,9 @@ pub trait Air: Send + Sync {
                     "number of values in a periodic column must be a power of two, but was {}",
                     cycle_length
                 );
-                assert!(cycle_length <= self.trace_length(),
+                assert!(cycle_length <= self.virtual_trace_length(),
                     "number of values in a periodic column cannot exceed trace length {}, but was {}",
-                    self.trace_length(),
+                    self.virtual_trace_length(),
                     cycle_length
                 );
 
@@ -396,9 +396,17 @@ pub trait Air: Send + Sync {
     ///
     // This is guaranteed to be a power of two greater than or equal to 8.
     fn trace_length(&self) -> usize {
-        self.context().trace_info.length()
+        self.context().trace_len()
     }
 
+    /// Returns length of the execution trace for an instance of the computation described by
+    /// this AIR.
+    ///
+    // This is guaranteed to be a power of two greater than or equal to 8.
+    fn virtual_trace_length(&self) -> usize {
+        self.context().virtual_trace_len()
+    }
+    
     /// Returns a description of how execution trace columns are arranged into segments for
     /// an instance of a computation described by this AIR.
     fn trace_layout(&self) -> &TraceLayout {
@@ -537,16 +545,31 @@ pub trait Air: Send + Sync {
     /// composition polynomial.
     fn get_deep_composition_coefficients<E, H>(
         &self,
-        public_coin: &mut RandomCoin<Self::BaseField, H>,
+        public_coin: &mut RandomCoin<Self::BaseField, H>
     ) -> Result<DeepCompositionCoefficients<E>, RandomCoinError>
     where
         E: FieldElement<BaseField = Self::BaseField>,
         H: Hasher,
     {
+        let main_trace_width = self.trace_layout().main_trace_width();
         let mut t_coefficients = Vec::new();
-        for _ in 0..self.trace_info().width() {
-            t_coefficients.push(public_coin.draw_triple()?);
+        for i in 0..self.trace_layout().virtual_trace_width() {
+            t_coefficients.push(
+                // Maybe not all columns need to have 3 random coeffs
+                // if i < main_trace_width {
+                //     vec![public_coin.draw()?, public_coin.draw()?, public_coin.draw()?]
+                // } else {
+                //     vec![public_coin.draw()?, public_coin.draw()?]
+                // }
+                vec![public_coin.draw()?, public_coin.draw()?, public_coin.draw()?]
+            );
         }
+        // Auxiliar columns have no virtual columns and are already in the extension field
+        for _ in 0..self.trace_info().layout().aux_trace_width() {
+            let random_coins = public_coin.draw_pair()?;
+            t_coefficients.push(vec![random_coins.0, random_coins.1]);
+        }
+
 
         // self.ce_blowup_factor() is the same as number of composition columns
         let mut c_coefficients = Vec::new();

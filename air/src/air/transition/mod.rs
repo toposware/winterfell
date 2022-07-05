@@ -53,7 +53,7 @@ impl<E: FieldElement> TransitionConstraints<E> {
 
         // build constraint divisor; the same divisor applies to all transition constraints
         let divisor = ConstraintDivisor::from_transition(
-            context.trace_len(),
+            context.virtual_trace_len(),
             context.num_transition_exemptions(),
         );
 
@@ -212,13 +212,12 @@ impl<E: FieldElement> TransitionConstraintGroup<E> {
     pub(super) fn new(
         degree: TransitionConstraintDegree,
         trace_length: usize,
-        composition_degree: usize,
+        target_degree: usize,
         divisor_degree: usize,
     ) -> Self {
         // We want to make sure that once we divide a constraint polynomial by its divisor, the
         // degree of the resulting polynomial will be exactly equal to the composition_degree.
-        let target_degree = composition_degree + divisor_degree;
-        let evaluation_degree = degree.get_evaluation_degree(trace_length);
+        let evaluation_degree = degree.get_evaluation_degree(trace_length) - divisor_degree;
         let degree_adjustment = (target_degree - evaluation_degree) as u32;
         TransitionConstraintGroup {
             degree,

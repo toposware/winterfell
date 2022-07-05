@@ -45,11 +45,6 @@ impl<E: FieldElement> EvaluationFrame<E> {
     /// * Lengths of the provided rows are not the same.
     pub fn from_rows(current: Vec<E>, next: Vec<E>) -> Self {
         assert!(!current.is_empty(), "a row must contain at least one value");
-        assert_eq!(
-            current.len(),
-            next.len(),
-            "number of values in the rows must be the same"
-        );
         Self { current, next }
     }
 

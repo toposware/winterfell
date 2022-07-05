@@ -74,15 +74,29 @@ impl<E: FieldElement> TraceLde<E> {
         frame: &mut EvaluationFrame<E::BaseField>,
     ) {
         // at the end of the trace, next state wraps around and we read the first step again
-        let next_lde_step = (lde_step + self.blowup()) % self.trace_len();
+        let virtual_width = frame.current().len();
+        let real_width = self.main_trace_width();
+        let last_used_row = virtual_width/real_width;
+        let ratio = last_used_row.next_power_of_two();
 
-        // copy main trace segment values into the frame
+        for index in 0..last_used_row {
+            let lde_step = (lde_step + index*self.blowup()) % self.trace_len();
+            let offset = index*real_width;
+            self.main_segment_lde
+            .read_row_into(lde_step, &mut frame.current_mut()[offset.. offset + real_width]);
+        }
+        // Next row only contains the first (non virtual) of the rows corresponding to the
+        // next virtual row this is an optimization
+        let lde_step = (lde_step + ratio*self.blowup()) % self.trace_len();
         self.main_segment_lde
-            .read_row_into(lde_step, frame.current_mut());
-        self.main_segment_lde
-            .read_row_into(next_lde_step, frame.next_mut());
+        .read_row_into(lde_step, &mut frame.next_mut()[..real_width]);
+        // NOTE1: the extended trace domain is <g_lde^self.blowup()>
+
+        // NOTE2: Every row, but the last, is read twice? do we gain something by reading it 
+        // only once? this seems more important when ratio = 1
     }
 
+    // TODO: Cheack again that auxiliar virtual columms are not needed
     /// Reads current and next rows from the auxiliary trace segment into the specified frame.
     pub fn read_aux_trace_frame_into(&self, lde_step: usize, frame: &mut EvaluationFrame<E>) {
         // at the end of the trace, next state wraps around and we read the first step again
@@ -90,6 +104,7 @@ impl<E: FieldElement> TraceLde<E> {
 
         //copy auxiliary trace segment values into the frame
         let mut offset = 0;
+
         for segment in self.aux_segment_ldes.iter() {
             segment.read_row_into(lde_step, &mut frame.current_mut()[offset..]);
             segment.read_row_into(next_lde_step, &mut frame.next_mut()[offset..]);
