@@ -255,7 +255,10 @@ impl<E: FieldElement> Matrix<E> {
     /// containing the same entries of self rearanged
     pub fn rearange(&self, ncolumns: usize) -> Self {
         
-        let columns_ratio = (self.num_cols()/ncolumns).next_power_of_two();
+        // We need at least ceilig(virtual_columns/real_columns) to write the new trace
+        // We get the next power of two
+        let needed_ratio = (if self.num_cols()%ncolumns == 0 { self.num_cols()/ncolumns } else { self.num_cols()/ncolumns + 1 });
+        let columns_ratio = needed_ratio.next_power_of_two();
         let mut new_columns = vec![vec![E::ZERO; self.num_rows()*columns_ratio]; ncolumns];
 
         //TODO: write it in a supler fluffy functional or Rust idiomatic style
