@@ -241,6 +241,8 @@ pub trait Prover {
                 &trace.main_segment().rearange(trace.layout().main_trace_width()), &domain);
 
 
+        // This part can be removed
+        // ----------------------> from here <-------------------------
         let _original_trace: Vec<_> = main_trace_polys.columns()
         .map(|poly| {
             evaluate_poly_with_offset(
@@ -261,6 +263,7 @@ pub trait Prover {
             let _trace_degree = math::polynom::degree_of(&column);
             let _x = 2 + 2;
         }
+        // ----------------------> to here <-------------------------
 
         // commit to the LDE of the main trace by writing the root of its Merkle tree into
         // the channel

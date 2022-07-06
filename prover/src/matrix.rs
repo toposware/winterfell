@@ -259,7 +259,7 @@ impl<E: FieldElement> Matrix<E> {
         // We get the next power of two
         let needed_ratio = (if self.num_cols()%ncolumns == 0 { self.num_cols()/ncolumns } else { self.num_cols()/ncolumns + 1 });
         let columns_ratio = needed_ratio.next_power_of_two();
-        let mut new_columns = vec![vec![E::ZERO; self.num_rows()*columns_ratio]; ncolumns];
+        let mut new_columns = vec![vec![E::ONE; self.num_rows()*columns_ratio]; ncolumns];
 
         //TODO: write it in a supler fluffy functional or Rust idiomatic style
         for old_col_index in 0..self.num_cols() {
