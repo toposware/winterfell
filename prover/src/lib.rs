@@ -241,8 +241,7 @@ pub trait Prover {
                 &trace.main_segment().rearange(trace.layout().main_trace_width()), &domain);
 
 
-        // This part can be removed
-        // ----------------------> from here <-------------------------
+
         let _original_trace: Vec<_> = main_trace_polys.columns()
         .map(|poly| {
             evaluate_poly_with_offset(
@@ -254,16 +253,25 @@ pub trait Prover {
         })
         .collect();
 
-        for column in _original_trace {
-            let _trace_degree = infer_degree(&column, Self::BaseField::ONE);
-            let _x = 2 + 2;
-        }
-
-        for column in main_trace_polys.columns() {
-            let _trace_degree = math::polynom::degree_of(&column);
-            let _x = 2 + 2;
-        }
-        // ----------------------> to here <-------------------------
+        // assert that evaluation of polys in the trace domain will give the initial trace rearranged
+        debug_assert_eq!(
+            main_trace_polys
+                .columns()
+                .map(|poly| {
+                    evaluate_poly_with_offset(
+                        poly,
+                        domain.trace_twiddles(),
+                        Self::BaseField::ONE,
+                        1,
+                    )
+                })
+                .collect::<Vec<_>>(),
+            trace
+                .main_segment()
+                .rearange(trace.layout().main_trace_width())
+                .columns()
+                .collect::<Vec<_>>(),
+        );
 
         // commit to the LDE of the main trace by writing the root of its Merkle tree into
         // the channel
