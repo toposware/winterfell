@@ -59,18 +59,18 @@ impl<E: FieldElement> DeepCompositionPoly<E> {
     /// Combines all trace polynomials into a single polynomial and saves the result into
     /// the DEEP composition polynomial. The combination is done as follows:
     ///
-    /// - Compute polynomials T'_i(x) = (T_i(x) - T_i(z)) / (x - z) and
-    ///   T''_i(x) = (T_i(x) - T_i(z * g)) / (x - z * g) for all i, where T_i(x) is a trace
-    ///   polynomial for column i.
-    /// - Then, combine together all T'_i(x) polynomials using random liner combination as
-    ///   T(x) = sum(T'_i(x) * cc'_i + T''_i(x) * cc''_i) for all i, where cc'_i and cc''_i are
+    /// - Compute polynomials T'_i,j(x) = (T_i(x) - T_i(z*g^j)) / (x - z*g^j) and
+    ///   for all i, where T_i(x) is a trace
+    ///   polynomial for column i, and all j in {0, max_pow - 1, ratio}.
+    /// - Then, combine together all T'_i,j(x) polynomials using random liner combination as
+    ///   T(x) = sum(T'_i,j(x) * cc'_i,j) for all i,j, where cc'_i,j are
     ///   the coefficients for the random linear combination drawn from the public coin.
     /// - In cases when we generate the proof using an extension field, we also compute
-    ///   T'''_i(x) = (T_i(x) - T_i(z_conjugate)) / (x - z_conjugate), and add it to T(x) similarly
+    ///   T''_i(x) = (T_i(x) - T_i(z_conjugate)) / (x - z_conjugate), and add it to T(x) similarly
     ///   to the way described above. This is needed in order to verify that the trace is defined
     ///   over the base field, rather than the extension field.
     ///
-    /// Note that evaluations of T_i(z) and T_i(z * g) are passed in via the `ood_frame` parameter.
+    /// Note that evaluations of T_i,j(x) are passed in via the `ood_frame` parameter.
     pub fn add_trace_polys(
         &mut self,
         trace_polys: TracePolyTable<E>,
@@ -80,7 +80,7 @@ impl<E: FieldElement> DeepCompositionPoly<E> {
     ) {
         assert!(self.coefficients.is_empty());
 
-        // compute a second out-of-domain point offset from z by exactly trace generator; this
+        // compute a sequence of out-of-domain point offset from z by exactly trace generator; this
         // point defines the "next" computation state in relation to point z
         let trace_length = trace_polys.poly_size();
         let main_trace_width = trace_polys.main_trace_polys().len();
@@ -106,6 +106,7 @@ impl<E: FieldElement> DeepCompositionPoly<E> {
             for j in 0..max_pow {
                 // compute T^j(x) = T(x) - T(z * g^j), multiply it by a pseudo-random coefficient,
                 // and add the result into composition polynomial
+                debug_assert!(math::polynom::eval(&poly, z[j]) == ood_trace_states[0][j*main_trace_width + i]);
                 acc_trace_poly::<E::BaseField, E>(
                     &mut tj_composition[j],
                     poly,
@@ -114,6 +115,7 @@ impl<E: FieldElement> DeepCompositionPoly<E> {
                 );
             }
 
+            debug_assert!(math::polynom::eval(&poly, z[max_pow]) == ood_trace_states[1][i]);
             acc_trace_poly::<E::BaseField, E>(
                 &mut tj_composition[max_pow],
                 poly,
@@ -161,7 +163,7 @@ impl<E: FieldElement> DeepCompositionPoly<E> {
             i += 1;
         }
 
-        // divide the composition polynomials by (x - z), (x - z * g), and (x - z_conjugate)
+        // divide the composition polynomials by (x - z), (x - z * g),...,(x - z * g^(max_pow -1),(z - z*g^ratio), and (x - z_conjugate)
         // respectively, and add the resulting polynomials together; the output of this step
         // is a single trace polynomial T(x) and deg(T(x)) = trace_length - 2.
         tj_composition.push(tn_composition);
@@ -265,6 +267,11 @@ fn merge_trace_compositions<E: FieldElement>(mut polys: Vec<Vec<E>>, divisors: V
     iter_mut!(polys).zip(divisors).for_each(|(poly, divisor)| {
         // skip empty polynomials; this could happen for conjugate composition polynomial (T3)
         // when extension field is not enabled.
+        debug_assert_eq!(
+            polynom::eval(&poly, divisor),
+            E::ZERO,
+            "Trace polynomial don't evaluate to the ood frame"
+        );
         if !poly.is_empty() {
             polynom::syn_div_in_place(poly, 1, divisor);
         }
