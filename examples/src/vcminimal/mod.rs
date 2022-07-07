@@ -35,7 +35,7 @@ pub fn get_example(options: ExampleOptions, a: u128, b: u128,  num_steps: usize)
     );
     Box::new(VCMinimalExample::new(
         //ALEX: inconsistency, not sure if on purpose
-        options.to_proof_options(3, 2),
+        options.to_proof_options(options.num_queries.unwrap_or(3), options.blowup_factor.unwrap_or(2)),
         [a,b],
         num_steps,
     ))
