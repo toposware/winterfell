@@ -429,6 +429,14 @@ pub trait Air: Send + Sync {
         self.context().trace_domain_generator
     }
 
+    /// Returns the generator of the trace domain for an instance of the computation described
+    /// by this AIR.
+    ///
+    /// The generator is the $n$th root of unity where $n$ is the length of the execution trace.
+    fn virtual_trace_domain_generator(&self) -> Self::BaseField {
+        self.context().virtual_trace_domain_generator
+    }
+
     /// Returns constraint evaluation domain blowup factor for the computation described by this
     /// AIR.
     ///
