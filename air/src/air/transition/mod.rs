@@ -217,6 +217,7 @@ impl<E: FieldElement> TransitionConstraintGroup<E> {
     ) -> Self {
         // We want to make sure that once we divide a constraint polynomial by its divisor, the
         // degree of the resulting polynomial will be exactly equal to the composition_degree.
+ir          //TODO: Maybe these changes are not necessary
         let evaluation_degree = degree.get_evaluation_degree(trace_length) - divisor_degree;
         let degree_adjustment = (target_degree - evaluation_degree) as u32;
         TransitionConstraintGroup {
