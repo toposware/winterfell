@@ -240,19 +240,6 @@ pub trait Prover {
             self.build_trace_commitment::<Self::BaseField, H>(
                 &trace.main_segment().rearange(trace.layout().main_trace_width()), &domain);
 
-
-
-        let _original_trace: Vec<_> = main_trace_polys.columns()
-        .map(|poly| {
-            evaluate_poly_with_offset(
-                poly,
-                domain.trace_twiddles(),
-                Self::BaseField::ONE,
-                1,
-            )
-        })
-        .collect();
-
         // assert that evaluation of polys in the trace domain will give the initial trace rearranged
         debug_assert_eq!(
             main_trace_polys

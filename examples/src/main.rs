@@ -46,7 +46,7 @@ fn main() {
         ExampleType::Mulfib8 { sequence_length } => {
             fibonacci::mulfib8::get_example(options, sequence_length)
         }
-        ExampleType::VCMinimal { num_steps, a, b } => vcminimal::get_example(options, a, b, num_steps),
+        ExampleType::VCMinimal { num_steps, initial } => vcminimal::get_example(options, initial, num_steps),
         ExampleType::Vdf { num_steps } => vdf::regular::get_example(options, num_steps),
         ExampleType::VdfExempt { num_steps } => vdf::exempt::get_example(options, num_steps),
         ExampleType::RescueF62 { chain_length } => rescue_62::get_example(options, chain_length),

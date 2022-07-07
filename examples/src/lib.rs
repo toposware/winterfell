@@ -135,9 +135,7 @@ pub enum ExampleType {
         #[structopt(short = "n", default_value = "8")]
         num_steps: usize,
         #[structopt(short = "a", default_value = "2")]
-        a: u128,
-        #[structopt(short = "b", default_value = "3")]
-        b: u128,
+        initial: u128,
     },
     /// Execute a simple VDF function
     Vdf {

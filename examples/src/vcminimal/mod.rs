@@ -23,32 +23,31 @@ mod tests;
 // CONSTANTS
 // ================================================================================================
 
-const TRACE_WIDTH: usize = 4;
+const TRACE_WIDTH: usize = 2;
 
 // VIRTUAL COLUMN MINIMAL EXAMPLE
 // ================================================================================================
 
-pub fn get_example(options: ExampleOptions, a: u128, b: u128,  num_steps: usize) -> Box<dyn Example> {
+pub fn get_example(options: ExampleOptions, initial: u128, num_steps: usize) -> Box<dyn Example> {
     assert!(
         num_steps.is_power_of_two(),
         "sequence length must be a power of 2"
     );
     Box::new(VCMinimalExample::new(
-        //ALEX: inconsistency, not sure if on purpose
         options.to_proof_options(options.num_queries.unwrap_or(3), options.blowup_factor.unwrap_or(2)),
-        [a,b],
+        initial,
         num_steps,
     ))
 }
 
 pub struct VCMinimalExample {
     options: ProofOptions,
-    inputs: [u128;2],
+    inputs: u128,
     num_steps: usize,
 }
 
 impl VCMinimalExample {
-    pub fn new(options: ProofOptions, inputs: [u128;2], num_steps: usize) -> VCMinimalExample {
+    pub fn new(options: ProofOptions, inputs: u128, num_steps: usize) -> VCMinimalExample {
         VCMinimalExample {
             options,
             inputs,
@@ -90,14 +89,14 @@ impl Example for VCMinimalExample {
     fn verify(&self, proof: StarkProof) -> Result<(), VerifierError> {
         winterfell::verify::<VCMinimalAir>(
             proof, 
-            PublicInputs{input: [BaseElement::from(self.inputs[0]),BaseElement::from(self.inputs[1])]}
+            PublicInputs{input: [BaseElement::from(self.inputs)]}
         )
     }
 
     fn verify_with_wrong_inputs(&self, proof: StarkProof) -> Result<(), VerifierError> {
         winterfell::verify::<VCMinimalAir>(
             proof, 
-            PublicInputs{input: [BaseElement::from(self.inputs[0]+42),BaseElement::from(self.inputs[1])]}
+            PublicInputs{input: [BaseElement::from(self.inputs+42)]}
         )
     }
 }

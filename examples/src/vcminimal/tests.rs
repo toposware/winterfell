@@ -7,7 +7,7 @@ use winterfell::{FieldExtension, HashFunction, ProofOptions};
 
 #[test]
 fn vc_minimal_test_basic_proof_verification() {
-    let vc = Box::new(super::VCMinimalExample::new(build_options(false), [2,3], 8));
+    let vc = Box::new(super::VCMinimalExample::new(build_options(false), 2, 8));
     crate::tests::test_basic_proof_verification(vc);
 }
 

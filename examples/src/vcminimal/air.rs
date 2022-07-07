@@ -10,7 +10,7 @@ use winterfell::{
 };
 
 pub struct PublicInputs {
-    pub input: [BaseElement; 2],
+    pub input: [BaseElement; 1],
 }
 
 impl Serializable for PublicInputs {
@@ -33,7 +33,7 @@ impl Air for VCMinimalAir {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     fn new(trace_info: TraceInfo, pub_inputs: Self::PublicInputs, options: ProofOptions) -> Self {
-        let degrees = vec![TransitionConstraintDegree::new(2); 4];
+        let degrees = vec![TransitionConstraintDegree::new(2); 2];
         // ALEX: change for virtual width
         assert_eq!(TRACE_WIDTH, trace_info.layout().virtual_trace_width());
         //assert_eq!(TRACE_WIDTH, trace_info.layout().main_trace_width());
@@ -41,7 +41,7 @@ impl Air for VCMinimalAir {
             AirContext::new(
                 trace_info, 
                 degrees,
-                2,
+                1,
                 options);
         VCMinimalAir {
             context,
@@ -59,23 +59,18 @@ impl Air for VCMinimalAir {
         _periodic_values: &[E],
         result: &mut [E],
     ) {
-        let two = E::from(2u128);
-
         let current = frame.current();
         let next = frame.next();
 
         // Check ap correctness at result[0]
-        result[0] = are_equal(next[0], current[0]*current[0]);
-        result[1] = are_equal(next[1], current[1]*current[1]);
-        result[2] = are_equal(next[2], two*current[0]*current[1]);
-        result[3] = are_equal(next[3], (current[0]+current[1])*(current[0]+current[1]));
+        result[0] = are_equal(current[1], current[0]*current[0]);
+        result[1] = are_equal(next[0], current[1]*current[1]);
     }
 
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
         // Add a dummy assetion for now.
         vec![
             Assertion::single(0, 0, self.pub_inputs.input[0]),
-            Assertion::single(1, 0, self.pub_inputs.input[1])
         ]
     }
 }
