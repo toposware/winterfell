@@ -162,7 +162,7 @@ pub trait Trace: Sized {
         // --- 2. make sure this trace satisfies all transition constraints -----------------------
 
         // collect the info needed to build periodic values for a specific step
-        let g = air.trace_domain_generator();
+        let g = air.virtual_trace_domain_generator();
         let periodic_values_polys = air.get_periodic_column_polys();
         let mut periodic_values = vec![Self::BaseField::ZERO; periodic_values_polys.len()];
 
