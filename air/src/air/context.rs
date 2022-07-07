@@ -21,6 +21,7 @@ pub struct AirContext<B: StarkField> {
     pub(super) num_aux_assertions: usize,
     pub(super) ce_blowup_factor: usize,
     pub(super) trace_domain_generator: B,
+    pub(super) virtual_trace_domain_generator: B,
     pub(super) lde_domain_generator: B,
     pub(super) num_transition_exemptions: usize,
 }
@@ -144,7 +145,8 @@ impl<B: StarkField> AirContext<B> {
             options.blowup_factor()
         );
 
-        let trace_length = trace_info.length();
+        let virtual_trace_length = trace_info.length();
+        let trace_length = virtual_trace_length * trace_info.layout().virtual_to_real_ratio();
         let lde_domain_size = trace_length * options.blowup_factor();
 
         AirContext {
@@ -156,6 +158,7 @@ impl<B: StarkField> AirContext<B> {
             num_aux_assertions,
             ce_blowup_factor,
             trace_domain_generator: B::get_root_of_unity(log2(trace_length)),
+            virtual_trace_domain_generator: B::get_root_of_unity(log2(virtual_trace_length)),
             lde_domain_generator: B::get_root_of_unity(log2(lde_domain_size)),
             num_transition_exemptions: 1,
         }
