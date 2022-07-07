@@ -31,7 +31,7 @@ impl CairoCpuProver {
         // lsb is the rightmost bit
         let f: [[u128; 15]; 8] =
         //                          These are the relevant flags
-        //                                |       |          
+        //   , 3                             |       |          
         [
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
             [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0],
@@ -65,7 +65,8 @@ impl CairoCpuProver {
         ).collect();
         let ap_column = get_ap_column(&f, BaseElement::ONE, &res);
 
-        let mut trace = TraceTable::new_virtual(N_COLS, 8, 33);
+        //let mut trace = TraceTable::new_virtual(N_COLS, 8, 3);
+        let mut trace = TraceTable::new(N_COLS, 8);
         trace.fill(
             |state| {
                 state[0] = ap_column[0];

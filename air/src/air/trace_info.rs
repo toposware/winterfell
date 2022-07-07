@@ -237,7 +237,7 @@ impl TraceLayout {
             num_aux_segments,
             virtual_width: main_width,
             ratio: 1,
-            last_used_row: 0
+            last_used_row: 1
         }
     }
 
