@@ -128,6 +128,10 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         // actual degrees we got during constraint evaluation
         #[cfg(debug_assertions)]
         evaluation_table.validate_transition_degrees();
+        #[cfg(debug_assertions)]
+        evaluation_table.validate_transition_degrees_virtual_columns();
+        #[cfg(debug_assertions)]
+        evaluation_table.validate_boundary_constraints_virtual_columns();
 
         evaluation_table
     }
@@ -144,7 +148,6 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         domain: &StarkDomain<A::BaseField>,
         fragment: &mut EvaluationTableFragment<E>,
     ) {
-        let ratio = self.air.context().virtual_to_real_ratio();
         // initialize buffers to hold trace values and evaluation results at each step;
         let mut main_frame = EvaluationFrame::new(self.air.trace_layout().virtual_trace_width());
         let mut evaluations = vec![E::ZERO; fragment.num_columns()];
