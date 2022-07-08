@@ -51,14 +51,14 @@ impl CairoProver {
                 line.clear();
                 reader.lock().unwrap().read_line(&mut line).unwrap();
                 line.pop();
-                state.copy_from_slice(&mut line.split([','].as_ref()).map(|a| BaseElement::new(u128::from_str(&a).unwrap())).collect::<Vec<BaseElement>>());
+                state.copy_from_slice(&mut line.split([','].as_ref()).map(|a| BaseElement::new(u128::from_str(&a).unwrap())).collect::<Vec<BaseElement>>()[..TRACE_WIDTH]);
             },
             |row, state| {
                 let mut line = String::new();
                 line.clear();
                 reader.lock().unwrap().read_line(&mut line).unwrap();
                 line.pop();
-                state.copy_from_slice(&mut line.split([','].as_ref()).map(|a| BaseElement::new(u128::from_str(&a).unwrap())).collect::<Vec<BaseElement>>());
+                state.copy_from_slice(&mut line.split([','].as_ref()).map(|a| BaseElement::new(u128::from_str(&a).unwrap())).collect::<Vec<BaseElement>>()[..TRACE_WIDTH]);
 
                 // TODO: would need dynamic checking to turn the last row into garbage
                 // or add extra ones if needed
