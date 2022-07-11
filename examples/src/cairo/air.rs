@@ -62,6 +62,17 @@ impl Air for CairoAir {
             TransitionConstraintDegree::new(2),
             TransitionConstraintDegree::new(2),
             TransitionConstraintDegree::new(2),
+            // Memory accesses contiguity and read-only
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
         ];
         assert_eq!(TRACE_WIDTH, trace_info.width());
         CairoAir {
@@ -196,6 +207,19 @@ impl Air for CairoAir {
         result[32] = (current[36] - current[35]) * (current[36] - current[35] - one);
         result[33] = (current[37] - current[36]) * (current[37] - current[36] - one);
         result[34] = (next[34] - current[37]) * (next[34] - current[37] - one);
+
+        // Memory accesses contiguity and read-only
+        result[35] = (current[42] - current[40]) * (current[42] - current[40] - one);
+        result[36] = (current[44] - current[42]) * (current[44] - current[42] - one);
+        result[37] = (current[46] - current[44]) * (current[46] - current[44] - one);
+        result[38] = (current[48] - current[46]) * (current[48] - current[46] - one);
+        result[39] = (next[40] - current[48]) * (next[40] - current[48] - one);
+
+        result[40] = (current[43] - current[41]) * (current[42] - current[40] - one);
+        result[41] = (current[45] - current[43]) * (current[44] - current[42] - one);
+        result[42] = (current[47] - current[45]) * (current[46] - current[44] - one);
+        result[43] = (current[49] - current[47]) * (current[48] - current[46] - one);
+        result[44] = (next[41] - current[49]) * (next[40] - current[48] - one);
     }
 
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
