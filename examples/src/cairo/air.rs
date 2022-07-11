@@ -25,6 +25,7 @@ impl Air for CairoAir {
     // --------------------------------------------------------------------------------------------
     fn new(trace_info: TraceInfo, public_inputs: (), options: ProofOptions) -> Self {
         let degrees = vec![
+            // CPU constraints
             TransitionConstraintDegree::new(1),
             TransitionConstraintDegree::new(2),
             TransitionConstraintDegree::new(2),
@@ -52,6 +53,11 @@ impl Air for CairoAir {
             TransitionConstraintDegree::new(2),
             TransitionConstraintDegree::new(2),
             TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            // Offset range checks
             TransitionConstraintDegree::new(2),
             TransitionConstraintDegree::new(2),
             TransitionConstraintDegree::new(2),
@@ -184,6 +190,12 @@ impl Air for CairoAir {
         result[28] = f_12 * (current[22] - current[28]);
         result[29] = f_12 * (current[24] - (current[19] + instruction_size));
         result[30] = f_14 * (current[22] - current[32]);
+
+        // Offset range checks
+        result[31] = (current[35] - current[34]) * (current[35] - current[34] - one);
+        result[32] = (current[36] - current[35]) * (current[36] - current[35] - one);
+        result[33] = (current[37] - current[36]) * (current[37] - current[36] - one);
+        result[34] = (next[34] - current[37]) * (next[34] - current[37] - one);
     }
 
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
