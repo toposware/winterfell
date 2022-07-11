@@ -269,7 +269,7 @@ impl<B: StarkField> AirContext<B> {
             n > 0,
             "number of transition exemptions must be greater than zero"
         );
-        // exemptions which are for more than half the trace are probably a mistake
+        // exemptions which are for more than half the trace plus one are probably a mistake
         assert!(
             n <= self.virtual_trace_len() / 2,
             "number of transition exemptions cannot exceed {}, but was {}",

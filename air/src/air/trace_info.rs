@@ -250,7 +250,16 @@ impl TraceLayout {
         let mut trace_info = Self::new(main_real_width, aux_widths, aux_rands);
         trace_info.virtual_width = main_virtual_width;
 
-        let ratio = (main_virtual_width/main_real_width).next_power_of_two();
+
+        // assert real trace width divides virtual trace width
+        assert_eq!(
+            main_virtual_width % main_real_width,
+            0,
+            "Real trace width does not divide virtual trace width"
+        );
+
+        let ratio = (main_virtual_width / main_real_width).next_power_of_two();
+
         assert!(ratio >= 1,
             "the number of virtual trace columns must be at least the number of real columns"
         );
