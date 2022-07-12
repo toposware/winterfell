@@ -211,13 +211,36 @@ impl<B: StarkField> Trace for RapTraceTable<B> {
 
         // First initialize the P0.
         aux_columns[0][0] = (rand_elements[0] - current_row[16].into()) / (rand_elements[0] - current_row[34].into());
-        println!("{}", aux_columns[0][0]);
+
+        // Necessary variables: into() fails otherwise. Any better way to do this?
+        let mut a: E = current_row[19].into();
+        let mut a2: E = current_row[40].into();
+        aux_columns[4][0] = (rand_elements[1] - (a + rand_elements[2] * current_row[20].into())) 
+                            / (rand_elements[1] - (a2 + rand_elements[2] * current_row[41].into()));
+        //println!("{}", aux_columns[0][0]);
 
 
         // Complete the first row.
         aux_columns[1][0] = aux_columns[0][0] * (rand_elements[0] - current_row[17].into()) / (rand_elements[0] - current_row[35].into());
         aux_columns[2][0] = aux_columns[1][0] * (rand_elements[0] - current_row[18].into()) / (rand_elements[0] - current_row[36].into());
         aux_columns[3][0] = aux_columns[2][0] * (rand_elements[0] - current_row[33].into()) / (rand_elements[0] - current_row[37].into());
+
+        a = current_row[21].into();
+        a2 = current_row[42].into();
+        aux_columns[5][0] = aux_columns[4][0] * (rand_elements[1] - (a + rand_elements[2] * current_row[22].into())) 
+                            / (rand_elements[1] - (a2 + rand_elements[2] * current_row[43].into()));
+        a = current_row[23].into();
+        a2 = current_row[44].into();
+        aux_columns[6][0] = aux_columns[5][0] * (rand_elements[1] - (a + rand_elements[2] * current_row[24].into())) 
+                            / (rand_elements[1] - (a2 + rand_elements[2] * current_row[45].into()));
+        a = current_row[25].into();
+        a2 = current_row[46].into();
+        aux_columns[7][0] = aux_columns[6][0] * (rand_elements[1] - (a + rand_elements[2] * current_row[26].into())) 
+                            / (rand_elements[1] - (a2 + rand_elements[2] * current_row[47].into()));
+        a = current_row[38].into();
+        a2 = current_row[48].into();
+        aux_columns[8][0] = aux_columns[7][0] * (rand_elements[1] - (a + rand_elements[2] * current_row[39].into())) 
+                            / (rand_elements[1] - (a2 + rand_elements[2] * current_row[49].into()));
 
         // Fill the rest of the rows. The last main trace row is filled with garbage, so we don't need to care about it.
         for index in 1..(self.length() - 1) {
@@ -226,12 +249,27 @@ impl<B: StarkField> Trace for RapTraceTable<B> {
             aux_columns[1][index] = aux_columns[0][index] * (rand_elements[0] - current_row[17].into()) / (rand_elements[0] - current_row[35].into());
             aux_columns[2][index] = aux_columns[1][index] * (rand_elements[0] - current_row[18].into()) / (rand_elements[0] - current_row[36].into());
             aux_columns[3][index] = aux_columns[2][index] * (rand_elements[0] - current_row[33].into()) / (rand_elements[0] - current_row[37].into());
-        }
 
-
-        // TODO: change for random values
-        for k in 4..(self.aux_trace_width()) {
-            aux_columns[k][self.length() - 1] = E::from((k + 1) as u128);
+            a = current_row[19].into();
+            a2 = current_row[40].into();
+            aux_columns[4][index] = aux_columns[4][index - 1] * (rand_elements[1] - (a + rand_elements[2] * current_row[22].into())) 
+                                / (rand_elements[1] - (a2 + rand_elements[2] * current_row[43].into()));
+            a = current_row[21].into();
+            a2 = current_row[42].into();
+            aux_columns[5][index] = aux_columns[4][index] * (rand_elements[1] - (a + rand_elements[2] * current_row[22].into())) 
+                                / (rand_elements[1] - (a2 + rand_elements[2] * current_row[43].into()));
+            a = current_row[23].into();
+            a2 = current_row[44].into();
+            aux_columns[6][index] = aux_columns[5][index] * (rand_elements[1] - (a + rand_elements[2] * current_row[24].into())) 
+                                / (rand_elements[1] - (a2 + rand_elements[2] * current_row[45].into()));
+            a = current_row[25].into();
+            a2 = current_row[46].into();
+            aux_columns[7][index] = aux_columns[6][index] * (rand_elements[1] - (a + rand_elements[2] * current_row[26].into())) 
+                                / (rand_elements[1] - (a2 + rand_elements[2] * current_row[47].into()));
+            a = current_row[38].into();
+            a2 = current_row[48].into();
+            aux_columns[8][index] = aux_columns[7][index] * (rand_elements[1] - (a + rand_elements[2] * current_row[39].into())) 
+                                / (rand_elements[1] - (a2 + rand_elements[2] * current_row[49].into()));
         }
 
 /*
