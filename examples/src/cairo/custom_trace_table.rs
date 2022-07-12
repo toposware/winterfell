@@ -189,6 +189,8 @@ impl<B: StarkField> Trace for RapTraceTable<B> {
         &self.trace
     }
 
+    // The aux columns correspond to the (P_i) columns in the paper page 60.
+    // First four columns are for offsets, last five for memory accesses.
     fn build_aux_segment<E>(
         &mut self,
         aux_segments: &[Matrix<E>],
@@ -197,7 +199,7 @@ impl<B: StarkField> Trace for RapTraceTable<B> {
     where
         E: FieldElement<BaseField = Self::BaseField>,
     {
-        // We only have one auxiliary segment for this example
+        // We only have one auxiliary segment.
         if !aux_segments.is_empty() {
             return None;
         }
@@ -207,9 +209,31 @@ impl<B: StarkField> Trace for RapTraceTable<B> {
         self.read_row_into(0, &mut current_row);
         let mut aux_columns = vec![vec![E::ZERO; self.length()]; self.aux_trace_width()];
 
-        for k in 0..(self.aux_trace_width()) {
+        // First initialize the P0.
+        aux_columns[0][0] = (rand_elements[0] - current_row[16].into()) / (rand_elements[0] - current_row[34].into());
+        println!("{}", aux_columns[0][0]);
+
+
+        // Complete the first row.
+        aux_columns[1][0] = aux_columns[0][0] * (rand_elements[0] - current_row[17].into()) / (rand_elements[0] - current_row[35].into());
+        aux_columns[2][0] = aux_columns[1][0] * (rand_elements[0] - current_row[18].into()) / (rand_elements[0] - current_row[36].into());
+        aux_columns[3][0] = aux_columns[2][0] * (rand_elements[0] - current_row[33].into()) / (rand_elements[0] - current_row[37].into());
+
+        // Fill the rest of the rows. The last main trace row is filled with garbage, so we don't need to care about it.
+        for index in 1..(self.length() - 1) {
+            self.read_row_into(index, &mut current_row);
+            aux_columns[0][index] = aux_columns[3][index - 1] * (rand_elements[0] - current_row[16].into()) / (rand_elements[0] - current_row[36].into());
+            aux_columns[1][index] = aux_columns[0][index] * (rand_elements[0] - current_row[17].into()) / (rand_elements[0] - current_row[35].into());
+            aux_columns[2][index] = aux_columns[1][index] * (rand_elements[0] - current_row[18].into()) / (rand_elements[0] - current_row[36].into());
+            aux_columns[3][index] = aux_columns[2][index] * (rand_elements[0] - current_row[33].into()) / (rand_elements[0] - current_row[37].into());
+        }
+
+
+        // TODO: change for random values
+        for k in 4..(self.aux_trace_width()) {
             aux_columns[k][self.length() - 1] = E::from((k + 1) as u128);
         }
+
 /*
         // Columns storing the copied values for the permutation argument are not necessary, but
         // help understanding the construction of RAPs and are kept for illustrative purposes.

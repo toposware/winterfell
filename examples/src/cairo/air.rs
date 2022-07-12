@@ -259,7 +259,7 @@ impl Air for CairoAir {
         let copied_value_1 = random_elements[0] * (main_next[0] - main_current[0]).into()
             + random_elements[1] * (main_next[1] - main_current[1]).into();
 
-        result[0] = aux_current[0];
+        result[0] = aux_current[4];
     }
 
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
@@ -274,7 +274,7 @@ impl Air for CairoAir {
         _aux_rand_elements: &AuxTraceRandElements<E>,
     ) -> Vec<Assertion<E>> {
         vec![
-            Assertion::single(0, 0, E::ZERO),
+            Assertion::single(0, self.trace_length() - 1, E::ZERO),
         ]
     }
 }
