@@ -4,7 +4,7 @@
 // LICENSE file in the root directory of this source tree.
 
 use super::{
-    BaseElement, CairoAir, FieldElement, ProofOptions, Prover, Trace, TraceTable, TRACE_WIDTH,
+    BaseElement, CairoAir, FieldElement, ProofOptions, Prover, Trace, RapTraceTable, TRACE_WIDTH,
 };
 
 use std::fs::File;
@@ -27,7 +27,7 @@ impl CairoProver {
 
     /// Builds an execution trace for computing a Fibonacci sequence of the specified length such
     /// that each row advances the sequence by 2 terms.
-    pub fn build_trace_from_file(&self, trace_file_path: &String) -> TraceTable<BaseElement> {
+    pub fn build_trace_from_file(&self, trace_file_path: &String) -> RapTraceTable<BaseElement> {
 
         let file = File::open(trace_file_path).expect("Cannot open the file.");
 
@@ -43,7 +43,7 @@ impl CairoProver {
             "program length must be a power of 2"
         );
 
-        let mut trace = TraceTable::new(TRACE_WIDTH, length);
+        let mut trace = RapTraceTable::new(TRACE_WIDTH, length);
 
         trace.fill(
             |state| {
@@ -75,7 +75,7 @@ impl CairoProver {
 impl Prover for CairoProver {
     type BaseField = BaseElement;
     type Air = CairoAir;
-    type Trace = TraceTable<BaseElement>;
+    type Trace = RapTraceTable<BaseElement>;
 
     fn get_pub_inputs(&self, trace: &Self::Trace) -> () {
         ()

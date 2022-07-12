@@ -6,9 +6,10 @@
 
 use crate::{Example, ExampleOptions};
 use log::debug;
+use rand_utils::rand_array;
 use std::time::Instant;
 use winterfell::{
-    math::{fields::f128::BaseElement, log2, FieldElement},
+    math::{fields::f128::BaseElement, log2, ExtensionOf, FieldElement},
     ProofOptions, Prover, StarkProof, Trace, TraceTable, VerifierError,
 };
 
@@ -21,12 +22,16 @@ use prover::CairoProver;
 #[cfg(test)]
 mod tests;
 
+mod custom_trace_table;
+pub use custom_trace_table::RapTraceTable;
+
 use crate::utils::print_trace;
 
 // CONSTANTS
 // ================================================================================================
 
 const TRACE_WIDTH: usize = 50;
+const AUX_WIDTH: usize = 14;
 
 // FIBONACCI EXAMPLE
 // ================================================================================================
@@ -78,8 +83,8 @@ impl Example for CairoExample {
             now.elapsed().as_millis()
         );
 
-        // print the trace
-        print_trace(&trace, 1, 0, 0..trace.width());
+        // TODO: make it possible to print the custom trace
+        // print_trace(&trace, 1, 0, 0..trace.width());
 
         // generate the proof
         prover.prove(trace).unwrap()

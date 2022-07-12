@@ -4,10 +4,11 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-use super::{BaseElement, FieldElement, ProofOptions, TRACE_WIDTH};
+use super::{BaseElement, ExtensionOf, FieldElement, ProofOptions, TRACE_WIDTH, AUX_WIDTH};
 use crate::utils::{are_equal, is_binary};
 use winterfell::{
-    Air, AirContext, Assertion, EvaluationFrame, TraceInfo, TransitionConstraintDegree,
+    Air, AirContext, Assertion, AuxTraceRandElements, EvaluationFrame, TraceInfo,
+    TransitionConstraintDegree,
 };
 
 // CAIRO AIR
@@ -24,7 +25,7 @@ impl Air for CairoAir {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     fn new(trace_info: TraceInfo, public_inputs: (), options: ProofOptions) -> Self {
-        let degrees = vec![
+        let main_degrees = vec![
             // CPU constraints
             TransitionConstraintDegree::new(1),
             TransitionConstraintDegree::new(2),
@@ -74,9 +75,12 @@ impl Air for CairoAir {
             TransitionConstraintDegree::new(2),
             TransitionConstraintDegree::new(2),
         ];
-        assert_eq!(TRACE_WIDTH, trace_info.width());
+        let aux_degrees = vec![
+            TransitionConstraintDegree::new(1),
+        ];
+        assert_eq!(TRACE_WIDTH + AUX_WIDTH, trace_info.width());
         CairoAir {
-            context: AirContext::new(trace_info, degrees, 1, options)
+            context: AirContext::new_multi_segment(trace_info, main_degrees, aux_degrees, 1, 1, options)
                 .set_num_transition_exemptions(2),
         }
     }
@@ -222,10 +226,55 @@ impl Air for CairoAir {
         result[44] = (next[41] - current[49]) * (next[40] - current[48] - one);
     }
 
+        fn evaluate_aux_transition<F, E>(
+        &self,
+        main_frame: &EvaluationFrame<F>,
+        aux_frame: &EvaluationFrame<E>,
+        periodic_values: &[F],
+        aux_rand_elements: &AuxTraceRandElements<E>,
+        result: &mut [E],
+    ) where
+        F: FieldElement<BaseField = Self::BaseField>,
+        E: FieldElement<BaseField = Self::BaseField> + ExtensionOf<F>,
+    {
+        let main_current = main_frame.current();
+        let main_next = main_frame.next();
+
+        let aux_current = aux_frame.current();
+        let aux_next = aux_frame.next();
+
+        let random_elements = aux_rand_elements.get_segment_elements(0);
+
+        // We want to enforce that the absorbed values of the first hash chain are a
+        // permutation of the absorbed values of the second one. Because we want to
+        // copy two values per hash chain (namely the two capacity registers), we
+        // group them with random elements into a single cell via
+        // α_0 * c_0 + α_1 * c_1, where c_i is computed as next_i - current_i.
+
+        // Note that storing the copied values into two auxiliary columns. One could
+        // instead directly compute the permutation argument, hence require a single
+        // auxiliary one. For the sake of illustrating RAPs behaviour, we will store
+        // the computed values in additional columns.
+
+        let copied_value_1 = random_elements[0] * (main_next[0] - main_current[0]).into()
+            + random_elements[1] * (main_next[1] - main_current[1]).into();
+
+        result[0] = aux_current[0];
+    }
+
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
         // DUMMY CHECK
         // Later it will be used to verify public memory.
         let last_step = self.trace_length() - 1;
         vec![Assertion::single(10, 0, Self::BaseField::ONE)]
+    }
+
+    fn get_aux_assertions<E: FieldElement + From<Self::BaseField>>(
+        &self,
+        _aux_rand_elements: &AuxTraceRandElements<E>,
+    ) -> Vec<Assertion<E>> {
+        vec![
+            Assertion::single(0, 0, E::ZERO),
+        ]
     }
 }
