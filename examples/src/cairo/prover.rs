@@ -62,8 +62,15 @@ impl CairoProver {
 
                 // TODO: would need dynamic checking to turn the last row into garbage
                 // or add extra ones if needed
+                // Must not change offset and memory columns to preserve permutation argument!
                 if row == length - 2 {
-                    state.copy_from_slice(&mut rand_utils::rand_array::<BaseElement, TRACE_WIDTH>());
+                    for i in 0..16 {
+                        state[i] = rand_utils::rand_value::<BaseElement>();
+                    }
+                    for i in 27..33 {
+                        state[i] = rand_utils::rand_value::<BaseElement>();
+                    }
+                    // state.copy_from_slice(&mut rand_utils::rand_array::<BaseElement, TRACE_WIDTH>());
                 }
             },
         );

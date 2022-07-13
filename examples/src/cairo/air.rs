@@ -80,7 +80,7 @@ impl Air for CairoAir {
         ];
         assert_eq!(TRACE_WIDTH + AUX_WIDTH, trace_info.width());
         CairoAir {
-            context: AirContext::new_multi_segment(trace_info, main_degrees, aux_degrees, 1, 1, options)
+            context: AirContext::new_multi_segment(trace_info, main_degrees, aux_degrees, 1, 2, options)
                 .set_num_transition_exemptions(2),
         }
     }
@@ -274,7 +274,8 @@ impl Air for CairoAir {
         _aux_rand_elements: &AuxTraceRandElements<E>,
     ) -> Vec<Assertion<E>> {
         vec![
-            Assertion::single(0, self.trace_length() - 1, E::ZERO),
+            Assertion::single(3, self.trace_length() - 1, E::ONE),
+            Assertion::single(8, self.trace_length() - 1, E::ONE),
         ]
     }
 }

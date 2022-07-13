@@ -243,17 +243,17 @@ impl<B: StarkField> Trace for RapTraceTable<B> {
                             / (rand_elements[1] - (a2 + rand_elements[2] * current_row[49].into()));
 
         // Fill the rest of the rows. The last main trace row is filled with garbage, so we don't need to care about it.
-        for index in 1..(self.length() - 1) {
+        for index in 1..self.length() {
             self.read_row_into(index, &mut current_row);
-            aux_columns[0][index] = aux_columns[3][index - 1] * (rand_elements[0] - current_row[16].into()) / (rand_elements[0] - current_row[36].into());
+            aux_columns[0][index] = aux_columns[3][index - 1] * (rand_elements[0] - current_row[16].into()) / (rand_elements[0] - current_row[34].into());
             aux_columns[1][index] = aux_columns[0][index] * (rand_elements[0] - current_row[17].into()) / (rand_elements[0] - current_row[35].into());
             aux_columns[2][index] = aux_columns[1][index] * (rand_elements[0] - current_row[18].into()) / (rand_elements[0] - current_row[36].into());
             aux_columns[3][index] = aux_columns[2][index] * (rand_elements[0] - current_row[33].into()) / (rand_elements[0] - current_row[37].into());
 
             a = current_row[19].into();
             a2 = current_row[40].into();
-            aux_columns[4][index] = aux_columns[4][index - 1] * (rand_elements[1] - (a + rand_elements[2] * current_row[22].into())) 
-                                / (rand_elements[1] - (a2 + rand_elements[2] * current_row[43].into()));
+            aux_columns[4][index] = aux_columns[8][index - 1] * (rand_elements[1] - (a + rand_elements[2] * current_row[20].into())) 
+                                / (rand_elements[1] - (a2 + rand_elements[2] * current_row[41].into()));
             a = current_row[21].into();
             a2 = current_row[42].into();
             aux_columns[5][index] = aux_columns[4][index] * (rand_elements[1] - (a + rand_elements[2] * current_row[22].into())) 
@@ -272,34 +272,17 @@ impl<B: StarkField> Trace for RapTraceTable<B> {
                                 / (rand_elements[1] - (a2 + rand_elements[2] * current_row[49].into()));
         }
 
-/*
-        // Columns storing the copied values for the permutation argument are not necessary, but
-        // help understanding the construction of RAPs and are kept for illustrative purposes.
-        aux_columns[0][0] =
-            rand_elements[0] * current_row[0].into() + rand_elements[1] * current_row[1].into();
-        aux_columns[1][0] =
-            rand_elements[0] * current_row[4].into() + rand_elements[1] * current_row[5].into();
+/*        println!("{}", rand_elements[0]);
 
-        // Permutation argument column
-        aux_columns[2][0] = E::ONE;
-       for index in 1..self.length() {
-            // At every last step before a new hash iteration,
-            // copy the permuted values into the auxiliary columns
-            if (index % 1) == 0 {
-                self.read_row_into(index, &mut current_row);
-                self.read_row_into(index + 1, &mut next_row);
-
-                aux_columns[0][index] = rand_elements[0] * (next_row[0] - current_row[0]).into()
-                    + rand_elements[1] * (next_row[1] - current_row[1]).into();
-                aux_columns[1][index] = rand_elements[0] * (next_row[4] - current_row[4]).into()
-                    + rand_elements[1] * (next_row[5] - current_row[5]).into();
+        let mut aux_row = Vec::<E>::new();
+        for i in 0..self.length() {
+            aux_row.clear();
+            for j in 0..AUX_WIDTH {
+                aux_row.push(aux_columns[j][i].into());
             }
+            println!("{:?}", aux_row);
+        }*/
 
-            let num = aux_columns[0][index - 1] + rand_elements[2];
-            let denom = aux_columns[1][index - 1] + rand_elements[2];
-            aux_columns[2][index] = aux_columns[2][index - 1] * num * denom.inv();
-        }
-*/
         Some(Matrix::new(aux_columns))
     }
 }
