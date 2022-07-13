@@ -36,14 +36,10 @@ impl CairoProver {
         let mut line = String::new();
         reader.lock().unwrap().read_line(&mut line).unwrap();
         line.pop();
-        let length = usize::from_str(&line).unwrap();
+        let real_length = usize::from_str(&line).unwrap();
+        let padded_length = real_length.next_power_of_two();
 
-        assert!(
-            length.is_power_of_two(),
-            "program length must be a power of 2"
-        );
-
-        let mut trace = RapTraceTable::new(TRACE_WIDTH, length);
+        let mut trace = RapTraceTable::new(TRACE_WIDTH, padded_length);
 
         trace.fill(
             |state| {
@@ -63,7 +59,7 @@ impl CairoProver {
                 // TODO: would need dynamic checking to turn the last row into garbage
                 // or add extra ones if needed
                 // Must not change offset and memory columns to preserve permutation argument!
-                if row == length - 2 {
+                if row == padded_length - 2 {
                     for i in 0..16 {
                         state[i] = rand_utils::rand_value::<BaseElement>();
                     }
