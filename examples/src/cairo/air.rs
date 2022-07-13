@@ -76,7 +76,7 @@ impl Air for CairoAir {
             TransitionConstraintDegree::new(2),
         ];
         let aux_degrees = vec![
-            TransitionConstraintDegree::new(1),
+            TransitionConstraintDegree::new(2),
         ];
         assert_eq!(TRACE_WIDTH + AUX_WIDTH, trace_info.width());
         CairoAir {
@@ -259,7 +259,7 @@ impl Air for CairoAir {
         let copied_value_1 = random_elements[0] * (main_next[0] - main_current[0]).into()
             + random_elements[1] * (main_next[1] - main_current[1]).into();
 
-        result[0] = aux_current[4];
+        result[0] = aux_current[1] * (random_elements[0] - main_current[35].into()) - aux_current[0] * (random_elements[0] - main_current[17].into());
     }
 
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
