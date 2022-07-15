@@ -90,7 +90,7 @@ impl StarkProof {
         self.context.get_trace_info()
     }
 
-    // /// Returns the size of the LDE domain for the computation described by this proof.
+    /// Returns the size of the LDE domain for the computation described by this proof.
     pub fn lde_domain_size(&self) -> usize {
         self.context.lde_domain_size()
     }

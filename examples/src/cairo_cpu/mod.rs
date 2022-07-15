@@ -28,9 +28,12 @@ const TRACE_WIDTH: usize = 33;
 // FIBONACCI EXAMPLE
 // ================================================================================================
 
-pub fn get_example(options: ExampleOptions, sequence_length: usize) -> Box<dyn Example> {
+pub fn get_example(options: ExampleOptions, _sequence_length: usize) -> Box<dyn Example> {
+
+    let num_queries = options.num_queries.unwrap_or(8);
+    let blowup_factor = options.blowup_factor.unwrap_or(2);
     Box::new(CairoCpuExample::new(
-        options.to_proof_options(8, 2),
+        options.to_proof_options(num_queries, blowup_factor),
     ))
 }
 

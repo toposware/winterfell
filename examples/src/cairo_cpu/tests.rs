@@ -11,16 +11,17 @@ fn cairo_cpu_test_basic_proof_verification() {
     crate::tests::test_basic_proof_verification(cairo_cpu);
 }
 
-// #[test]
-// fn cairo_cpu_test_basic_proof_verification_extension() {
-//     let cairo_cpu = Box::new(super::CairoCpuExample::new(build_proof_options(true)));
-//     crate::tests::test_basic_proof_verification(cairo_cpu);
-// }
+#[test]
+fn cairo_cpu_test_basic_proof_verification_extension() {
+    let cairo_cpu = Box::new(super::CairoCpuExample::new(build_options(true)));
+    crate::tests::test_basic_proof_verification(cairo_cpu);
+}
 
+// Test commented: currently cairo does not admit any inputs
 // #[test]
 
 // fn cairo_cpu_test_basic_proof_verification_fail() {
-//     let cairo_cpu = Box::new(super::CairoCpuExample::new(build_proof_options(false)));
+//     let cairo_cpu = Box::new(super::CairoCpuExample::new(build_options(false)));
 //     crate::tests::test_basic_proof_verification_fail(cairo_cpu);
 // }
 

@@ -20,7 +20,6 @@ pub mod utils;
 pub mod vdf;
 
 pub mod cairo_cpu;
-pub mod degree_problem;
 
 #[cfg(test)]
 mod tests;

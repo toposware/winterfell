@@ -201,7 +201,7 @@ impl<E: FieldElement> ConstraintEvaluationTable<E> {
     // --------------------------------------------------------------------------------------------
 
     #[cfg(debug_assertions)]
-    pub fn validate_transition_degrees(&self) {
+    pub fn validate_transition_degrees(&mut self) {
         // evaluate transition constraint divisor (which is assumed to be the first one in the
         // divisor list) over the constraint evaluation domain. this is used later to compute
         // actual degrees of transition constraint evaluations.
@@ -220,15 +220,14 @@ impl<E: FieldElement> ConstraintEvaluationTable<E> {
 
         // first process transition constraint evaluations for the main trace segment
         for evaluations in self.main_transition_evaluations.iter() {
-            //TODO: I deleted some &muts and I should check it's ok
             let degree = get_transition_poly_degree(evaluations, &inv_twiddles, &div_values);
             actual_degrees.push(degree);
             max_degree = core::cmp::max(max_degree, degree);
         }
 
         // then process transition constraint evaluations for auxiliary trace segments
-        for mut evaluations in self.aux_transition_evaluations.iter() {
-            let degree = get_transition_poly_degree(&mut evaluations, &inv_twiddles, &div_values);
+        for evaluations in self.aux_transition_evaluations.iter() {
+            let degree = get_transition_poly_degree(evaluations, &inv_twiddles, &div_values);
             actual_degrees.push(degree);
             max_degree = core::cmp::max(max_degree, degree);
         }
@@ -327,12 +326,6 @@ impl<E: FieldElement> ConstraintEvaluationTable<E> {
         let mut poly = div_values.to_vec(); 
         fft::interpolate_poly_with_offset(&mut poly, &inv_twiddles, E::BaseField::GENERATOR);
         let degree_divisor = math::polynom::degree_of(&poly);
-
-        assert!(degree_divisor == 1, "I just want one boundary constraint for now");
-        assert_eq!(
-            math::polynom::eval(&poly, E::ONE),
-            E::ZERO
-        );
 
 
         // This test only works when lowering the degree adjustment
@@ -568,7 +561,7 @@ fn build_transition_constraint_degrees<E: FieldElement>(
 /// - Then, we interpolate the polynomial over the domain specified by `inv_twiddles`.
 /// - And finally, we get the degree from the interpolated polynomial.
 #[cfg(debug_assertions)]
-fn get_transition_poly_degree<E: FieldElement >(
+fn get_transition_poly_degree<E: FieldElement>(
     evaluations: &[E],
     inv_twiddles: &[E::BaseField],
     div_values: &[E::BaseField],
@@ -578,7 +571,7 @@ let mut evaluations = evaluations
         .zip(div_values)
         .map(|(&c, &d)| c / E::from(d))
         .collect::<Vec<_>>();
-    fft::interpolate_poly(&mut evaluations, &inv_twiddles);
+    fft::interpolate_poly(&mut evaluations, inv_twiddles);
     math::polynom::degree_of(&evaluations)
 }
 
@@ -630,4 +623,3 @@ fn evaluate_divisor<E: FieldElement>(
         .map(|x| E::from(divisor.evaluate_at(x)))
         .collect()
 }
-

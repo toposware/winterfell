@@ -144,7 +144,7 @@ impl<E: FieldElement> DeepComposer<E> {
                     // composition coefficient, and add the result to T(x)
                     let t2 = (value - ood_aux_trace_states[1][i]) / (x - self.z[1]);
                     *result += t2 * self.cc.trace[cc_offset + i][1];
-                }
+                } 
             }
         }
 

@@ -103,9 +103,6 @@ pub use errors::ProverError;
 #[cfg(test)]
 pub mod tests;
 
-//TODO: Add this to proof options
-const N_COLUMNS: usize = 3;
-
 // PROVER
 // ================================================================================================
 

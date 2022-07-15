@@ -399,7 +399,7 @@ pub trait Air: Send + Sync {
         self.context().trace_len()
     }
 
-    /// Returns length of the execution trace for an instance of the computation described by
+    /// Returns virtual length of the execution trace for an instance of the computation described by
     /// this AIR.
     ///
     // This is guaranteed to be a power of two greater than or equal to 8.
@@ -429,10 +429,10 @@ pub trait Air: Send + Sync {
         self.context().trace_domain_generator
     }
 
-    /// Returns the generator of the trace domain for an instance of the computation described
+    /// Returns the generator of the vitrual trace domain for an instance of the computation described
     /// by this AIR.
     ///
-    /// The generator is the $n$th root of unity where $n$ is the length of the execution trace.
+    /// The generator is the $n$th root of unity where $n$ is the length of the virtual execution trace.
     fn virtual_trace_domain_generator(&self) -> Self::BaseField {
         self.context().virtual_trace_domain_generator
     }
@@ -559,10 +559,11 @@ pub trait Air: Send + Sync {
         E: FieldElement<BaseField = Self::BaseField>,
         H: Hasher,
     {
-        let main_trace_width = self.trace_layout().main_trace_width();
+        // let main_trace_width = self.trace_layout().main_trace_width();
         let mut t_coefficients = Vec::new();
         for i in 0..self.trace_layout().virtual_trace_width() {
             t_coefficients.push(
+                // TODO: Remove next commented part. This seems not considered in the end:
                 // Maybe not all columns need to have 3 random coeffs
                 // if i < main_trace_width {
                 //     vec![public_coin.draw()?, public_coin.draw()?, public_coin.draw()?]
@@ -572,11 +573,11 @@ pub trait Air: Send + Sync {
                 vec![public_coin.draw()?, public_coin.draw()?, public_coin.draw()?]
             );
         }
-        // Auxiliar columns have no virtual columns and are already in the extension field
-        for _ in 0..self.trace_info().layout().aux_trace_width() {
-            let random_coins = public_coin.draw_pair()?;
-            t_coefficients.push(vec![random_coins.0, random_coins.1]);
-        }
+        // // Auxiliar columns have no virtual columns and are already in the extension field
+        // for _ in 0..self.trace_info().layout().aux_trace_width() {
+        //     let random_coins = public_coin.draw_pair()?;
+        //     t_coefficients.push(vec![random_coins.0, random_coins.1]);
+        // }
 
 
         // self.ce_blowup_factor() is the same as number of composition columns

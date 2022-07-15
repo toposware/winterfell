@@ -186,7 +186,7 @@ impl TraceLayout {
     pub fn new(
         main_width: usize,
         aux_widths: [usize; NUM_AUX_SEGMENTS],
-        aux_rands: [usize; NUM_AUX_SEGMENTS]
+        aux_rands: [usize; NUM_AUX_SEGMENTS],
     ) -> Self {
         // validate trace segment widths
         assert!(
@@ -281,7 +281,7 @@ impl TraceLayout {
         self.main_segment_width
     }
 
-    /// Returns the number of real columns when using virtual columns.
+    /// Returns the number of virtual columns when using virtual columns.
     pub fn virtual_trace_width(&self) -> usize {
         self.virtual_width
     }

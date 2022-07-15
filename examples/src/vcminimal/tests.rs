@@ -11,19 +11,19 @@ fn vc_minimal_test_basic_proof_verification() {
     crate::tests::test_basic_proof_verification(vc);
 }
 
-// #[test]
-// fn vc_minimal_test_basic_proof_verification_extension() {
-    // let vc = Box::new(super::VCMinimalExample::new(build_options(true), [2,3], 8));
-    // crate::tests::test_basic_proof_verification(vc);
-// }
+#[test]
+fn vc_minimal_test_basic_proof_verification_extension() {
+    let vc = Box::new(super::VCMinimalExample::new(build_options(true), 2, 8));
+    crate::tests::test_basic_proof_verification(vc);
+}
 
-// #[test]
+#[test]
 
-// fn vc_minimal_test_basic_proof_verification_fail() {
-    // let vc = Box::new(super::VCMinimalExample::new(build_options(false), [2,3], 8));
-    // crate::tests::test_basic_proof_verification_fail(vc);
-// }
-// 
+fn vc_minimal_test_basic_proof_verification_fail() {
+    let vc = Box::new(super::VCMinimalExample::new(build_options(false), 2, 8));
+    crate::tests::test_basic_proof_verification_fail(vc);
+}
+
 fn build_options(use_extension_field: bool) -> ProofOptions {
     let extension = if use_extension_field {
         FieldExtension::Quadratic

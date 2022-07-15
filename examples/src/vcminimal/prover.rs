@@ -4,7 +4,7 @@
 // LICENSE file in the root directory of this source tree.
 
 use super::{
-    BaseElement, VCMinimalAir, FieldElement, ProofOptions, Prover, PublicInputs, TraceTable,
+    BaseElement, VCMinimalAir, ProofOptions, Prover, PublicInputs, TraceTable,
 };
 
 use crate::utils::print_trace;

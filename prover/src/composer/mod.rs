@@ -157,7 +157,7 @@ impl<E: FieldElement> DeepCompositionPoly<E> {
                 &mut tj_composition[1],
                 poly,
                 ood_trace_states[1][i],
-                self.cc.trace[i][2],
+                self.cc.trace[i][1],
             );
 
             i += 1;

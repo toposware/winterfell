@@ -65,8 +65,9 @@ impl CairoCpuProver {
         ).collect();
         let ap_column = get_ap_column(&f, BaseElement::ONE, &res);
 
-        //let mut trace = TraceTable::new_virtual(N_COLS, 8, 3);
-        let mut trace = TraceTable::new(N_COLS, 8);
+        // TODO: Set real width as an option instead of a hard-coded value
+        let mut trace = TraceTable::new_virtual(N_COLS, 8, 3);
+        // let mut trace = TraceTable::new(N_COLS, 8);
         trace.fill(
             |state| {
                 state[0] = ap_column[0];

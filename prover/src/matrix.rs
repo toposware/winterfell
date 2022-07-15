@@ -253,6 +253,10 @@ impl<E: FieldElement> Matrix<E> {
 
     /// Returns a new Matrix with `ncolumns` columns and `self.num_rows()*self.num_cols()/ncolumns` rows
     /// containing the same entries of self rearanged
+    // TODO: this part seems complex to properly verify and error prone. 
+    // Suggestions to fix:
+    //      - add helper function mapping (i,j) -> (i',j') and back
+    //      - instead of building this way, add "empty" columns and simply rewrite the matrix: from major row order to major row order with new dimenstions
     pub fn rearange(&self, ncolumns: usize) -> Self {
         
         // We assume that real columns width divides virtual column width
