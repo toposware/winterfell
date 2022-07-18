@@ -274,7 +274,11 @@ impl Air for MockAir {
 
     fn new(trace_info: TraceInfo, _pub_inputs: (), _options: ProofOptions) -> Self {
         let num_assertions = trace_info.meta()[0] as usize;
-        let context = build_context(trace_info.length(), trace_info.width(), trace_info.length(), num_assertions);
+        let context = build_context(
+            trace_info.length(), 
+            trace_info.layout().virtual_trace_width(),
+            trace_info.width(), 
+            num_assertions);
         MockAir {
             context,
             assertions: Vec::new(),
