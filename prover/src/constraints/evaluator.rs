@@ -129,8 +129,6 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         #[cfg(debug_assertions)]
         evaluation_table.validate_transition_degrees();
         #[cfg(debug_assertions)]
-        evaluation_table.validate_transition_degrees_virtual_columns();
-        #[cfg(debug_assertions)]
         evaluation_table.validate_boundary_constraints_virtual_columns();
 
         evaluation_table

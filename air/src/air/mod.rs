@@ -573,11 +573,11 @@ pub trait Air: Send + Sync {
                 vec![public_coin.draw()?, public_coin.draw()?, public_coin.draw()?]
             );
         }
-        // // Auxiliar columns have no virtual columns and are already in the extension field
-        // for _ in 0..self.trace_info().layout().aux_trace_width() {
-        //     let random_coins = public_coin.draw_pair()?;
-        //     t_coefficients.push(vec![random_coins.0, random_coins.1]);
-        // }
+        // Auxiliar columns have no virtual columns and are already in the extension field
+        for _ in 0..self.trace_info().layout().aux_trace_width() {
+            let random_coins = public_coin.draw_pair()?;
+            t_coefficients.push(vec![random_coins.0, random_coins.1]);
+        }
 
 
         // self.ce_blowup_factor() is the same as number of composition columns
