@@ -76,6 +76,16 @@ impl Air for CairoAir {
             TransitionConstraintDegree::new(2),
         ];
         let aux_degrees = vec![
+            // Offset permutation constraints
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            // Memory permutation constraints
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
             TransitionConstraintDegree::new(2),
         ];
         assert_eq!(TRACE_WIDTH + AUX_WIDTH, trace_info.width());
@@ -245,21 +255,42 @@ impl Air for CairoAir {
 
         let random_elements = aux_rand_elements.get_segment_elements(0);
 
-        // We want to enforce that the absorbed values of the first hash chain are a
-        // permutation of the absorbed values of the second one. Because we want to
-        // copy two values per hash chain (namely the two capacity registers), we
-        // group them with random elements into a single cell via
-        // α_0 * c_0 + α_1 * c_1, where c_i is computed as next_i - current_i.
+        // We want to enforce that the sorted columns are a permutation of the 
+        // original main segment columns. Instead of a classical permutation 
+        // check between two columns, we check it in a "snake way":
+        // If C_0 to C_3 are original columns and S_0 to S_3 are sorted, then
+        // we check that C_00, C_10, C_20, C_30, C_01, ... is a permutation of
+        // S_00, S_10, S_20, S_30, S_01, ...
 
-        // Note that storing the copied values into two auxiliary columns. One could
-        // instead directly compute the permutation argument, hence require a single
-        // auxiliary one. For the sake of illustrating RAPs behaviour, we will store
-        // the computed values in additional columns.
-
-        let copied_value_1 = random_elements[0] * (main_next[0] - main_current[0]).into()
-            + random_elements[1] * (main_next[1] - main_current[1]).into();
-
+        // Offset permutation arguments
         result[0] = aux_current[1] * (random_elements[0] - main_current[35].into()) - aux_current[0] * (random_elements[0] - main_current[17].into());
+        result[1] = aux_current[2] * (random_elements[0] - main_current[36].into()) - aux_current[1] * (random_elements[0] - main_current[18].into());
+        result[2] = aux_current[3] * (random_elements[0] - main_current[37].into()) - aux_current[2] * (random_elements[0] - main_current[33].into());
+        result[3] = aux_next[0] * (random_elements[0] - main_next[34].into()) - aux_current[3] * (random_elements[0] - main_next[16].into());
+
+
+        // Memory permutation arguments
+        // Necessary variables: into() fails otherwise. Any better way to do this?
+        let mut a: E = main_current[21].into();
+        let mut a2: E = main_current[42].into();
+        result[4] = aux_current[5] * (random_elements[1] - (a2 + random_elements[2] * main_current[43].into()))
+                    - aux_current[4] * (random_elements[1] - (a + random_elements[2] * main_current[22].into()));
+        a = main_current[23].into();
+        a2 = main_current[44].into();
+        result[5] = aux_current[6] * (random_elements[1] - (a2 + random_elements[2] * main_current[45].into()))
+                    - aux_current[5] * (random_elements[1] - (a + random_elements[2] * main_current[24].into()));
+        a = main_current[25].into();
+        a2 = main_current[46].into();
+        result[6] = aux_current[7] * (random_elements[1] - (a2 + random_elements[2] * main_current[47].into()))
+                    - aux_current[6] * (random_elements[1] - (a + random_elements[2] * main_current[26].into()));
+        a = main_current[38].into();
+        a2 = main_current[48].into();
+        result[7] = aux_current[8] * (random_elements[1] - (a2 + random_elements[2] * main_current[49].into()))
+                    - aux_current[7] * (random_elements[1] - (a + random_elements[2] * main_current[39].into()));
+        a = main_next[19].into();
+        a2 = main_next[40].into();
+        result[8] = aux_next[4] * (random_elements[1] - (a2 + random_elements[2] * main_next[41].into()))
+                    - aux_current[8] * (random_elements[1] - (a + random_elements[2] * main_next[20].into()));
     }
 
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
