@@ -42,17 +42,17 @@ impl VCMinimalProver {
         trace.fill(
             |state| {
                 for i in 0..width {
-                    state[i] = power_of_two_exp(input, i + 1);
+                    state[i] = power_of_two_exp(input, i);
                 }
             },
             |step, state| {
                 for i in 0..width {
-                    let log_power = width*(step + 1) + i + 1;
+                    let log_power = width*(step + 1) + i;
                     state[i] = power_of_two_exp(input, log_power);
                 }
             }
         );
-        print_trace(&trace, 1, 0, 0..5);
+        //print_trace(&trace, 1, 0, 0..5);
         trace
     }
 } 
@@ -64,7 +64,7 @@ impl Prover for VCMinimalProver {
 
     fn get_pub_inputs(&self, trace: &Self::Trace) -> PublicInputs {
         PublicInputs {
-            input: [trace.get(0, 0)],
+            input: trace.get(0, 0),
         }
     }
 

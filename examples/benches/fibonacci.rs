@@ -29,7 +29,9 @@ fn fibonacci(c: &mut Criterion) {
     for &size in SIZES.iter() {
         let fib = fibonacci::fib2::FibExample::new(size, options.clone());
         group.bench_function(BenchmarkId::from_parameter(size), |bench| {
-            bench.iter(|| fib.prove());
+            bench.iter(|| {
+                fib.prove()
+        });
         });
     }
     group.finish();

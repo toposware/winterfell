@@ -12,7 +12,7 @@ fn vc_minimal_test_basic_proof_verification() {
         2 as u128, 
         8,
         32,
-        8));
+        16));
     crate::tests::test_basic_proof_verification(vc);
 }
 

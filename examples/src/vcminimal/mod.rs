@@ -23,8 +23,6 @@ mod tests;
 // CONSTANTS
 // ================================================================================================
 
-const TRACE_WIDTH: usize = 32;
-
 // VIRTUAL COLUMN MINIMAL EXAMPLE
 // ================================================================================================
 
@@ -95,14 +93,14 @@ impl Example for VCMinimalExample {
     fn verify(&self, proof: StarkProof) -> Result<(), VerifierError> {
         winterfell::verify::<VCMinimalAir>(
             proof, 
-            PublicInputs{input: [BaseElement::from(self.input)]}
+            PublicInputs{input: BaseElement::from(self.input)}
         )
     }
 
     fn verify_with_wrong_inputs(&self, proof: StarkProof) -> Result<(), VerifierError> {
         winterfell::verify::<VCMinimalAir>(
             proof, 
-            PublicInputs{input: [BaseElement::from(self.input+42)]}
+            PublicInputs{input: BaseElement::from(self.input + 42)}
         )
     }
 }
