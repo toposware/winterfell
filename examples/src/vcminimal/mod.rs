@@ -23,12 +23,12 @@ mod tests;
 // CONSTANTS
 // ================================================================================================
 
-const TRACE_WIDTH: usize = 2;
+const TRACE_WIDTH: usize = 32;
 
 // VIRTUAL COLUMN MINIMAL EXAMPLE
 // ================================================================================================
 
-pub fn get_example(options: ExampleOptions, initial: u128, num_steps: usize) -> Box<dyn Example> {
+pub fn get_example(options: ExampleOptions, initial: u128, num_steps: usize, width: usize, real_width: usize) -> Box<dyn Example> {
     assert!(
         num_steps.is_power_of_two(),
         "sequence length must be a power of 2"
@@ -37,21 +37,27 @@ pub fn get_example(options: ExampleOptions, initial: u128, num_steps: usize) -> 
         options.to_proof_options(options.num_queries.unwrap_or(3), options.blowup_factor.unwrap_or(2)),
         initial,
         num_steps,
+        width,
+        real_width
     ))
 }
 
 pub struct VCMinimalExample {
     options: ProofOptions,
-    inputs: u128,
+    input: u128,
     num_steps: usize,
+    width: usize,
+    real_width: usize
 }
 
 impl VCMinimalExample {
-    pub fn new(options: ProofOptions, inputs: u128, num_steps: usize) -> VCMinimalExample {
+    pub fn new(options: ProofOptions, input: u128, num_steps: usize, width: usize, real_width: usize) -> VCMinimalExample {
         VCMinimalExample {
             options,
-            inputs,
-            num_steps
+            input,
+            num_steps,
+            width,
+            real_width
         }
     }
 }
@@ -67,11 +73,11 @@ impl Example for VCMinimalExample {
         );
 
         // create a prover
-        let prover = VCMinimalProver::new(self.options.clone(), self.inputs);
+        let prover = VCMinimalProver::new(self.options.clone(), self.input);
 
         // generate execution trace
         let now = Instant::now();
-        let trace = prover.build_trace(self.num_steps);
+        let trace = prover.build_trace(self.num_steps, self.width, self.real_width);
 
         let trace_width = trace.width();
         let trace_length = trace.length();
@@ -89,14 +95,14 @@ impl Example for VCMinimalExample {
     fn verify(&self, proof: StarkProof) -> Result<(), VerifierError> {
         winterfell::verify::<VCMinimalAir>(
             proof, 
-            PublicInputs{input: [BaseElement::from(self.inputs)]}
+            PublicInputs{input: [BaseElement::from(self.input)]}
         )
     }
 
     fn verify_with_wrong_inputs(&self, proof: StarkProof) -> Result<(), VerifierError> {
         winterfell::verify::<VCMinimalAir>(
             proof, 
-            PublicInputs{input: [BaseElement::from(self.inputs+42)]}
+            PublicInputs{input: [BaseElement::from(self.input+42)]}
         )
     }
 }

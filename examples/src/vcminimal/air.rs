@@ -33,7 +33,9 @@ impl Air for VCMinimalAir {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     fn new(trace_info: TraceInfo, pub_inputs: Self::PublicInputs, options: ProofOptions) -> Self {
-        let degrees = vec![TransitionConstraintDegree::new(2); 2];
+        let degrees = vec![
+            TransitionConstraintDegree::new(2); 
+            trace_info.layout().virtual_trace_width()];
         // ALEX: change for virtual width
         assert_eq!(TRACE_WIDTH, trace_info.layout().virtual_trace_width());
         //assert_eq!(TRACE_WIDTH, trace_info.layout().main_trace_width());
@@ -62,9 +64,12 @@ impl Air for VCMinimalAir {
         let current = frame.current();
         let next = frame.next();
 
-        // Check ap correctness at result[0]
-        result[0] = are_equal(current[1], current[0]*current[0]);
-        result[1] = are_equal(next[0], current[1]*current[1]);
+        let width = self.trace_layout().virtual_trace_width();
+        for i in 0..width - 1 {
+            result[i] = are_equal(current[i + 1], current[i]*current[i]);
+        }
+        let popotin = are_equal(next[0], current[width - 1]*current[width - 1]);
+        result[width - 1] = are_equal(next[0], current[width - 1]*current[width - 1]);
     }
 
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {

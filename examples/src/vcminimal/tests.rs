@@ -7,20 +7,35 @@ use winterfell::{FieldExtension, HashFunction, ProofOptions};
 
 #[test]
 fn vc_minimal_test_basic_proof_verification() {
-    let vc = Box::new(super::VCMinimalExample::new(build_options(false), 2, 8));
+    let vc = Box::new(super::VCMinimalExample::new(
+        build_options(false), 
+        2 as u128, 
+        8,
+        32,
+        8));
     crate::tests::test_basic_proof_verification(vc);
 }
 
 #[test]
 fn vc_minimal_test_basic_proof_verification_extension() {
-    let vc = Box::new(super::VCMinimalExample::new(build_options(true), 2, 8));
+    let vc = Box::new(super::VCMinimalExample::new(
+        build_options(true), 
+        2, 
+        8,
+        32,
+        16));
     crate::tests::test_basic_proof_verification(vc);
 }
 
 #[test]
 
 fn vc_minimal_test_basic_proof_verification_fail() {
-    let vc = Box::new(super::VCMinimalExample::new(build_options(false), 2, 8));
+    let vc = Box::new(super::VCMinimalExample::new(
+        build_options(false), 
+        2,
+        8,
+        32,
+        16));
     crate::tests::test_basic_proof_verification_fail(vc);
 }
 

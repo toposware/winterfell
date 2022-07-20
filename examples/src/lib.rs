@@ -129,12 +129,15 @@ pub enum ExampleType {
         sequence_length: usize,
     },
     /// Execute a minimal example for virtual columns
+    /// Execute a minimal example for virtual columns
     VCMinimal {
         /// Number of computation steps; must be a power of two
         #[structopt(short = "n", default_value = "8")]
         num_steps: usize,
         #[structopt(short = "a", default_value = "2")]
         initial: u128,
+        width: usize,
+        real_width: usize
     },
     /// Execute a simple VDF function
     Vdf {
