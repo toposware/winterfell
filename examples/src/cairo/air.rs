@@ -305,8 +305,8 @@ impl Air for CairoAir {
         _aux_rand_elements: &AuxTraceRandElements<E>,
     ) -> Vec<Assertion<E>> {
         vec![
-            Assertion::single(3, self.trace_length() - 1, E::ONE),
-            Assertion::single(8, self.trace_length() - 1, E::ONE),
+            Assertion::single(3, self.trace_length() - 2, E::ONE),
+            Assertion::single(8, self.trace_length() - 2, E::ONE),
         ]
     }
 }
