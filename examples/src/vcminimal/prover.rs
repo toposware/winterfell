@@ -40,14 +40,15 @@ impl VCMinimalProver {
         let input = BaseElement::from(self.input);
         trace.fill(
             |state| {
-                state[0] = BaseElement::ONE;
+                state[0] = input;
                 for i in 1..width {
-                    state[i] = state[i - 1] * input;
+                    state[i] = state[i - 1].square();
                 }
             },
             |_, state| {
-                for i in 0..width {
-                    state[i] *= state[width - 1];
+                state[0] = state[width - 1].square();
+                for i in 1..width {
+                    state[i] = state[i - 1].square();
                 }
             },
         );
