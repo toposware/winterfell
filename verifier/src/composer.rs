@@ -5,10 +5,8 @@
 // LICENSE file in the root directory of this source tree.
 
 use air::{proof::Table, Air, DeepCompositionCoefficients, EvaluationFrame, FieldExtension};
-use math::FieldElement;
+use math::{FieldElement, get_power_series_with_offset};
 use utils::collections::Vec;
-
-use std::iter::once;
 
 // DEEP COMPOSER
 // ================================================================================================
@@ -40,13 +38,13 @@ impl<E: FieldElement> DeepComposer<E> {
             .map(|&p| E::from(g_lde.exp((p as u64).into()) * domain_offset))
             .collect();
         let g_trace = E::from(air.trace_domain_generator());
+        let mut dc_z = get_power_series_with_offset(g_trace, z, last_current_row);
+        dc_z.push(z * g_trace.exp((ratio as u64).into()));
         DeepComposer {
             field_extension: air.options().field_extension(),
             cc,
             x_coordinates,
-            z:  (0..last_current_row).chain(once(ratio))
-            .map(|i| z * g_trace.exp((i as u64).into()))
-            .collect()
+            z: dc_z,
         }
     }
 

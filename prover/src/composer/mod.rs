@@ -6,10 +6,8 @@
 
 use super::{constraints::CompositionPoly, StarkDomain, TracePolyTable};
 use air::{Air, DeepCompositionCoefficients};
-use math::{add_in_place, fft, log2, mul_acc, polynom, ExtensionOf, FieldElement, StarkField};
+use math::{add_in_place, fft, log2, mul_acc, polynom, ExtensionOf, FieldElement, StarkField, get_power_series_with_offset};
 use utils::{collections::Vec, iter_mut};
-
-use std::iter::once;
 
 #[cfg(feature = "concurrent")]
 use utils::iterators::*;
@@ -85,9 +83,8 @@ impl<E: FieldElement> DeepCompositionPoly<E> {
         let trace_length = trace_polys.poly_size();
         let main_trace_width = trace_polys.main_trace_polys().len();
         let g = E::from(E::BaseField::get_root_of_unity(log2(trace_length)));
-        let mut z: Vec<E> = (0..max_pow).chain(once(ratio))
-            .map(|i| self.z * g.exp((i as u64).into()))
-            .collect();
+        let mut z = get_power_series_with_offset(g, self.z, max_pow);
+        z.push(self.z * g.exp((ratio as u64).into()));
 
         // combine trace polynomials into composition polynomials T^j(x), j=0,..,n where
         // n is the frame size, and if we are using a field extension, also T^{n+1}(x)

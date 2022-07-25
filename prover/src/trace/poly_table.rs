@@ -8,10 +8,8 @@ use crate::{
     matrix::{ColumnIter, MultiColumnIter},
     Matrix,
 };
-use math::{log2, FieldElement, StarkField};
+use math::{log2, FieldElement, StarkField, get_power_series_with_offset};
 use utils::collections::Vec;
-
-use std::iter;
 
 // TRACE POLYNOMIAL TABLE
 // ================================================================================================
@@ -71,9 +69,9 @@ impl<E: FieldElement> TracePolyTable<E> {
     /// for all columns at points z and z * g, .., z*g^{max_pow-1}, where g is the generator of the trace domain.
     pub fn get_ood_frame(&self, z: E, max_pow: usize, ratio: usize) -> Vec<Vec<E>> {
         let g = E::from(E::BaseField::get_root_of_unity(log2(self.poly_size())));
-        let current  = (0..max_pow)
-        .map(|i| self.evaluate_at(z * g.exp((i as u64).into())))
-        .flatten()
+        let current  = get_power_series_with_offset(g, z, max_pow)
+        .into_iter()
+        .flat_map(|i| self.evaluate_at(i))
         .collect();
         let next = self.evaluate_at(z * g.exp((ratio as u64).into()));
         vec![
