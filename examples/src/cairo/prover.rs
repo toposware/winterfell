@@ -4,7 +4,7 @@
 // LICENSE file in the root directory of this source tree.
 
 use super::{
-    BaseElement, CairoAir, FieldElement, ProofOptions, Prover, Trace, RapTraceTable, TRACE_WIDTH,
+    BaseElement, CairoAir, FieldElement, ProofOptions, Prover, PublicInputs, Trace, RapTraceTable, TRACE_WIDTH,
 };
 
 use std::fs::File;
@@ -18,11 +18,14 @@ use std::sync::{Mutex};
 
 pub struct CairoProver {
     options: ProofOptions,
+    bytecode: Vec<BaseElement>,
 }
 
 impl CairoProver {
-    pub fn new(options: ProofOptions) -> Self {
-        Self { options }
+    pub fn new(options: ProofOptions, bytecode: Vec<BaseElement>) -> Self {
+        Self { options,
+               bytecode,
+             }
     }
 
     /// Builds an execution trace for computing a Fibonacci sequence of the specified length such
@@ -80,8 +83,10 @@ impl Prover for CairoProver {
     type Air = CairoAir;
     type Trace = RapTraceTable<BaseElement>;
 
-    fn get_pub_inputs(&self, trace: &Self::Trace) -> () {
-        ()
+    fn get_pub_inputs(&self, trace: &Self::Trace) -> PublicInputs {
+        PublicInputs {
+            bytecode: self.bytecode.clone(),
+        }
     }
 
     fn options(&self) -> &ProofOptions {

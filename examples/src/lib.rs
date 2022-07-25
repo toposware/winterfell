@@ -103,6 +103,9 @@ pub enum ExampleType {
         /// Path to the serialized trace file
         #[structopt(short = "p", default_value = "")]
         trace_file_path: String,
+        /// Path to the serialized bytecode
+        #[structopt(short = "b", default_value = "")]
+        bytecode_file_path: String,
     },
     /// Compute a Fibonacci sequence using trace table with 2 registers
     Fib {

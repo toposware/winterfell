@@ -33,10 +33,13 @@ fn main() {
     let example = match options.example {
         ExampleType::Cairo {
             ref trace_file_path,
+            ref bytecode_file_path,
         } => {
-            let path = trace_file_path.clone();
+            let trace_path = trace_file_path.clone();
             drop(trace_file_path);
-            cairo::get_example(options, path.to_string())
+            let bytecode_path = bytecode_file_path.clone();
+            drop(trace_file_path);
+            cairo::get_example(options, trace_path.to_string(), bytecode_path.to_string())
         }
         ExampleType::Fib { sequence_length } => {
             fibonacci::fib2::get_example(options, sequence_length)

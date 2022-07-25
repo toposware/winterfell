@@ -14,7 +14,7 @@ use winterfell::{
 };
 
 mod air;
-use air::CairoAir;
+use air::{CairoAir, PublicInputs};
 
 mod prover;
 use prover::CairoProver;
@@ -36,23 +36,26 @@ const AUX_WIDTH: usize = 9;
 // FIBONACCI EXAMPLE
 // ================================================================================================
 
-pub fn get_example(options: ExampleOptions, trace_file_path: String) -> Box<dyn Example> {
+pub fn get_example(options: ExampleOptions, trace_file_path: String, bytecode_file_path: String) -> Box<dyn Example> {
     Box::new(CairoExample::new(
         options.to_proof_options(28, 8),
         trace_file_path,
+        bytecode_file_path,
     ))
 }
 
 pub struct CairoExample {
     options: ProofOptions,
     trace_file_path: String,
+    bytecode_file_path: String,
 }
 
 impl CairoExample {
-    pub fn new(options: ProofOptions, trace_file_path: String) -> CairoExample {
+    pub fn new(options: ProofOptions, trace_file_path: String, bytecode_file_path: String) -> CairoExample {
         CairoExample {
             options,
             trace_file_path,
+            bytecode_file_path,
         }
     }
 }
@@ -68,7 +71,7 @@ impl Example for CairoExample {
         );
 
         // create a prover
-        let prover = CairoProver::new(self.options.clone());
+        let prover = CairoProver::new(self.options.clone(), Vec::new());
 
         // generate execution trace
         let now = Instant::now();
@@ -91,7 +94,10 @@ impl Example for CairoExample {
     }
 
     fn verify(&self, proof: StarkProof) -> Result<(), VerifierError> {
-        winterfell::verify::<CairoAir>(proof, ())
+        let pub_inputs = PublicInputs {
+            bytecode: Vec::new(),
+        };
+        winterfell::verify::<CairoAir>(proof, pub_inputs)
     }
 
     //TODO: implement wrong trace checking

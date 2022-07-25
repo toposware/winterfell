@@ -7,12 +7,22 @@
 use super::{BaseElement, ExtensionOf, FieldElement, ProofOptions, TRACE_WIDTH, AUX_WIDTH};
 use crate::utils::{are_equal, is_binary};
 use winterfell::{
-    Air, AirContext, Assertion, AuxTraceRandElements, EvaluationFrame, TraceInfo,
-    TransitionConstraintDegree,
+    Air, AirContext, Assertion, AuxTraceRandElements, ByteWriter, EvaluationFrame, Serializable, 
+    TraceInfo, TransitionConstraintDegree,
 };
 
 // CAIRO AIR
 // ================================================================================================
+
+pub struct PublicInputs {
+    pub bytecode: Vec<BaseElement>,
+}
+
+impl Serializable for PublicInputs {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        target.write(&self.bytecode[..]);
+    }
+}
 
 pub struct CairoAir {
     context: AirContext<BaseElement>,
@@ -20,11 +30,11 @@ pub struct CairoAir {
 
 impl Air for CairoAir {
     type BaseField = BaseElement;
-    type PublicInputs = ();
+    type PublicInputs = PublicInputs;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    fn new(trace_info: TraceInfo, public_inputs: (), options: ProofOptions) -> Self {
+    fn new(trace_info: TraceInfo, public_inputs: PublicInputs, options: ProofOptions) -> Self {
         let main_degrees = vec![
             // CPU constraints
             TransitionConstraintDegree::new(1),
@@ -296,7 +306,7 @@ impl Air for CairoAir {
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
         // DUMMY CHECK
         // Later it will be used to verify public memory.
-        let last_step = self.trace_length() - 1;
+        let last_step = self.trace_length() - 2;
         vec![Assertion::single(10, 0, Self::BaseField::ONE)]
     }
 
@@ -305,8 +315,8 @@ impl Air for CairoAir {
         _aux_rand_elements: &AuxTraceRandElements<E>,
     ) -> Vec<Assertion<E>> {
         vec![
-            Assertion::single(3, self.trace_length() - 1, E::ONE),
-            Assertion::single(8, self.trace_length() - 1, E::ONE),
+            Assertion::single(3, self.trace_length() - 2, E::ONE),
+            Assertion::single(8, self.trace_length() - 2, E::ONE),
         ]
     }
 }
