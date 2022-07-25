@@ -9,9 +9,9 @@ use super::{
 
 use std::fs::File;
 use std::io::prelude::*;
-use std::io::{BufReader};
+use std::io::BufReader;
 use std::str::FromStr;
-use std::sync::{Mutex};
+use std::sync::Mutex;
 
 // CAIRO PROVER
 // ================================================================================================
@@ -31,7 +31,6 @@ impl CairoProver {
     /// Builds an execution trace for computing a Fibonacci sequence of the specified length such
     /// that each row advances the sequence by 2 terms.
     pub fn build_trace_from_file(&self, trace_file_path: &String) -> RapTraceTable<BaseElement> {
-
         let file = File::open(trace_file_path).expect("Cannot open the file.");
 
         let reader = Mutex::new(BufReader::new(file));
@@ -50,27 +49,24 @@ impl CairoProver {
                 line.clear();
                 reader.lock().unwrap().read_line(&mut line).unwrap();
                 line.pop();
-                state.copy_from_slice(&mut line.split([','].as_ref()).map(|a| BaseElement::new(u128::from_str(&a).unwrap())).collect::<Vec<BaseElement>>()[..TRACE_WIDTH]);
+                state.copy_from_slice(
+                    &mut line
+                        .split([','].as_ref())
+                        .map(|a| BaseElement::new(u128::from_str(&a).unwrap()))
+                        .collect::<Vec<BaseElement>>()[..TRACE_WIDTH],
+                );
             },
-            |row, state| {
+            |_, state| {
                 let mut line = String::new();
                 line.clear();
                 reader.lock().unwrap().read_line(&mut line).unwrap();
                 line.pop();
-                state.copy_from_slice(&mut line.split([','].as_ref()).map(|a| BaseElement::new(u128::from_str(&a).unwrap())).collect::<Vec<BaseElement>>()[..TRACE_WIDTH]);
-
-                // TODO: would need dynamic checking to turn the last row into garbage
-                // or add extra ones if needed
-                // Must not change offset and memory columns to preserve permutation argument!
-                if row == padded_length - 2 {
-                    for i in 0..16 {
-                        state[i] = rand_utils::rand_value::<BaseElement>();
-                    }
-                    for i in 27..33 {
-                        state[i] = rand_utils::rand_value::<BaseElement>();
-                    }
-                    // state.copy_from_slice(&mut rand_utils::rand_array::<BaseElement, TRACE_WIDTH>());
-                }
+                state.copy_from_slice(
+                    &mut line
+                        .split([','].as_ref())
+                        .map(|a| BaseElement::new(u128::from_str(&a).unwrap()))
+                        .collect::<Vec<BaseElement>>()[..TRACE_WIDTH],
+                );
             },
         );
 
