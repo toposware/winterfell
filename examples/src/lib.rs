@@ -7,6 +7,8 @@
 use structopt::StructOpt;
 use winterfell::{FieldExtension, HashFunction, ProofOptions, StarkProof, VerifierError};
 
+pub mod divisors_cosets;
+pub mod divisors_exemptions;
 pub mod fibonacci;
 #[cfg(feature = "std")]
 pub mod lamport;
@@ -96,6 +98,25 @@ impl ExampleOptions {
 #[derive(StructOpt, Debug)]
 //#[structopt(about = "available examples")]
 pub enum ExampleType {
+    /// Example to test divisors with different exemptions. Compute fibonacci and exponentiation in parallel
+    DivisorsCosets {
+        /// Length of exp sequence; must be a power of two
+        #[structopt(short = "e", default_value = "16")]
+        sequence_length: u64,
+        /// Length of range sequence; must be a power of two
+        #[structopt(short = "r", default_value = "16")]
+        range_length: u64,
+        /// Coset offset
+        #[structopt(short = "c", default_value = "0")]
+        offset: u64,
+    },
+    DivisorsExemptions {
+        /// Length of Fibonacci sequence; must be a power of two
+        #[structopt(short = "f", default_value = "16")]
+        sequence_length_fib: u64,
+        #[structopt(short = "e", default_value = "16")]
+        sequence_length_exp: u64,
+    },
     /// Compute a Fibonacci sequence using trace table with 2 registers
     Fib {
         /// Length of Fibonacci sequence; must be a power of two

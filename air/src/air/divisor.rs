@@ -55,6 +55,9 @@ impl<B: StarkField> ConstraintDivisor<B> {
     /// The above divisor specifies that transition constraints must hold on all steps of the
     /// execution trace except for the last $k$ steps.
     pub fn from_transition(trace_length: usize, num_exemptions: usize) -> Self {
+        // TODO: [Divisors] make this more flexible: allow divisor in subgroups/cosets and excemptions
+        //       that are not necessarilly on the end. Doing for arbitrary sets should result in a linear
+        //       verifier on the number of excemptions.
         assert!(
             num_exemptions > 0,
             "invalid number of transition exemptions: must be greater than zero"
