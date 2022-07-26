@@ -27,6 +27,12 @@ pub use custom_trace_table::RapTraceTable;
 
 use crate::utils::print_trace;
 
+use std::fs::File;
+use std::io::prelude::*;
+use std::io::BufReader;
+use std::str::FromStr;
+use std::sync::Mutex;
+
 // CONSTANTS
 // ================================================================================================
 
@@ -36,7 +42,11 @@ const AUX_WIDTH: usize = 9;
 // FIBONACCI EXAMPLE
 // ================================================================================================
 
-pub fn get_example(options: ExampleOptions, trace_file_path: String, bytecode_file_path: String) -> Box<dyn Example> {
+pub fn get_example(
+    options: ExampleOptions,
+    trace_file_path: String,
+    bytecode_file_path: String,
+) -> Box<dyn Example> {
     Box::new(CairoExample::new(
         options.to_proof_options(28, 8),
         trace_file_path,
@@ -51,7 +61,11 @@ pub struct CairoExample {
 }
 
 impl CairoExample {
-    pub fn new(options: ProofOptions, trace_file_path: String, bytecode_file_path: String) -> CairoExample {
+    pub fn new(
+        options: ProofOptions,
+        trace_file_path: String,
+        bytecode_file_path: String,
+    ) -> CairoExample {
         CairoExample {
             options,
             trace_file_path,
@@ -70,8 +84,24 @@ impl Example for CairoExample {
             ---------------------"
         );
 
+        // read bytecode from file
+        let file = File::open(&self.bytecode_file_path).expect("Cannot open the file.");
+        let reader = Mutex::new(BufReader::new(file));
+        let mut line = String::new();
+        reader.lock().unwrap().read_line(&mut line).unwrap();
+        line.pop();
+        let bytecode_length = usize::from_str(&line).unwrap();
+        println!("{}", bytecode_length);
+        line.clear();
+        reader.lock().unwrap().read_line(&mut line).unwrap();
+        // line.pop();
+        let bytecode = line
+            .split([' '].as_ref())
+            .map(|a| BaseElement::new(u128::from_str(&a).unwrap()))
+            .collect::<Vec<BaseElement>>();
+
         // create a prover
-        let prover = CairoProver::new(self.options.clone(), Vec::new());
+        let prover = CairoProver::new(self.options.clone(), bytecode);
 
         // generate execution trace
         let now = Instant::now();
@@ -94,9 +124,22 @@ impl Example for CairoExample {
     }
 
     fn verify(&self, proof: StarkProof) -> Result<(), VerifierError> {
-        let pub_inputs = PublicInputs {
-            bytecode: Vec::new(),
-        };
+        // read bytecode from file
+        let file = File::open(&self.bytecode_file_path).expect("Cannot open the file.");
+        let reader = Mutex::new(BufReader::new(file));
+        let mut line = String::new();
+        reader.lock().unwrap().read_line(&mut line).unwrap();
+        line.pop();
+        let bytecode_length = usize::from_str(&line).unwrap();
+        println!("{}", bytecode_length);
+        line.clear();
+        reader.lock().unwrap().read_line(&mut line).unwrap();
+        // line.pop();
+        let bytecode = line
+            .split([' '].as_ref())
+            .map(|a| BaseElement::new(u128::from_str(&a).unwrap()))
+            .collect::<Vec<BaseElement>>();
+        let pub_inputs = PublicInputs { bytecode: bytecode };
         winterfell::verify::<CairoAir>(proof, pub_inputs)
     }
 

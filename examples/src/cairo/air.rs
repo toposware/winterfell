@@ -4,10 +4,10 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-use super::{BaseElement, ExtensionOf, FieldElement, ProofOptions, TRACE_WIDTH, AUX_WIDTH};
+use super::{BaseElement, ExtensionOf, FieldElement, ProofOptions, AUX_WIDTH, TRACE_WIDTH};
 use crate::utils::{are_equal, is_binary};
 use winterfell::{
-    Air, AirContext, Assertion, AuxTraceRandElements, ByteWriter, EvaluationFrame, Serializable, 
+    Air, AirContext, Assertion, AuxTraceRandElements, ByteWriter, EvaluationFrame, Serializable,
     TraceInfo, TransitionConstraintDegree,
 };
 
@@ -100,8 +100,15 @@ impl Air for CairoAir {
         ];
         assert_eq!(TRACE_WIDTH + AUX_WIDTH, trace_info.width());
         CairoAir {
-            context: AirContext::new_multi_segment(trace_info, main_degrees, aux_degrees, 1, 2, options)
-                .set_num_transition_exemptions(2),
+            context: AirContext::new_multi_segment(
+                trace_info,
+                main_degrees,
+                aux_degrees,
+                1,
+                2,
+                options,
+            )
+            .set_num_transition_exemptions(2),
         }
     }
 
@@ -246,7 +253,7 @@ impl Air for CairoAir {
         result[44] = (next[41] - current[49]) * (next[40] - current[48] - one);
     }
 
-        fn evaluate_aux_transition<F, E>(
+    fn evaluate_aux_transition<F, E>(
         &self,
         main_frame: &EvaluationFrame<F>,
         aux_frame: &EvaluationFrame<E>,
@@ -265,42 +272,55 @@ impl Air for CairoAir {
 
         let random_elements = aux_rand_elements.get_segment_elements(0);
 
-        // We want to enforce that the sorted columns are a permutation of the 
-        // original main segment columns. Instead of a classical permutation 
+        // We want to enforce that the sorted columns are a permutation of the
+        // original main segment columns. Instead of a classical permutation
         // check between two columns, we check it in a "snake way":
         // If C_0 to C_3 are original columns and S_0 to S_3 are sorted, then
         // we check that C_00, C_10, C_20, C_30, C_01, ... is a permutation of
         // S_00, S_10, S_20, S_30, S_01, ...
 
         // Offset permutation arguments
-        result[0] = aux_current[1] * (random_elements[0] - main_current[35].into()) - aux_current[0] * (random_elements[0] - main_current[17].into());
-        result[1] = aux_current[2] * (random_elements[0] - main_current[36].into()) - aux_current[1] * (random_elements[0] - main_current[18].into());
-        result[2] = aux_current[3] * (random_elements[0] - main_current[37].into()) - aux_current[2] * (random_elements[0] - main_current[33].into());
-        result[3] = aux_next[0] * (random_elements[0] - main_next[34].into()) - aux_current[3] * (random_elements[0] - main_next[16].into());
-
+        result[0] = aux_current[1] * (random_elements[0] - main_current[35].into())
+            - aux_current[0] * (random_elements[0] - main_current[17].into());
+        result[1] = aux_current[2] * (random_elements[0] - main_current[36].into())
+            - aux_current[1] * (random_elements[0] - main_current[18].into());
+        result[2] = aux_current[3] * (random_elements[0] - main_current[37].into())
+            - aux_current[2] * (random_elements[0] - main_current[33].into());
+        result[3] = aux_next[0] * (random_elements[0] - main_next[34].into())
+            - aux_current[3] * (random_elements[0] - main_next[16].into());
 
         // Memory permutation arguments
         // Necessary variables: into() fails otherwise. Any better way to do this?
         let mut a: E = main_current[21].into();
         let mut a2: E = main_current[42].into();
-        result[4] = aux_current[5] * (random_elements[1] - (a2 + random_elements[2] * main_current[43].into()))
-                    - aux_current[4] * (random_elements[1] - (a + random_elements[2] * main_current[22].into()));
+        result[4] = aux_current[5]
+            * (random_elements[1] - (a2 + random_elements[2] * main_current[43].into()))
+            - aux_current[4]
+                * (random_elements[1] - (a + random_elements[2] * main_current[22].into()));
         a = main_current[23].into();
         a2 = main_current[44].into();
-        result[5] = aux_current[6] * (random_elements[1] - (a2 + random_elements[2] * main_current[45].into()))
-                    - aux_current[5] * (random_elements[1] - (a + random_elements[2] * main_current[24].into()));
+        result[5] = aux_current[6]
+            * (random_elements[1] - (a2 + random_elements[2] * main_current[45].into()))
+            - aux_current[5]
+                * (random_elements[1] - (a + random_elements[2] * main_current[24].into()));
         a = main_current[25].into();
         a2 = main_current[46].into();
-        result[6] = aux_current[7] * (random_elements[1] - (a2 + random_elements[2] * main_current[47].into()))
-                    - aux_current[6] * (random_elements[1] - (a + random_elements[2] * main_current[26].into()));
+        result[6] = aux_current[7]
+            * (random_elements[1] - (a2 + random_elements[2] * main_current[47].into()))
+            - aux_current[6]
+                * (random_elements[1] - (a + random_elements[2] * main_current[26].into()));
         a = main_current[38].into();
         a2 = main_current[48].into();
-        result[7] = aux_current[8] * (random_elements[1] - (a2 + random_elements[2] * main_current[49].into()))
-                    - aux_current[7] * (random_elements[1] - (a + random_elements[2] * main_current[39].into()));
+        result[7] = aux_current[8]
+            * (random_elements[1] - (a2 + random_elements[2] * main_current[49].into()))
+            - aux_current[7]
+                * (random_elements[1] - (a + random_elements[2] * main_current[39].into()));
         a = main_next[19].into();
         a2 = main_next[40].into();
-        result[8] = aux_next[4] * (random_elements[1] - (a2 + random_elements[2] * main_next[41].into()))
-                    - aux_current[8] * (random_elements[1] - (a + random_elements[2] * main_next[20].into()));
+        result[8] = aux_next[4]
+            * (random_elements[1] - (a2 + random_elements[2] * main_next[41].into()))
+            - aux_current[8]
+                * (random_elements[1] - (a + random_elements[2] * main_next[20].into()));
     }
 
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
