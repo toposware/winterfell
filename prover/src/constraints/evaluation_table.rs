@@ -437,12 +437,14 @@ fn build_transition_constraint_degrees<E: FieldElement>(
 ) -> Vec<usize> {
     let mut result = Vec::new();
 
+    // TODO: [divisors] fix this by chosing the correct divisor
+    // currently using divisors[0] which is the default divisor
     for degree in constraints.main_constraint_degrees() {
-        result.push(degree.get_evaluation_degree(trace_length) - constraints.divisor().degree())
+        result.push(degree.get_evaluation_degree(trace_length) - constraints.divisors()[0].degree())
     }
 
     for degree in constraints.aux_constraint_degrees() {
-        result.push(degree.get_evaluation_degree(trace_length) - constraints.divisor().degree())
+        result.push(degree.get_evaluation_degree(trace_length) - constraints.divisors()[0].degree())
     }
 
     result

@@ -86,7 +86,8 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         // build a list of constraint divisors; currently, all transition constraints have the same
         // divisor which we put at the front of the list; boundary constraint divisors are appended
         // after that
-        let mut divisors = vec![self.transition_constraints.divisor().clone()];
+        // TODO [divisors]: checke the implications of this change
+        let mut divisors = self.transition_constraints.divisors().clone();
         divisors.append(&mut self.boundary_constraints.get_divisors());
 
         // allocate space for constraint evaluations; when we are in debug mode, we also allocate

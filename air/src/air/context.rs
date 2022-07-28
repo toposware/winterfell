@@ -17,12 +17,24 @@ pub struct AirContext<B: StarkField> {
     pub(super) trace_info: TraceInfo,
     pub(super) main_transition_constraint_degrees: Vec<TransitionConstraintDegree>,
     pub(super) aux_transition_constraint_degrees: Vec<TransitionConstraintDegree>,
+
+    // Divisor index to use for main and transition constraint
+    // TODO: [Divisors] initialize these values in AIR implementation.
+    // currently, it only gets different exemption points. Should generalize to cosets
+    pub(super) main_transition_constraint_divisors: Vec<usize>,
+    pub(super) aux_transition_constraint_divisors: Vec<usize>,
+
     pub(super) num_main_assertions: usize,
     pub(super) num_aux_assertions: usize,
     pub(super) ce_blowup_factor: usize,
     pub(super) trace_domain_generator: B,
     pub(super) lde_domain_generator: B,
+    // This defines the default divisor which is all points in trace except the num_transition_exemptions last ones (by default 1).
+    // Each custom divisor is a divisor of the default divisor.
     pub(super) num_transition_exemptions: usize,
+    // The available divisors for the given AIR
+    // TODO: [Divisors] Currently it only holds exemptions. Its first element is the default divisor.
+    pub(super) divisors: Vec<usize>,
 }
 
 impl<B: StarkField> AirContext<B> {
@@ -147,17 +159,35 @@ impl<B: StarkField> AirContext<B> {
         let trace_length = trace_info.length();
         let lde_domain_size = trace_length * options.blowup_factor();
 
+        // Use the default divisor unless otherwise specified
+        let mut main_transition_constraint_divisors = Vec::new();
+        for _ in 0..main_transition_constraint_degrees.len() {
+            main_transition_constraint_divisors.push(0);
+        }
+
+        // Use the default divisor unless otherwise specified
+        let mut aux_transition_constraint_divisors = Vec::new();
+        for _ in 0..aux_transition_constraint_degrees.len() {
+            aux_transition_constraint_divisors.push(0);
+        }
+
+        // The default AIR uses the standard divisor (all points in trace except the last one).
+        // Mutate divisors, main_transition_constraints and aux_transition_constraints to modify this behaviour
         AirContext {
             options,
             trace_info,
             main_transition_constraint_degrees,
             aux_transition_constraint_degrees,
+            main_transition_constraint_divisors,
+            aux_transition_constraint_divisors,
             num_main_assertions,
             num_aux_assertions,
             ce_blowup_factor,
             trace_domain_generator: B::get_root_of_unity(log2(trace_length)),
             lde_domain_generator: B::get_root_of_unity(log2(lde_domain_size)),
             num_transition_exemptions: 1,
+            // The default divisor
+            divisors: Vec::from([1usize]),
         }
     }
 
@@ -234,10 +264,25 @@ impl<B: StarkField> AirContext<B> {
     /// This is guaranteed to be at least 1 (which is the default value), but could be greater.
     /// The maximum number of exemptions is determined by a combination of transition constraint
     /// degrees and blowup factor specified for the computation.
+    // TODO: [divisors] should probably not be needed
     pub fn num_transition_exemptions(&self) -> usize {
         self.num_transition_exemptions
     }
 
+    /// Returns a reference to the indices of the divisor used by the AIR main constraints
+    pub fn main_transition_constraint_divisors(&self) -> &Vec<usize> {
+        &self.main_transition_constraint_divisors
+    }
+
+    /// Returns a reference to the indices of the divisor used by the AIR aux constraints
+    pub fn aux_transition_constraint_divisors(&self) -> &Vec<usize> {
+        &self.aux_transition_constraint_divisors
+    }
+
+    /// Returns a reference to the available divisors used by the AIR
+    pub fn divisors(&self) -> &Vec<usize> {
+        &self.divisors
+    }
     // DATA MUTATORS
     // --------------------------------------------------------------------------------------------
 
@@ -280,6 +325,10 @@ impl<B: StarkField> AirContext<B> {
         }
 
         self.num_transition_exemptions = n;
+        // TODO: [divisors] currently this corresponds to the default divisor, so changing this means we need to change
+        // the default divisor as well
+        self.divisors[0] = n;
         self
     }
+    // TODO: [divisors] add mutators for divisors
 }
