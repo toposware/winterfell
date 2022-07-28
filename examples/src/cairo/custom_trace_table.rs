@@ -9,7 +9,7 @@ use winterfell::{
     EvaluationFrame, Matrix, Trace, TraceInfo, TraceLayout,
 };
 // I think we shouldn't have to use it here. It should be passed with a parameter.
-use super::{TRACE_WIDTH, AUX_WIDTH};
+use super::{AUX_WIDTH, TRACE_WIDTH};
 
 // RAP TRACE TABLE
 // ================================================================================================
@@ -33,6 +33,7 @@ pub struct RapTraceTable<B: StarkField> {
     layout: TraceLayout,
     trace: Matrix<B>,
     meta: Vec<u8>,
+    bytecode: Vec<B>,
 }
 
 impl<B: StarkField> RapTraceTable<B> {
@@ -49,8 +50,8 @@ impl<B: StarkField> RapTraceTable<B> {
     /// * `width` is zero or greater than 255.
     /// * `length` is smaller than 8, greater than biggest multiplicative subgroup in the field
     ///   `B`, or is not a power of two.
-    pub fn new(width: usize, length: usize) -> Self {
-        Self::with_meta(width, length, vec![])
+    pub fn new(width: usize, length: usize, bytecode: Vec<B>) -> Self {
+        Self::with_meta(width, length, vec![], bytecode)
     }
 
     /// Creates a new execution trace of the specified width and length, and with the specified
@@ -65,7 +66,7 @@ impl<B: StarkField> RapTraceTable<B> {
     /// * `length` is smaller than 8, greater than the biggest multiplicative subgroup in the
     ///   field `B`, or is not a power of two.
     /// * Length of `meta` is greater than 65535;
-    pub fn with_meta(width: usize, length: usize, meta: Vec<u8>) -> Self {
+    pub fn with_meta(width: usize, length: usize, meta: Vec<u8>, bytecode: Vec<B>) -> Self {
         assert!(
             width > 0,
             "execution trace must consist of at least one column"
@@ -105,6 +106,7 @@ impl<B: StarkField> RapTraceTable<B> {
             layout: TraceLayout::new(width, [AUX_WIDTH], [3]),
             trace: Matrix::new(columns),
             meta,
+            bytecode,
         }
     }
 
@@ -210,69 +212,98 @@ impl<B: StarkField> Trace for RapTraceTable<B> {
         let mut aux_columns = vec![vec![E::ZERO; self.length()]; self.aux_trace_width()];
 
         // First initialize the P0.
-        aux_columns[0][0] = (rand_elements[0] - current_row[16].into()) / (rand_elements[0] - current_row[34].into());
+        aux_columns[0][0] = (rand_elements[0] - current_row[16].into())
+            / (rand_elements[0] - current_row[34].into());
 
         // Necessary variables: into() fails otherwise. Any better way to do this?
         let mut a: E = current_row[19].into();
         let mut a2: E = current_row[40].into();
-        aux_columns[4][0] = (rand_elements[1] - (a + rand_elements[2] * current_row[20].into())) 
-                            / (rand_elements[1] - (a2 + rand_elements[2] * current_row[41].into()));
+        aux_columns[4][0] = (rand_elements[1] - (a + rand_elements[2] * current_row[20].into()))
+            / (rand_elements[1] - (a2 + rand_elements[2] * current_row[41].into()));
         //println!("{}", aux_columns[0][0]);
 
-
         // Complete the first row.
-        aux_columns[1][0] = aux_columns[0][0] * (rand_elements[0] - current_row[17].into()) / (rand_elements[0] - current_row[35].into());
-        aux_columns[2][0] = aux_columns[1][0] * (rand_elements[0] - current_row[18].into()) / (rand_elements[0] - current_row[36].into());
-        aux_columns[3][0] = aux_columns[2][0] * (rand_elements[0] - current_row[33].into()) / (rand_elements[0] - current_row[37].into());
+        aux_columns[1][0] = aux_columns[0][0] * (rand_elements[0] - current_row[17].into())
+            / (rand_elements[0] - current_row[35].into());
+        aux_columns[2][0] = aux_columns[1][0] * (rand_elements[0] - current_row[18].into())
+            / (rand_elements[0] - current_row[36].into());
+        aux_columns[3][0] = aux_columns[2][0] * (rand_elements[0] - current_row[33].into())
+            / (rand_elements[0] - current_row[37].into());
 
         a = current_row[21].into();
         a2 = current_row[42].into();
-        aux_columns[5][0] = aux_columns[4][0] * (rand_elements[1] - (a + rand_elements[2] * current_row[22].into())) 
-                            / (rand_elements[1] - (a2 + rand_elements[2] * current_row[43].into()));
+        aux_columns[5][0] = aux_columns[4][0]
+            * (rand_elements[1] - (a + rand_elements[2] * current_row[22].into()))
+            / (rand_elements[1] - (a2 + rand_elements[2] * current_row[43].into()));
         a = current_row[23].into();
         a2 = current_row[44].into();
-        aux_columns[6][0] = aux_columns[5][0] * (rand_elements[1] - (a + rand_elements[2] * current_row[24].into())) 
-                            / (rand_elements[1] - (a2 + rand_elements[2] * current_row[45].into()));
+        aux_columns[6][0] = aux_columns[5][0]
+            * (rand_elements[1] - (a + rand_elements[2] * current_row[24].into()))
+            / (rand_elements[1] - (a2 + rand_elements[2] * current_row[45].into()));
         a = current_row[25].into();
         a2 = current_row[46].into();
-        aux_columns[7][0] = aux_columns[6][0] * (rand_elements[1] - (a + rand_elements[2] * current_row[26].into())) 
-                            / (rand_elements[1] - (a2 + rand_elements[2] * current_row[47].into()));
+        aux_columns[7][0] = aux_columns[6][0]
+            * (rand_elements[1] - (a + rand_elements[2] * current_row[26].into()))
+            / (rand_elements[1] - (a2 + rand_elements[2] * current_row[47].into()));
         a = current_row[38].into();
         a2 = current_row[48].into();
-        aux_columns[8][0] = aux_columns[7][0] * (rand_elements[1] - (a + rand_elements[2] * current_row[39].into())) 
-                            / (rand_elements[1] - (a2 + rand_elements[2] * current_row[49].into()));
+        aux_columns[8][0] = aux_columns[7][0]
+            * (rand_elements[1] - (a + rand_elements[2] * current_row[39].into()))
+            / (rand_elements[1] - (a2 + rand_elements[2] * current_row[49].into()));
 
         // Fill the rest of the rows. The last main trace row is filled with garbage, so we don't need to care about it.
-        for index in 1..self.length() {
+        for index in 1..(self.length() - 1) {
             self.read_row_into(index, &mut current_row);
-            aux_columns[0][index] = aux_columns[3][index - 1] * (rand_elements[0] - current_row[16].into()) / (rand_elements[0] - current_row[34].into());
-            aux_columns[1][index] = aux_columns[0][index] * (rand_elements[0] - current_row[17].into()) / (rand_elements[0] - current_row[35].into());
-            aux_columns[2][index] = aux_columns[1][index] * (rand_elements[0] - current_row[18].into()) / (rand_elements[0] - current_row[36].into());
-            aux_columns[3][index] = aux_columns[2][index] * (rand_elements[0] - current_row[33].into()) / (rand_elements[0] - current_row[37].into());
+            aux_columns[0][index] = aux_columns[3][index - 1]
+                * (rand_elements[0] - current_row[16].into())
+                / (rand_elements[0] - current_row[34].into());
+            aux_columns[1][index] = aux_columns[0][index]
+                * (rand_elements[0] - current_row[17].into())
+                / (rand_elements[0] - current_row[35].into());
+            aux_columns[2][index] = aux_columns[1][index]
+                * (rand_elements[0] - current_row[18].into())
+                / (rand_elements[0] - current_row[36].into());
+            aux_columns[3][index] = aux_columns[2][index]
+                * (rand_elements[0] - current_row[33].into())
+                / (rand_elements[0] - current_row[37].into());
 
             a = current_row[19].into();
             a2 = current_row[40].into();
-            aux_columns[4][index] = aux_columns[8][index - 1] * (rand_elements[1] - (a + rand_elements[2] * current_row[20].into())) 
-                                / (rand_elements[1] - (a2 + rand_elements[2] * current_row[41].into()));
+            aux_columns[4][index] = aux_columns[8][index - 1]
+                * (rand_elements[1] - (a + rand_elements[2] * current_row[20].into()))
+                / (rand_elements[1] - (a2 + rand_elements[2] * current_row[41].into()));
             a = current_row[21].into();
             a2 = current_row[42].into();
-            aux_columns[5][index] = aux_columns[4][index] * (rand_elements[1] - (a + rand_elements[2] * current_row[22].into())) 
-                                / (rand_elements[1] - (a2 + rand_elements[2] * current_row[43].into()));
+            aux_columns[5][index] = aux_columns[4][index]
+                * (rand_elements[1] - (a + rand_elements[2] * current_row[22].into()))
+                / (rand_elements[1] - (a2 + rand_elements[2] * current_row[43].into()));
             a = current_row[23].into();
             a2 = current_row[44].into();
-            aux_columns[6][index] = aux_columns[5][index] * (rand_elements[1] - (a + rand_elements[2] * current_row[24].into())) 
-                                / (rand_elements[1] - (a2 + rand_elements[2] * current_row[45].into()));
+            aux_columns[6][index] = aux_columns[5][index]
+                * (rand_elements[1] - (a + rand_elements[2] * current_row[24].into()))
+                / (rand_elements[1] - (a2 + rand_elements[2] * current_row[45].into()));
             a = current_row[25].into();
             a2 = current_row[46].into();
-            aux_columns[7][index] = aux_columns[6][index] * (rand_elements[1] - (a + rand_elements[2] * current_row[26].into())) 
-                                / (rand_elements[1] - (a2 + rand_elements[2] * current_row[47].into()));
+            aux_columns[7][index] = aux_columns[6][index]
+                * (rand_elements[1] - (a + rand_elements[2] * current_row[26].into()))
+                / (rand_elements[1] - (a2 + rand_elements[2] * current_row[47].into()));
             a = current_row[38].into();
             a2 = current_row[48].into();
-            aux_columns[8][index] = aux_columns[7][index] * (rand_elements[1] - (a + rand_elements[2] * current_row[39].into())) 
-                                / (rand_elements[1] - (a2 + rand_elements[2] * current_row[49].into()));
+            aux_columns[8][index] = aux_columns[7][index]
+                * (rand_elements[1] - (a + rand_elements[2] * current_row[39].into()))
+                / (rand_elements[1] - (a2 + rand_elements[2] * current_row[49].into()));
         }
 
-/*        println!("{}", rand_elements[0]);
+        // Change final value with bytecode values (paper section 9.8).
+        // let mut final_value = E::ONE;
+        // Can be optimized by computing z^len(bytecode) separately.
+        for i in 0..(self.bytecode.len() / 2) {
+            a = self.bytecode[2 * i].into();
+            aux_columns[8][self.length() - 2] *= rand_elements[1]
+                / (rand_elements[1] - (a + rand_elements[2] * self.bytecode[2 * i + 1].into()));
+        }
+        // aux_columns[8][self.length() - 1] = final_value;
+        /*        println!("{}", rand_elements[0]);
 
         let mut aux_row = Vec::<E>::new();
         for i in 0..self.length() {

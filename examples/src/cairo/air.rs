@@ -26,6 +26,7 @@ impl Serializable for PublicInputs {
 
 pub struct CairoAir {
     context: AirContext<BaseElement>,
+    public_inputs: PublicInputs,
 }
 
 impl Air for CairoAir {
@@ -109,6 +110,7 @@ impl Air for CairoAir {
                 options,
             )
             .set_num_transition_exemptions(2),
+            public_inputs: public_inputs,
         }
     }
 
@@ -332,11 +334,21 @@ impl Air for CairoAir {
 
     fn get_aux_assertions<E: FieldElement + From<Self::BaseField>>(
         &self,
-        _aux_rand_elements: &AuxTraceRandElements<E>,
+        aux_rand_elements: &AuxTraceRandElements<E>,
     ) -> Vec<Assertion<E>> {
+        let mut final_value = E::ONE;
+        let mut a: E;
+        let bytecode = self.public_inputs.bytecode.clone();
+        let random_elements = aux_rand_elements.get_segment_elements(0);
+
+        for i in 0..(bytecode.len() / 2) {
+            a = bytecode[2 * i].into();
+            final_value *= random_elements[1]
+                / (random_elements[1] - (a + random_elements[2] * bytecode[2 * i + 1].into()));
+        }
         vec![
             Assertion::single(3, self.trace_length() - 2, E::ONE),
-            Assertion::single(8, self.trace_length() - 2, E::ONE),
+            Assertion::single(8, self.trace_length() - 2, final_value),
         ]
     }
 }

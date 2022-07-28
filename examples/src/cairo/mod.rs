@@ -39,7 +39,7 @@ use std::sync::Mutex;
 const TRACE_WIDTH: usize = 50;
 const AUX_WIDTH: usize = 9;
 
-// FIBONACCI EXAMPLE
+// CAIRO EXAMPLE
 // ================================================================================================
 
 pub fn get_example(
@@ -91,14 +91,17 @@ impl Example for CairoExample {
         reader.lock().unwrap().read_line(&mut line).unwrap();
         line.pop();
         let bytecode_length = usize::from_str(&line).unwrap();
-        println!("{}", bytecode_length);
+        // println!("{}", bytecode_length);
         line.clear();
         reader.lock().unwrap().read_line(&mut line).unwrap();
-        // line.pop();
         let bytecode = line
             .split([' '].as_ref())
             .map(|a| BaseElement::new(u128::from_str(&a).unwrap()))
             .collect::<Vec<BaseElement>>();
+        assert!(
+            2 * bytecode_length == bytecode.len(),
+            "Wrong number of values provided."
+        );
 
         // create a prover
         let prover = CairoProver::new(self.options.clone(), bytecode);
@@ -131,7 +134,6 @@ impl Example for CairoExample {
         reader.lock().unwrap().read_line(&mut line).unwrap();
         line.pop();
         let bytecode_length = usize::from_str(&line).unwrap();
-        println!("{}", bytecode_length);
         line.clear();
         reader.lock().unwrap().read_line(&mut line).unwrap();
         // line.pop();
@@ -139,6 +141,10 @@ impl Example for CairoExample {
             .split([' '].as_ref())
             .map(|a| BaseElement::new(u128::from_str(&a).unwrap()))
             .collect::<Vec<BaseElement>>();
+        assert!(
+            2 * bytecode_length == bytecode.len(),
+            "Wrong number of values provided."
+        );
         let pub_inputs = PublicInputs { bytecode: bytecode };
         winterfell::verify::<CairoAir>(proof, pub_inputs)
     }

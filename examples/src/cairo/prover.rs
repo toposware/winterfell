@@ -4,7 +4,8 @@
 // LICENSE file in the root directory of this source tree.
 
 use super::{
-    BaseElement, CairoAir, FieldElement, ProofOptions, Prover, PublicInputs, Trace, RapTraceTable, TRACE_WIDTH,
+    BaseElement, CairoAir, FieldElement, ProofOptions, Prover, PublicInputs, RapTraceTable, Trace,
+    TRACE_WIDTH,
 };
 
 use std::fs::File;
@@ -23,9 +24,7 @@ pub struct CairoProver {
 
 impl CairoProver {
     pub fn new(options: ProofOptions, bytecode: Vec<BaseElement>) -> Self {
-        Self { options,
-               bytecode,
-             }
+        Self { options, bytecode }
     }
 
     /// Builds an execution trace for computing a Fibonacci sequence of the specified length such
@@ -41,7 +40,7 @@ impl CairoProver {
         let real_length = usize::from_str(&line).unwrap();
         let padded_length = real_length.next_power_of_two();
 
-        let mut trace = RapTraceTable::new(TRACE_WIDTH, padded_length);
+        let mut trace = RapTraceTable::new(TRACE_WIDTH, padded_length, self.bytecode.clone());
 
         trace.fill(
             |state| {
