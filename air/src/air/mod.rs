@@ -561,7 +561,7 @@ pub trait Air: Send + Sync {
     {
         // let main_trace_width = self.trace_layout().main_trace_width();
         let mut t_coefficients = Vec::new();
-        for i in 0..self.trace_layout().virtual_trace_width() {
+        for _ in 0..self.trace_layout().virtual_trace_width() {
             t_coefficients.push(
                 // TODO: Remove next commented part. This seems not considered in the end:
                 // Maybe not all columns need to have 3 random coeffs
@@ -570,13 +570,12 @@ pub trait Air: Send + Sync {
                 // } else {
                 //     vec![public_coin.draw()?, public_coin.draw()?]
                 // }
-                vec![public_coin.draw()?, public_coin.draw()?, public_coin.draw()?]
+                public_coin.draw_triple()?
             );
         }
-        // Auxiliar columns have no virtual columns and are already in the extension field
+        // Auxiliary columns have no virtual columns and are already in the extension field
         for _ in 0..self.trace_info().layout().aux_trace_width() {
-            let random_coins = public_coin.draw_pair()?;
-            t_coefficients.push(vec![random_coins.0, random_coins.1]);
+            t_coefficients.push(public_coin.draw_triple()?);
         }
 
 

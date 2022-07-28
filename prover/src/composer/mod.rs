@@ -108,7 +108,7 @@ impl<E: FieldElement> DeepCompositionPoly<E> {
                     &mut tj_composition[j],
                     poly,
                     ood_trace_states[0][j*main_trace_width + i],
-                    self.cc.trace[j*main_trace_width + i][0],
+                    self.cc.trace[j*main_trace_width + i].0,
                 );
             }
 
@@ -117,7 +117,7 @@ impl<E: FieldElement> DeepCompositionPoly<E> {
                 &mut tj_composition[max_pow],
                 poly,
                 ood_trace_states[1][i],
-                self.cc.trace[i][1],
+                self.cc.trace[i].1,
             );
 
             // when extension field is enabled, compute T'''(x) = T(x) - T(z_conjugate), multiply
@@ -127,7 +127,7 @@ impl<E: FieldElement> DeepCompositionPoly<E> {
                     &mut tn_composition,
                     poly,
                     ood_trace_states[0][i].conjugate(),
-                    self.cc.trace[i][2],
+                    self.cc.trace[i].2,
                 );
             }
 
@@ -145,7 +145,7 @@ impl<E: FieldElement> DeepCompositionPoly<E> {
                 &mut tj_composition[0],
                 poly,
                 ood_trace_states[0][i],
-                self.cc.trace[i][0],
+                self.cc.trace[i].0,
             );
 
             // compute T''(x) = T(x) - T(z * g), multiply it by a pseudo-random coefficient,
@@ -154,7 +154,7 @@ impl<E: FieldElement> DeepCompositionPoly<E> {
                 &mut tj_composition[1],
                 poly,
                 ood_trace_states[1][i],
-                self.cc.trace[i][1],
+                self.cc.trace[i].1,
             );
 
             i += 1;

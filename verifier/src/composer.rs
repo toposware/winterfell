@@ -103,16 +103,16 @@ impl<E: FieldElement> DeepComposer<E> {
                     // compute T^j_i(x) = (T_i(x) - T_i(z * g^j)) / (x - z * g^j), multiply it by a composition
                     // coefficient, and add the result to T(x)
                     let t1 = (value - ood_main_trace_states[0][i*main_trace_width + j]) / (x - self.z[i]);
-                    *result += t1 * self.cc.trace[i*main_trace_width + j][0];
+                    *result += t1 * self.cc.trace[i*main_trace_width + j].0;
                 }
                 let t2 = (value - ood_main_trace_states[1][j]) / (x - self.z[last_pow]);
-                *result += t2 * self.cc.trace[j][1];
+                *result += t2 * self.cc.trace[j].1;
 
                 // when extension field is enabled compute
                 // T'''_i(x) = (T_i(x) - T_i(z_conjugate)) / (x - z_conjugate)
                 if let Some((z_conjugate, ref trace_at_z1_conjugates)) = conjugate_values {
                     let t3 = (value - trace_at_z1_conjugates[j]) / (x - z_conjugate);
-                    *result += t3 * self.cc.trace[j][2];
+                    *result += t3 * self.cc.trace[j].2;
                 }
             }
             
@@ -136,12 +136,12 @@ impl<E: FieldElement> DeepComposer<E> {
                     // compute T'_i(x) = (T_i(x) - T_i(z)) / (x - z), multiply it by a composition
                     // coefficient, and add the result to T(x)
                     let t1 = (value - ood_aux_trace_states[0][i]) / (x - self.z[0]);
-                    *result += t1 * self.cc.trace[cc_offset + i][0];
+                    *result += t1 * self.cc.trace[cc_offset + i].0;
 
                     // compute T''_i(x) = (T_i(x) - T_i(z * g)) / (x - z * g), multiply it by a
                     // composition coefficient, and add the result to T(x)
                     let t2 = (value - ood_aux_trace_states[1][i]) / (x - self.z[1]);
-                    *result += t2 * self.cc.trace[cc_offset + i][1];
+                    *result += t2 * self.cc.trace[cc_offset + i].1;
                 } 
             }
         }

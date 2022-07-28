@@ -113,8 +113,7 @@ pub struct ConstraintCompositionCoefficients<E: FieldElement> {
 #[derive(Debug, Clone)]
 pub struct DeepCompositionCoefficients<E: FieldElement> {
     /// Trace polynomial composition coefficients $\alpha_i$, $\beta_i$, and $\gamma_i$.
-    // TODO: This change seems uneeded. Revert back to the previous implementation.
-    pub trace: Vec<Vec<E>>,
+    pub trace: Vec<(E, E, E)>,
     /// Constraint column polynomial composition coefficients $\delta_j$.
     pub constraints: Vec<E>,
     /// Degree adjustment composition coefficients $\lambda$ and $\mu$.
