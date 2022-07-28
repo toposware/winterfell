@@ -33,7 +33,6 @@ pub struct RapTraceTable<B: StarkField> {
     layout: TraceLayout,
     trace: Matrix<B>,
     meta: Vec<u8>,
-    bytecode: Vec<B>,
 }
 
 impl<B: StarkField> RapTraceTable<B> {
@@ -50,8 +49,8 @@ impl<B: StarkField> RapTraceTable<B> {
     /// * `width` is zero or greater than 255.
     /// * `length` is smaller than 8, greater than biggest multiplicative subgroup in the field
     ///   `B`, or is not a power of two.
-    pub fn new(width: usize, length: usize, bytecode: Vec<B>) -> Self {
-        Self::with_meta(width, length, vec![], bytecode)
+    pub fn new(width: usize, length: usize) -> Self {
+        Self::with_meta(width, length, vec![])
     }
 
     /// Creates a new execution trace of the specified width and length, and with the specified
@@ -66,7 +65,7 @@ impl<B: StarkField> RapTraceTable<B> {
     /// * `length` is smaller than 8, greater than the biggest multiplicative subgroup in the
     ///   field `B`, or is not a power of two.
     /// * Length of `meta` is greater than 65535;
-    pub fn with_meta(width: usize, length: usize, meta: Vec<u8>, bytecode: Vec<B>) -> Self {
+    pub fn with_meta(width: usize, length: usize, meta: Vec<u8>) -> Self {
         assert!(
             width > 0,
             "execution trace must consist of at least one column"
@@ -106,7 +105,6 @@ impl<B: StarkField> RapTraceTable<B> {
             layout: TraceLayout::new(width, [AUX_WIDTH], [3]),
             trace: Matrix::new(columns),
             meta,
-            bytecode,
         }
     }
 

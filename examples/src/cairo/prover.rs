@@ -39,7 +39,7 @@ impl CairoProver {
         let real_length = usize::from_str(&line).unwrap();
         let padded_length = real_length.next_power_of_two();
 
-        let mut trace = RapTraceTable::new(TRACE_WIDTH, padded_length, self.bytecode.clone());
+        let mut trace = RapTraceTable::new(TRACE_WIDTH, padded_length);
 
         trace.fill(
             |state| {

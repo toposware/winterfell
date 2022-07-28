@@ -45,31 +45,31 @@ const AUX_WIDTH: usize = 9;
 pub fn get_example(
     options: ExampleOptions,
     trace_file_path: String,
-    bytecode_file_path: String,
+    public_input_file_path: String,
 ) -> Box<dyn Example> {
     Box::new(CairoExample::new(
         options.to_proof_options(28, 8),
         trace_file_path,
-        bytecode_file_path,
+        public_input_file_path,
     ))
 }
 
 pub struct CairoExample {
     options: ProofOptions,
     trace_file_path: String,
-    bytecode_file_path: String,
+    public_input_file_path: String,
 }
 
 impl CairoExample {
     pub fn new(
         options: ProofOptions,
         trace_file_path: String,
-        bytecode_file_path: String,
+        public_input_file_path: String,
     ) -> CairoExample {
         CairoExample {
             options,
             trace_file_path,
-            bytecode_file_path,
+            public_input_file_path,
         }
     }
 }
@@ -85,7 +85,7 @@ impl Example for CairoExample {
         );
 
         // read bytecode from file
-        let file = File::open(&self.bytecode_file_path).expect("Cannot open the file.");
+        let file = File::open(&self.public_input_file_path).expect("Cannot open the file.");
         let reader = Mutex::new(BufReader::new(file));
         let mut line = String::new();
         reader.lock().unwrap().read_line(&mut line).unwrap();
@@ -130,7 +130,7 @@ impl Example for CairoExample {
 
     fn verify(&self, proof: StarkProof) -> Result<(), VerifierError> {
         // read bytecode from file
-        let file = File::open(&self.bytecode_file_path).expect("Cannot open the file.");
+        let file = File::open(&self.public_input_file_path).expect("Cannot open the file.");
         let reader = Mutex::new(BufReader::new(file));
         let mut line = String::new();
         reader.lock().unwrap().read_line(&mut line).unwrap();
