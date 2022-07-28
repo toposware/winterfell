@@ -20,11 +20,20 @@ use std::sync::Mutex;
 pub struct CairoProver {
     options: ProofOptions,
     bytecode: Vec<BaseElement>,
+    register_values: Vec<BaseElement>,
 }
 
 impl CairoProver {
-    pub fn new(options: ProofOptions, bytecode: Vec<BaseElement>) -> Self {
-        Self { options, bytecode }
+    pub fn new(
+        options: ProofOptions,
+        bytecode: Vec<BaseElement>,
+        register_values: Vec<BaseElement>,
+    ) -> Self {
+        Self {
+            options,
+            bytecode,
+            register_values,
+        }
     }
 
     /// Builds an execution trace for a Cairo program from the provided file.
@@ -80,6 +89,7 @@ impl Prover for CairoProver {
     fn get_pub_inputs(&self, trace: &Self::Trace) -> PublicInputs {
         PublicInputs {
             bytecode: self.bytecode.clone(),
+            register_values: self.register_values.clone(),
         }
     }
 

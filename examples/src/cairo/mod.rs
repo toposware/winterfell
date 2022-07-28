@@ -103,10 +103,21 @@ impl Example for CairoExample {
             2 * bytecode_length == bytecode.len(),
             "Wrong number of values provided."
         );
-        // println!("{:#?}", bytecode);
+        line.clear();
+
+        // read register boundary values
+        reader.lock().unwrap().read_line(&mut line).unwrap();
+        let register_values = line
+            .split([' '].as_ref())
+            .map(|a| BaseElement::new(u128::from_str(&a).unwrap()))
+            .collect::<Vec<BaseElement>>();
+        assert!(
+            register_values.len() == 4,
+            "Wrong number of register boundary values provided."
+        );
 
         // create a prover
-        let prover = CairoProver::new(self.options.clone(), bytecode);
+        let prover = CairoProver::new(self.options.clone(), bytecode, register_values);
 
         // generate execution trace
         let now = Instant::now();
@@ -147,8 +158,17 @@ impl Example for CairoExample {
             2 * bytecode_length == bytecode.len(),
             "Wrong number of values provided."
         );
+        line.clear();
+        reader.lock().unwrap().read_line(&mut line).unwrap();
+        let register_values = line
+            .split([' '].as_ref())
+            .map(|a| BaseElement::new(u128::from_str(&a).unwrap()))
+            .collect::<Vec<BaseElement>>();
         // println!("{:#?}", bytecode);
-        let pub_inputs = PublicInputs { bytecode: bytecode };
+        let pub_inputs = PublicInputs {
+            bytecode: bytecode,
+            register_values: register_values,
+        };
         winterfell::verify::<CairoAir>(proof, pub_inputs)
     }
 

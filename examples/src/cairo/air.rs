@@ -16,11 +16,14 @@ use winterfell::{
 
 pub struct PublicInputs {
     pub bytecode: Vec<BaseElement>,
+    // pc_0, pc_final, ap_0, ap_final
+    pub register_values: Vec<BaseElement>,
 }
 
 impl Serializable for PublicInputs {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         target.write(&self.bytecode[..]);
+        target.write(&self.register_values[..]);
     }
 }
 
@@ -105,7 +108,7 @@ impl Air for CairoAir {
                 trace_info,
                 main_degrees,
                 aux_degrees,
-                1,
+                5,
                 2,
                 options,
             )
@@ -326,10 +329,15 @@ impl Air for CairoAir {
     }
 
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
-        // DUMMY CHECK
-        // Later it will be used to verify public memory.
+        // Check boundary register values.
         let last_step = self.trace_length() - 2;
-        vec![Assertion::single(10, 0, Self::BaseField::ONE)]
+        vec![
+            Assertion::single(19, 0, self.public_inputs.register_values[0]),
+            Assertion::single(19, last_step, self.public_inputs.register_values[1]),
+            Assertion::single(27, 0, self.public_inputs.register_values[2]),
+            Assertion::single(28, 0, self.public_inputs.register_values[2]),
+            Assertion::single(27, last_step, self.public_inputs.register_values[3]),
+        ]
     }
 
     fn get_aux_assertions<E: FieldElement + From<Self::BaseField>>(
