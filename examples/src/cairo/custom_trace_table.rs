@@ -294,29 +294,6 @@ impl<B: StarkField> Trace for RapTraceTable<B> {
                 / (rand_elements[1] - (a2 + rand_elements[2] * current_row[49].into()));
         }
 
-        // Change final value with bytecode values (paper section 9.8).
-        // let mut final_value = E::ONE;
-        // Can be optimized by computing the numerator and the denominator separately.
-        println!("{}", aux_columns[8][self.length() - 2]);
-        for i in 0..(self.bytecode.len() / 2) {
-            a = self.bytecode[2 * i].into();
-            aux_columns[8][self.length() - 2] *= rand_elements[1]
-                / (rand_elements[1] - (a + rand_elements[2] * self.bytecode[2 * i + 1].into()));
-        }
-
-        // println!("{:#?}", self.bytecode);
-        // aux_columns[8][self.length() - 1] = final_value;
-        /*        println!("{}", rand_elements[0]);
-
-        let mut aux_row = Vec::<E>::new();
-        for i in 0..self.length() {
-            aux_row.clear();
-            for j in 0..AUX_WIDTH {
-                aux_row.push(aux_columns[j][i].into());
-            }
-            println!("{:?}", aux_row);
-        }*/
-
         Some(Matrix::new(aux_columns))
     }
 }
