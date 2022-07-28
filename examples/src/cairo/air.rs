@@ -339,6 +339,7 @@ impl Air for CairoAir {
         let mut final_value = E::ONE;
         let mut a: E;
         let bytecode = self.public_inputs.bytecode.clone();
+        // println!("{:#?}", bytecode);
         let random_elements = aux_rand_elements.get_segment_elements(0);
 
         for i in 0..(bytecode.len() / 2) {
@@ -346,6 +347,7 @@ impl Air for CairoAir {
             final_value *= random_elements[1]
                 / (random_elements[1] - (a + random_elements[2] * bytecode[2 * i + 1].into()));
         }
+
         vec![
             Assertion::single(3, self.trace_length() - 2, E::ONE),
             Assertion::single(8, self.trace_length() - 2, final_value),

@@ -94,6 +94,7 @@ impl Example for CairoExample {
         // println!("{}", bytecode_length);
         line.clear();
         reader.lock().unwrap().read_line(&mut line).unwrap();
+        line.pop();
         let bytecode = line
             .split([' '].as_ref())
             .map(|a| BaseElement::new(u128::from_str(&a).unwrap()))
@@ -102,6 +103,7 @@ impl Example for CairoExample {
             2 * bytecode_length == bytecode.len(),
             "Wrong number of values provided."
         );
+        // println!("{:#?}", bytecode);
 
         // create a prover
         let prover = CairoProver::new(self.options.clone(), bytecode);
@@ -136,7 +138,7 @@ impl Example for CairoExample {
         let bytecode_length = usize::from_str(&line).unwrap();
         line.clear();
         reader.lock().unwrap().read_line(&mut line).unwrap();
-        // line.pop();
+        line.pop();
         let bytecode = line
             .split([' '].as_ref())
             .map(|a| BaseElement::new(u128::from_str(&a).unwrap()))
@@ -145,6 +147,7 @@ impl Example for CairoExample {
             2 * bytecode_length == bytecode.len(),
             "Wrong number of values provided."
         );
+        // println!("{:#?}", bytecode);
         let pub_inputs = PublicInputs { bytecode: bytecode };
         winterfell::verify::<CairoAir>(proof, pub_inputs)
     }

@@ -27,8 +27,7 @@ impl CairoProver {
         Self { options, bytecode }
     }
 
-    /// Builds an execution trace for computing a Fibonacci sequence of the specified length such
-    /// that each row advances the sequence by 2 terms.
+    /// Builds an execution trace for a Cairo program from the provided file.
     pub fn build_trace_from_file(&self, trace_file_path: &String) -> RapTraceTable<BaseElement> {
         let file = File::open(trace_file_path).expect("Cannot open the file.");
 
