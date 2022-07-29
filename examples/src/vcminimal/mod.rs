@@ -58,6 +58,34 @@ impl VCMinimalExample {
             real_width
         }
     }
+
+    pub fn prove_with_precomputed_trace_and_prover(&self, trace: TraceTable<BaseElement>, prover: VCMinimalProver) -> StarkProof {
+        debug!(
+            "Generating virtual column minimal example proof up to 8th term\n\
+            ---------------------"
+        );
+
+        // generate the proof
+        prover.prove(trace).unwrap()
+    }
+
+    pub fn get_trace_and_prover(&self) -> (TraceTable<BaseElement>, VCMinimalProver) {
+        // create a prover
+        let prover = VCMinimalProver::new(self.options.clone(), self.input);
+        // generate execution trace
+        let now = Instant::now();
+        let trace = prover.build_trace(self.num_steps, self.width, self.real_width);
+
+        let trace_width = trace.width();
+        let trace_length = trace.length();
+        debug!(
+            "Generated execution trace of {} registers and 2^{} steps in {} ms",
+            trace_width,
+            log2(trace_length),
+            now.elapsed().as_millis()
+        );
+        (trace, prover)
+    }
 }
 
 // EXAMPLE IMPLEMENTATION

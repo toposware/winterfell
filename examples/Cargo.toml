@@ -36,7 +36,9 @@ env_logger = { version = "0.9", default-features = false }
 structopt = { version = "0.3", default-features = false }
 
 [dev-dependencies]
+pprof = { version = "0.3", features = ["flamegraph"] }
 criterion = "0.3"
+# criterion-macro = "0.3"  # optional, if you use custom test frameworks
 
 [[bench]]
 name = "fibonacci"
