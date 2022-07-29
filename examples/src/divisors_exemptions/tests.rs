@@ -9,7 +9,7 @@ use winterfell::{FieldExtension, HashFunction, ProofOptions};
 #[test]
 fn divisors_exemptions_test_basic_proof_verification() {
     let div = Box::new(super::DivisorsExemptionsExample::new(
-        [16, 8],
+        [16, 5],
         build_options(false),
     ));
     crate::tests::test_basic_proof_verification(div);

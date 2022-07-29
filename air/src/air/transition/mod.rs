@@ -202,23 +202,26 @@ impl<E: FieldElement> TransitionConstraints<E> {
     {
         // merge constraint evaluations for the main trace segment
         let mut result = self.main_constraints().iter().fold(E::ZERO, |acc, group| {
-            let divisor = self.divisors()[group.divisor_index].clone();
+            let custom_divisor = self.divisors()[group.divisor_index].clone();
 
-            acc + group.merge_evaluations::<F, F>(main_evaluations, x)
-                * E::from(
-                    divisor.evaluate_custom_exemptions_at(x, self.divisors()[0].numerator.len()),
-                )
+            acc + group.merge_evaluations::<F, F>(
+                main_evaluations,
+                x,
+                custom_divisor,
+                self.divisors()[0].clone(),
+            )
         });
 
         // merge constraint evaluations for auxiliary trace segments (if any)
         if self.num_aux_constraints() > 0 {
             result += self.aux_constraints().iter().fold(E::ZERO, |acc, group| {
-                let divisor = self.divisors()[group.divisor_index].clone();
-                acc + group.merge_evaluations::<F, E>(aux_evaluations, x)
-                    * E::from(
-                        divisor
-                            .evaluate_custom_exemptions_at(x, self.divisors()[0].numerator.len()),
-                    )
+                let custom_divisor = self.divisors()[group.divisor_index].clone();
+                acc + group.merge_evaluations::<F, E>(
+                    aux_evaluations,
+                    x,
+                    custom_divisor,
+                    self.divisors()[0].clone(),
+                )
             });
         }
 
@@ -323,7 +326,13 @@ impl<E: FieldElement> TransitionConstraintGroup<E> {
     /// them by the divisor later on. The degree of the divisor for transition constraints is
     /// always $n - 1$. Thus, once we divide out the divisor, the evaluations will represent a
     /// polynomial of degree $D$.
-    pub fn merge_evaluations<B, F>(&self, evaluations: &[F], x: B) -> E
+    pub fn merge_evaluations<B, F>(
+        &self,
+        evaluations: &[F],
+        x: B,
+        custom_divisor: ConstraintDivisor<E::BaseField>,
+        default_divisor: ConstraintDivisor<E::BaseField>,
+    ) -> E
     where
         B: FieldElement,
         F: FieldElement<BaseField = B::BaseField> + ExtensionOf<B>,
@@ -340,6 +349,9 @@ impl<E: FieldElement> TransitionConstraintGroup<E> {
             result += (coefficients.0 + coefficients.1.mul_base(xp)).mul_base(evaluation);
         }
         result
+            * E::from(
+                custom_divisor.evaluate_custom_exemptions_at(x, default_divisor.numerator().len()),
+            )
     }
 }
 
