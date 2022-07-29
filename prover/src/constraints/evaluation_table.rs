@@ -171,10 +171,12 @@ impl<E: FieldElement> ConstraintEvaluationTable<E> {
         // iterate over all columns of the constraint evaluation table, divide each column
         // by the evaluations of its corresponding divisor, and add all resulting evaluations
         // together into a single vector
+        // TODO: [Divisors] Zipping here is wrong!
         for (column, divisor) in self.evaluations.into_iter().zip(self.divisors.iter()) {
             // in debug mode, make sure post-division degree of each column matches the expected
             // degree
             #[cfg(debug_assertions)]
+            // TODO: [Divisors] Fixme!
             validate_column_degree(&column, divisor, domain_offset, column.len() - 1)?;
 
             // divide the column by the divisor and accumulate the result into combined_poly
@@ -439,12 +441,22 @@ fn build_transition_constraint_degrees<E: FieldElement>(
 
     // TODO: [divisors] fix this by chosing the correct divisor
     // currently using divisors[0] which is the default divisor
-    for degree in constraints.main_constraint_degrees() {
-        result.push(degree.get_evaluation_degree(trace_length) - constraints.divisors()[0].degree())
+    for (idx, degree) in constraints.main_constraint_degrees().iter().enumerate() {
+        let divisor_idx = constraints.main_constraints_divisors()[idx];
+        let res1 = degree.get_evaluation_degree(trace_length);
+        let res2 = constraints.divisors()[divisor_idx].degree();
+        result.push(
+            degree.get_evaluation_degree(trace_length)
+                - constraints.divisors()[divisor_idx].degree(),
+        )
     }
 
-    for degree in constraints.aux_constraint_degrees() {
-        result.push(degree.get_evaluation_degree(trace_length) - constraints.divisors()[0].degree())
+    for (idx, degree) in constraints.aux_constraint_degrees().iter().enumerate() {
+        let divisor_idx = constraints.aux_constraints_divisors()[idx];
+        result.push(
+            degree.get_evaluation_degree(trace_length)
+                - constraints.divisors()[divisor_idx].degree(),
+        )
     }
 
     result

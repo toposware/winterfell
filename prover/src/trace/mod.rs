@@ -180,6 +180,7 @@ pub trait Trace: Sized {
 
         // we check transition constraints on all steps except the last k steps, where k is the
         // number of steps exempt from transition constraints (guaranteed to be at least 1)
+        // TODO [divisors]: fix this taking into account the places to check
         for step in 0..self.length() - air.context().num_transition_exemptions() {
             // build periodic values
             for (p, v) in periodic_values_polys.iter().zip(periodic_values.iter_mut()) {
@@ -193,8 +194,8 @@ pub trait Trace: Sized {
             self.read_main_frame(step, &mut main_frame);
             air.evaluate_transition(&main_frame, &periodic_values, &mut main_evaluations);
             for (i, &evaluation) in main_evaluations.iter().enumerate() {
-                // TODO [divisors]: fix this taking into account the places to check
                 // assert!(
+                //     // if i > self.context
                 //     evaluation == Self::BaseField::ZERO,
                 //     "main transition constraint {} did not evaluate to ZERO at step {}",
                 //     i,

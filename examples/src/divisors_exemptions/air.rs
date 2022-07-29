@@ -46,8 +46,21 @@ impl Air for DivisorsExemptionsAir {
             TransitionConstraintDegree::new(1),
         ];
         assert_eq!(TRACE_WIDTH, trace_info.width());
+
+        let mut divisors = Vec::new();
+        // set extra divisors used in the AIR
+        let custom_divisor = trace_info.length() + 1 - pub_inputs.last_exp_step as usize;
+        divisors.push(custom_divisor);
+        // overwrite main and auxiliary constraint divisors. Zero is the default divisor.
+        let main_constraint_divisors: Vec<usize> = Vec::from([0, 0, 1]);
+        let aux_constraint_divisors: Vec<usize> = Vec::new();
+
         DivisorsExemptionsAir {
-            context: AirContext::new(trace_info, degrees, 5, options),
+            context: AirContext::new(trace_info, degrees, 5, options).set_custom_divisors(
+                divisors,
+                main_constraint_divisors,
+                aux_constraint_divisors,
+            ),
             result: pub_inputs,
         }
     }

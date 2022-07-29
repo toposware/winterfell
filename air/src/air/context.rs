@@ -19,8 +19,7 @@ pub struct AirContext<B: StarkField> {
     pub(super) aux_transition_constraint_degrees: Vec<TransitionConstraintDegree>,
 
     // Divisor index to use for main and transition constraint
-    // TODO: [Divisors] initialize these values in AIR implementation.
-    // currently, it only gets different exemption points. Should generalize to cosets
+    // TODO: [Divisors] currently, it only gets different exemption points. Should generalize to cosets
     pub(super) main_transition_constraint_divisors: Vec<usize>,
     pub(super) aux_transition_constraint_divisors: Vec<usize>,
 
@@ -330,5 +329,93 @@ impl<B: StarkField> AirContext<B> {
         self.divisors[0] = n;
         self
     }
-    // TODO: [divisors] add mutators for divisors
+
+    /// Sets the number of transition exemptions for this context.
+    ///
+    /// # Panics
+    /// Panics if:
+    /// * The number of exemptions is zero.
+    /// * The number of exemptions exceeds half of the trace length.
+    /// * Given the combination of transition constraints degrees and the blowup factor in this
+    ///   context, the number of exemptions is too larger for a valid computation of the constraint
+    ///   composition polynomial.
+    pub fn set_custom_divisors(
+        mut self,
+        divisors: Vec<usize>,
+        main_constraint_divisors: Vec<usize>,
+        aux_constraint_divisors: Vec<usize>,
+    ) -> Self {
+        // assert the number of divisors coincides with the number of constraints
+        assert_eq!(
+            main_constraint_divisors.len(),
+            self.main_transition_constraint_degrees.len(),
+            "number of main custom divisors {} is different than the number of constraints {}",
+            main_constraint_divisors.len(),
+            self.main_transition_constraint_degrees.len()
+        );
+        assert_eq!(
+            aux_constraint_divisors.len(),
+            self.aux_transition_constraint_degrees.len(),
+            "number of aux custom divisors {} is different than the number of constraints {}",
+            aux_constraint_divisors.len(),
+            self.aux_transition_constraint_degrees.len()
+        );
+
+        // assert all divisor indexes are valid
+        for index in main_constraint_divisors.iter() {
+            assert!(
+                *index < divisors.len() + 1,
+                "main constraint divisor with index {} does not exist, max divisor index is {}",
+                index,
+                divisors.len() + 1
+            );
+        }
+        for index in aux_constraint_divisors.iter() {
+            assert!(
+                *index < divisors.len() + 1,
+                "aux constraint divisor with index {} does not exist, max divisor index is {}",
+                index,
+                divisors.len() + 1
+            );
+        }
+
+        // TODO: [Divisors] assert divisors are different
+
+        // assert all divisors are valid
+        for divisor in divisors.iter() {
+            assert!(
+                *divisor > 0,
+                "number of transition exemptions must be greater than zero"
+            );
+            // exemptions which are for more than half the trace plus one are probably a mistake
+            assert!(
+                *divisor <= self.trace_len() / 2 + 1,
+                "number of transition exemptions cannot exceed {}, but was {}",
+                self.trace_len() / 2 + 1,
+                divisor
+            );
+        }
+        let &min_divisor_degree = divisors.iter().min().unwrap();
+        // make sure the composition polynomial can be computed correctly with the specified
+        // number of exemptions
+        for degree in self
+            .main_transition_constraint_degrees
+            .iter()
+            .chain(self.aux_transition_constraint_degrees.iter())
+        {
+            let eval_degree = degree.get_evaluation_degree(self.trace_len());
+            let max_exemptions = self.composition_degree() + self.trace_len() - eval_degree;
+            assert!(
+                min_divisor_degree <= max_exemptions,
+                "number of transition exemptions cannot exceed: {}, but was {}",
+                max_exemptions,
+                min_divisor_degree
+            )
+        }
+
+        self.main_transition_constraint_divisors = main_constraint_divisors;
+        self.aux_transition_constraint_divisors = aux_constraint_divisors;
+        self.divisors.extend(divisors);
+        self
+    }
 }

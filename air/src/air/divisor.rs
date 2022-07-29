@@ -154,6 +154,20 @@ impl<B: StarkField> ConstraintDivisor<B> {
             .iter()
             .fold(E::ONE, |r, &e| r * (x - E::from(e)))
     }
+
+    /// Evaluates the denominator of this custom divisor (the exemption points) at the provided `x`
+    /// coordinate exept the default exemption (these will be computed once for all divisors).
+    pub fn evaluate_custom_exemptions_at<E: FieldElement<BaseField = B>>(
+        &self,
+        x: E,
+        default_exemptions: usize,
+    ) -> E {
+        self.exemptions
+            .iter()
+            .by_ref()
+            .take(self.exemptions.len() - default_exemptions)
+            .fold(E::ONE, |r, &e| r * (x - E::from(e)))
+    }
 }
 
 impl<B: StarkField> Display for ConstraintDivisor<B> {
