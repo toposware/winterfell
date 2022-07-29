@@ -57,7 +57,7 @@ impl DivisorsExemptionsProver {
                     state[2] += state[2];
                 } else {
                     // arbitrary values for the exempted points
-                    state[2] = BaseElement::ONE;
+                    state[2] = BaseElement::ZERO;
                 }
             },
         );

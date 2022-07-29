@@ -19,7 +19,7 @@ fn divisors_exemptions_test_basic_proof_verification() {
 
 fn divisors_exemptions_test_basic_proof_verification_extension() {
     let div = Box::new(super::DivisorsExemptionsExample::new(
-        [16, 8],
+        [16, 5],
         build_options(true),
     ));
     crate::tests::test_basic_proof_verification(div);
@@ -28,7 +28,7 @@ fn divisors_exemptions_test_basic_proof_verification_extension() {
 #[test]
 fn divisors_exemptions_test_basic_proof_verification_fail() {
     let div = Box::new(super::DivisorsExemptionsExample::new(
-        [16, 8],
+        [16, 5],
         build_options(false),
     ));
     crate::tests::test_basic_proof_verification_fail(div);
