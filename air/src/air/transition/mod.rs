@@ -204,24 +204,27 @@ impl<E: FieldElement> TransitionConstraints<E> {
         let mut result = self.main_constraints().iter().fold(E::ZERO, |acc, group| {
             let custom_divisor = self.divisors()[group.divisor_index].clone();
 
-            acc + group.merge_evaluations::<F, F>(
+            let (evaluation, divisor_correction) = group.merge_evaluations::<F, F>(
                 main_evaluations,
                 x,
                 custom_divisor,
                 self.divisors()[0].clone(),
-            )
+            );
+            acc + evaluation * E::from(divisor_correction)
         });
 
         // merge constraint evaluations for auxiliary trace segments (if any)
         if self.num_aux_constraints() > 0 {
             result += self.aux_constraints().iter().fold(E::ZERO, |acc, group| {
                 let custom_divisor = self.divisors()[group.divisor_index].clone();
-                acc + group.merge_evaluations::<F, E>(
+
+                let (evaluation, divisor_correction) = group.merge_evaluations::<F, E>(
                     aux_evaluations,
                     x,
                     custom_divisor,
                     self.divisors()[0].clone(),
-                )
+                );
+                acc + evaluation * E::from(divisor_correction)
             });
         }
 
@@ -273,7 +276,7 @@ impl<E: FieldElement> TransitionConstraintGroup<E> {
             degree_adjustment,
             indexes: vec![],
             coefficients: vec![],
-            divisor_index: divisor_index,
+            divisor_index,
         }
     }
 
@@ -332,7 +335,7 @@ impl<E: FieldElement> TransitionConstraintGroup<E> {
         x: B,
         custom_divisor: ConstraintDivisor<E::BaseField>,
         default_divisor: ConstraintDivisor<E::BaseField>,
-    ) -> E
+    ) -> (E, B)
     where
         B: FieldElement,
         F: FieldElement<BaseField = B::BaseField> + ExtensionOf<B>,
@@ -348,10 +351,10 @@ impl<E: FieldElement> TransitionConstraintGroup<E> {
             let evaluation = evaluations[constraint_idx];
             result += (coefficients.0 + coefficients.1.mul_base(xp)).mul_base(evaluation);
         }
-        result
-            * E::from(
-                custom_divisor.evaluate_custom_exemptions_at(x, default_divisor.numerator().len()),
-            )
+
+        let divisor_correction =
+            custom_divisor.evaluate_custom_exemptions_at(x, default_divisor.exemptions().len());
+        (result, divisor_correction)
     }
 }
 
@@ -373,7 +376,7 @@ fn group_constraints<E: FieldElement>(
         let evaluation_degree = degree.get_evaluation_degree(context.trace_len());
         let group = groups
             // The tree key contains the degree and the divisor
-            .entry((evaluation_degree, divisor_degrees[divisors_indices[i]]))
+            .entry((evaluation_degree, divisors_indices[i]))
             .or_insert_with(|| {
                 TransitionConstraintGroup::new(
                     degree.clone(),

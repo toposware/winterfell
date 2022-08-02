@@ -87,7 +87,12 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         // divisor which we put at the front of the list; any custom divisor is considered during evaluation
         // of the constraints by multiplying with default_divisor/custom_divisor each constraint.
         // This avoids doing unecessary inversions per divisor.
-        let mut divisors = vec![self.transition_constraints.divisors()[0].clone()];
+        let mut divisors = vec![self
+            .transition_constraints
+            .divisors()
+            .first()
+            .unwrap()
+            .clone()];
         divisors.append(&mut self.boundary_constraints.get_divisors());
 
         // allocate space for constraint evaluations; when we are in debug mode, we also allocate
@@ -129,7 +134,6 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         // actual degrees we got during constraint evaluation
         #[cfg(debug_assertions)]
         evaluation_table.validate_transition_degrees();
-
         evaluation_table
     }
 
@@ -285,7 +289,12 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         self.transition_constraints.main_constraints().iter().fold(E::ZERO, |result, group| {
             let custom_divisor = self.transition_constraints.divisors()[group.divisor_index()].clone();
             let default_divisor = self.transition_constraints.divisors()[0].clone();
-            result + group.merge_evaluations(evaluations, x, custom_divisor, default_divisor)
+
+            let (evaluation, divisor_correction) = group.merge_evaluations::<E::BaseField,E::BaseField>(evaluations, x, custom_divisor, default_divisor);
+            for idx in group.indexes().iter() {
+               evaluations[*idx] *= divisor_correction
+            }
+            result + evaluation * E::from(divisor_correction)
         })
     }
 
@@ -324,7 +333,8 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         self.transition_constraints.aux_constraints().iter().fold(E::ZERO, |result, group| {
             let custom_divisor = self.transition_constraints.divisors()[group.divisor_index()].clone();
             let default_divisor = self.transition_constraints.divisors()[0].clone();
-            result + group.merge_evaluations::<E::BaseField, E>(evaluations, x, custom_divisor, default_divisor)
+            let (evaluation, divisor_correction) = group.merge_evaluations::<E::BaseField, E>(evaluations, x, custom_divisor, default_divisor);
+            result + evaluation * E::from(divisor_correction)
         })
     }
 

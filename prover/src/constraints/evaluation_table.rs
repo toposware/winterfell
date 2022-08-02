@@ -171,12 +171,10 @@ impl<E: FieldElement> ConstraintEvaluationTable<E> {
         // iterate over all columns of the constraint evaluation table, divide each column
         // by the evaluations of its corresponding divisor, and add all resulting evaluations
         // together into a single vector
-        // TODO: [Divisors] Zipping here is wrong!
         for (column, divisor) in self.evaluations.into_iter().zip(self.divisors.iter()) {
             // in debug mode, make sure post-division degree of each column matches the expected
             // degree
             #[cfg(debug_assertions)]
-            // TODO: [Divisors] Fixme!
             validate_column_degree(&column, divisor, domain_offset, column.len() - 1)?;
 
             // divide the column by the divisor and accumulate the result into combined_poly
@@ -229,11 +227,11 @@ impl<E: FieldElement> ConstraintEvaluationTable<E> {
         }
 
         // make sure expected and actual degrees are equal
-        // assert_eq!(
-        //     self.expected_transition_degrees, actual_degrees,
-        //     "transition constraint degrees didn't match\nexpected: {:>3?}\nactual:   {:>3?}",
-        //     self.expected_transition_degrees, actual_degrees
-        // );
+        assert_eq!(
+            self.expected_transition_degrees, actual_degrees,
+            "transition constraint degrees didn't match\nexpected: {:>3?}\nactual:   {:>3?}",
+            self.expected_transition_degrees, actual_degrees
+        );
 
         // make sure evaluation domain size does not exceed the size required by max degree
         let expected_domain_size =

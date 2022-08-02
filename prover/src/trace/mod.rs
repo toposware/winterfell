@@ -161,6 +161,8 @@ pub trait Trace: Sized {
 
         // --- 2. make sure this trace satisfies all transition constraints -----------------------
 
+        // TODO [Divisors] fix this for arbitrary divisors
+
         // collect the info needed to build periodic values for a specific step
         let g = air.trace_domain_generator();
         let periodic_values_polys = air.get_periodic_column_polys();
@@ -180,7 +182,6 @@ pub trait Trace: Sized {
 
         // we check transition constraints on all steps except the last k steps, where k is the
         // number of steps exempt from transition constraints (guaranteed to be at least 1)
-        // TODO [divisors]: fix this taking into account the places to check
         for step in 0..self.length() - air.context().num_transition_exemptions() {
             // build periodic values
             for (p, v) in periodic_values_polys.iter().zip(periodic_values.iter_mut()) {
@@ -194,13 +195,15 @@ pub trait Trace: Sized {
             self.read_main_frame(step, &mut main_frame);
             air.evaluate_transition(&main_frame, &periodic_values, &mut main_evaluations);
             for (i, &evaluation) in main_evaluations.iter().enumerate() {
-                // assert!(
-                //     // if i > self.context
-                //     evaluation == Self::BaseField::ZERO,
-                //     "main transition constraint {} did not evaluate to ZERO at step {}",
-                //     i,
-                //     step
-                // );
+                let divisor_idx = air.context().main_transition_constraint_divisors()[i];
+                if step < self.length() - air.context().divisors()[divisor_idx] {
+                    assert!(
+                        evaluation == Self::BaseField::ZERO,
+                        "main transition constraint {} did not evaluate to ZERO at step {}",
+                        i,
+                        step
+                    );
+                }
             }
 
             // evaluate transition constraints for auxiliary trace segments (if any) and make
@@ -215,12 +218,15 @@ pub trait Trace: Sized {
                     &mut aux_evaluations,
                 );
                 for (i, &evaluation) in aux_evaluations.iter().enumerate() {
-                    assert!(
-                        evaluation == E::ZERO,
-                        "auxiliary transition constraint {} did not evaluate to ZERO at step {}",
-                        i,
-                        step
-                    );
+                    let divisor_idx = air.context().aux_transition_constraint_divisors()[i];
+                    if step < self.length() - air.context().divisors()[divisor_idx] {
+                        assert!(
+                            evaluation == E::ZERO,
+                            "auxiliary transition constraint {} did not evaluate to ZERO at step {}",
+                            i,
+                            step
+                        );
+                    }
                 }
             }
 

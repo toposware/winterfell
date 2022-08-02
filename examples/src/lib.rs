@@ -114,7 +114,7 @@ pub enum ExampleType {
         /// Length of Fibonacci sequence; must be a power of two
         #[structopt(short = "f", default_value = "16")]
         sequence_length_fib: u64,
-        #[structopt(short = "e", default_value = "16")]
+        #[structopt(short = "e", default_value = "5")]
         sequence_length_exp: u64,
     },
     /// Compute a Fibonacci sequence using trace table with 2 registers
