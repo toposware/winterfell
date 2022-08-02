@@ -157,6 +157,9 @@ impl<B: StarkField> ConstraintDivisor<B> {
 
     /// Evaluates the denominator of this custom divisor (the exemption points) at the provided `x`
     /// coordinate exept the default exemption (these will be computed once for all divisors).
+
+    // TODO: [divisors] we should change this. This should evaluate the denominator of a polynomial function
+    // of the form Z(X)/D(X) expressing the divisor. A second function should be added to evaluate Z(X).
     pub fn evaluate_custom_exemptions_at<E: FieldElement<BaseField = B>>(
         &self,
         x: E,

@@ -161,8 +161,6 @@ pub trait Trace: Sized {
 
         // --- 2. make sure this trace satisfies all transition constraints -----------------------
 
-        // TODO [Divisors] fix this for arbitrary divisors
-
         // collect the info needed to build periodic values for a specific step
         let g = air.trace_domain_generator();
         let periodic_values_polys = air.get_periodic_column_polys();
@@ -195,6 +193,7 @@ pub trait Trace: Sized {
             self.read_main_frame(step, &mut main_frame);
             air.evaluate_transition(&main_frame, &periodic_values, &mut main_evaluations);
             for (i, &evaluation) in main_evaluations.iter().enumerate() {
+                // only check the transition if the divisor dictates to do so
                 let divisor_idx = air.context().main_transition_constraint_divisors()[i];
                 if step < self.length() - air.context().divisors()[divisor_idx] {
                     assert!(
@@ -218,6 +217,7 @@ pub trait Trace: Sized {
                     &mut aux_evaluations,
                 );
                 for (i, &evaluation) in aux_evaluations.iter().enumerate() {
+                    // only check the transition if the divisor dictates to do so
                     let divisor_idx = air.context().aux_transition_constraint_divisors()[i];
                     if step < self.length() - air.context().divisors()[divisor_idx] {
                         assert!(

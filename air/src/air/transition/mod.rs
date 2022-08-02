@@ -69,27 +69,24 @@ impl<E: FieldElement> TransitionConstraints<E> {
         // group constraints by their degree and divisors, separately for constraints against main and auxiliary
         // trace segments
 
-        // keep the proper divisor index for each constraint
-        let main_constraint_divisors = context.main_transition_constraint_divisors.clone();
-        let aux_constraint_divisors = context.aux_transition_constraint_divisors.clone();
-
         let (main_constraint_coefficients, aux_constraint_coefficients) =
             composition_coefficients.split_at(context.main_transition_constraint_degrees.len());
 
         let main_constraint_degrees = context.main_transition_constraint_degrees.clone();
-        let main_constraint_divisors_indices = context.main_transition_constraint_divisors.clone();
+        let main_constraint_divisors = context.main_transition_constraint_divisors.clone();
         let main_constraints = group_constraints(
             &main_constraint_degrees,
-            &main_constraint_divisors_indices,
+            &main_constraint_divisors,
             context,
             main_constraint_coefficients,
             divisors.iter().map(|d| d.degree()).collect(),
         );
+
         let aux_constraint_degrees = context.aux_transition_constraint_degrees.clone();
-        let aux_constraint_divisors_indices = context.aux_transition_constraint_divisors.clone();
+        let aux_constraint_divisors = context.aux_transition_constraint_divisors.clone();
         let aux_constraints = group_constraints(
             &aux_constraint_degrees,
-            &aux_constraint_divisors_indices,
+            &aux_constraint_divisors,
             context,
             aux_constraint_coefficients,
             divisors.iter().map(|d| d.degree()).collect(),
@@ -201,9 +198,16 @@ impl<E: FieldElement> TransitionConstraints<E> {
         E: ExtensionOf<F>,
     {
         // merge constraint evaluations for the main trace segment
+        // TODO [divisors]: generalize for cosets
         let mut result = self.main_constraints().iter().fold(E::ZERO, |acc, group| {
             let custom_divisor = self.divisors()[group.divisor_index].clone();
 
+            // we take the constraint evaluation, ommitting the divisors along with the correction needed to
+            // evaluate the divisor. If a group has a divisor of the form D(X)(X^n-1)/Z(X) where n is the
+            // trace length, we multiply the evaluation of the whole group with D(x). Note that we do this
+            // multiplication once. When we have evaluated all groups, we multiply the combine result with
+            // (x^n-1)Z(x). This allows to do inversion once for all constraints.
+            // TODO [divisors]: modify for cosets.
             let (evaluation, divisor_correction) = group.merge_evaluations::<F, F>(
                 main_evaluations,
                 x,
@@ -352,6 +356,9 @@ impl<E: FieldElement> TransitionConstraintGroup<E> {
             result += (coefficients.0 + coefficients.1.mul_base(xp)).mul_base(evaluation);
         }
 
+        // We additionally compute a divisor correction for the group (at the moment the evaluation of
+        // exemptions apart the last one)
+        // TODO [divisor]: correct for cosets
         let divisor_correction =
             custom_divisor.evaluate_custom_exemptions_at(x, default_divisor.exemptions().len());
         (result, divisor_correction)
@@ -375,7 +382,7 @@ fn group_constraints<E: FieldElement>(
     for (i, degree) in degrees.iter().enumerate() {
         let evaluation_degree = degree.get_evaluation_degree(context.trace_len());
         let group = groups
-            // The tree key contains the degree and the divisor
+            // The tree key contains the degree and the divisor index
             .entry((evaluation_degree, divisors_indices[i]))
             .or_insert_with(|| {
                 TransitionConstraintGroup::new(

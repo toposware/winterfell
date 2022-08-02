@@ -18,8 +18,7 @@ pub struct AirContext<B: StarkField> {
     pub(super) main_transition_constraint_degrees: Vec<TransitionConstraintDegree>,
     pub(super) aux_transition_constraint_degrees: Vec<TransitionConstraintDegree>,
 
-    // Divisor index to use for main and transition constraint
-    // TODO: [Divisors] currently, it only gets different exemption points. Should generalize to cosets
+    // Divisor indices to use for main and transition constraint
     pub(super) main_transition_constraint_divisors: Vec<usize>,
     pub(super) aux_transition_constraint_divisors: Vec<usize>,
 
@@ -30,9 +29,12 @@ pub struct AirContext<B: StarkField> {
     pub(super) lde_domain_generator: B,
     // This defines the default divisor which is all points in trace except the num_transition_exemptions last ones (by default 1).
     // Each custom divisor is a divisor of the default divisor.
+    //
+    // TODO: [divisors] Remove this. Each divisor should be indepenendent and expressed as a polynomial D(X) = Z(X)/D'(X).
+    // Z(X) is the polynomial that vanishes on the trace domain and D(X). This will allow to later divide all constraints once using
+    // Z(X) instead of dividing each constraint with its divisor.
     pub(super) num_transition_exemptions: usize,
-    // The available divisors for the given AIR
-    // TODO: [Divisors] Currently it only holds exemptions. Its first element is the default divisor.
+    // The vector of available divisors for the given AIR.
     pub(super) divisors: Vec<usize>,
 }
 
@@ -158,27 +160,19 @@ impl<B: StarkField> AirContext<B> {
         let trace_length = trace_info.length();
         let lde_domain_size = trace_length * options.blowup_factor();
 
-        // Use the default divisor unless otherwise specified
-        let mut main_transition_constraint_divisors = Vec::new();
-        for _ in 0..main_transition_constraint_degrees.len() {
-            main_transition_constraint_divisors.push(0);
-        }
-
-        // Use the default divisor unless otherwise specified
-        let mut aux_transition_constraint_divisors = Vec::new();
-        for _ in 0..aux_transition_constraint_degrees.len() {
-            aux_transition_constraint_divisors.push(0);
-        }
-
-        // The default AIR uses the standard divisor (all points in trace except the last one).
-        // Mutate divisors, main_transition_constraints and aux_transition_constraints to modify this behaviour
+        // The default AIR uses the standard divisor (all transitions in trace except the last one).
+        // Mutate divisors, main_transition_constraints and aux_transition_constraints to modify this behavior
         AirContext {
             options,
             trace_info,
+            main_transition_constraint_divisors: (0..main_transition_constraint_degrees.len())
+                .map(|_| 0)
+                .collect(),
+            aux_transition_constraint_divisors: (0..aux_transition_constraint_degrees.len())
+                .map(|_| 0)
+                .collect(),
             main_transition_constraint_degrees,
             aux_transition_constraint_degrees,
-            main_transition_constraint_divisors,
-            aux_transition_constraint_divisors,
             num_main_assertions,
             num_aux_assertions,
             ce_blowup_factor,
@@ -325,17 +319,18 @@ impl<B: StarkField> AirContext<B> {
 
         self.num_transition_exemptions = n;
         // TODO: [divisors] currently this corresponds to the default divisor, so changing this means we need to change
-        // the default divisor as well
+        // the default divisor as well. Remove completely num_transition_exemptions parameter and only have custom divisors.
         self.divisors[0] = n;
         self
     }
 
-    /// Sets the number of transition exemptions for this context.
+    /// Sets custom divisors for this context.
     ///
     /// # Panics
     /// Panics if:
-    /// * The number of exemptions is zero.
-    /// * The number of exemptions exceeds half of the trace length.
+    /// * The number of divisors is different than the number of constraints.
+    /// * A divisor index exceeds the number of available divisors.
+    /// * A divisor is invalid (currently checking exemptions number only)
     /// * Given the combination of transition constraints degrees and the blowup factor in this
     ///   context, the number of exemptions is too larger for a valid computation of the constraint
     ///   composition polynomial.
@@ -364,24 +359,23 @@ impl<B: StarkField> AirContext<B> {
         // assert all divisor indexes are valid
         for index in main_constraint_divisors.iter() {
             assert!(
-                *index < divisors.len() + 1,
+                *index <= divisors.len(),
                 "main constraint divisor with index {} does not exist, max divisor index is {}",
                 index,
-                divisors.len() + 1
+                divisors.len()
             );
         }
         for index in aux_constraint_divisors.iter() {
             assert!(
-                *index < divisors.len() + 1,
+                *index <= divisors.len(),
                 "aux constraint divisor with index {} does not exist, max divisor index is {}",
                 index,
-                divisors.len() + 1
+                divisors.len()
             );
         }
 
-        // TODO: [Divisors] assert divisors are different
-
         // assert all divisors are valid
+        // TODO: [divisors] refine this
         for divisor in divisors.iter() {
             assert!(
                 *divisor > 0,
@@ -395,9 +389,11 @@ impl<B: StarkField> AirContext<B> {
                 divisor
             );
         }
+
         let &min_divisor_degree = divisors.iter().min().unwrap();
         // make sure the composition polynomial can be computed correctly with the specified
         // number of exemptions
+        // TODO: [divisors] refine this
         for degree in self
             .main_transition_constraint_degrees
             .iter()
