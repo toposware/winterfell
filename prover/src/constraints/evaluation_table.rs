@@ -171,6 +171,8 @@ impl<E: FieldElement> ConstraintEvaluationTable<E> {
         // iterate over all columns of the constraint evaluation table, divide each column
         // by the evaluations of its corresponding divisor, and add all resulting evaluations
         // together into a single vector
+
+        // TODO [divisors]: Deal with transition and boundary separately.
         for (column, divisor) in self.evaluations.into_iter().zip(self.divisors.iter()) {
             // in debug mode, make sure post-division degree of each column matches the expected
             // degree

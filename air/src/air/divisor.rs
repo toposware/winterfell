@@ -171,6 +171,63 @@ impl<B: StarkField> ConstraintDivisor<B> {
             .take(self.exemptions.len() - default_exemptions)
             .fold(E::ONE, |r, &e| r * (x - E::from(e)))
     }
+
+    // Decomposition
+    // --------------------------------------------------------------------------------------------
+
+    /// Express a divisor of the form $x^k - g^{j\cdot k}$ as a divisor of the polynomial $x^n - 1$ where
+    /// $n$ is the trace length. Concretely, we need to compute the polynomial
+    ///
+    /// $$
+    /// D'(x) = \prod_{i=0,i\neq j}^{n/k-1} (x^k - g^{i\cdot k})
+    /// $$
+    // TODO: [divisors] optimize this.
+    pub fn decompose_single<E: FieldElement<BaseField = B>>(
+        &self,
+        trace_length: usize,
+    ) -> Vec<Self> {
+        let mut numerator: Vec<(usize, B)> = Vec::new();
+
+        // The number of vanishing points of a divisor
+        let k = self.numerator()[0].0;
+        // subgroup_generator
+        let g = B::get_root_of_unity(trace_length.trailing_zeros());
+        for i in 0..trace_length / k {
+            let h = g.exp(((i * k) as u64).into());
+            if h != self.numerator()[0].1 {
+                numerator.push((k, h));
+            }
+        }
+        let decomposition = vec![Self::new(numerator, Vec::new())];
+        decomposition
+    }
+
+    /// Express a divisor of the form $\Prod_k x^k - g^{j\cdot k}$ as a vector of divisors.
+    /// Each element corresponds to a value k.
+    /// Note that summing the divisors yields the polynomial
+    /// $m(x^n - 1)$ where m is the elements in the numerator of the divisor polynomial
+    pub fn decompose<E: FieldElement<BaseField = B>>(&self, trace_length: usize) -> Vec<Vec<Self>> {
+        let decomposition = self
+            .numerator()
+            .iter()
+            .map(|numerator| {
+                ConstraintDivisor::new(vec![*numerator], vec![]).decompose_single::<B>(trace_length)
+            })
+            .collect::<Vec<_>>();
+
+        decomposition
+    }
+
+    // ASSOCIATED FUNCTIONS
+    // --------------------------------------------------------------------------------------------
+
+    /// Evaluates default divisor numerator (x^n-1) where n is the trace_length.
+    pub fn evaluate_default_numerator<E: FieldElement<BaseField = B>>(
+        trace_length: usize,
+        x: E,
+    ) -> E {
+        x.exp((trace_length as u64).into()) - E::ONE
+    }
 }
 
 impl<B: StarkField> Display for ConstraintDivisor<B> {
@@ -363,5 +420,77 @@ mod tests {
                 assert_eq!(BaseElement::ZERO, actual);
             }
         }
+
+        // Assert divisor decomposition is valid. Product of decomposed values and divisor should be equal to
+        // the evaluation of X^n-1
+        let default_divisor = ConstraintDivisor::new(vec![(n as usize, BaseElement::ONE)], vec![]);
+        // subgroups
+
+        // 1. plain (single numerator element) decomposition
+        // subgroups
+        for k in [1, 2, 4, 8] {
+            // offsets
+            for j in 0..n / k {
+                let divisor = ConstraintDivisor::new(
+                    vec![(k as usize, g.exp((j as u32 * k as u32).into()))],
+                    vec![],
+                );
+                let decomposed_divisor = divisor.decompose_single::<BaseElement>(n);
+                let expected_evaluation = default_divisor.evaluate_at(BaseElement::new(42));
+                let actual_evaluation = decomposed_divisor
+                    .iter()
+                    .fold(divisor.evaluate_at(BaseElement::new(42)), |acc, d| {
+                        acc * d.evaluate_at(BaseElement::new(42))
+                    });
+                assert_eq!(expected_evaluation, actual_evaluation);
+            }
+        }
+
+        // 2. full decomposition
+        // take a divisor of size three
+        // TODO: [Divisors] add a better test
+        let divisor = ConstraintDivisor::new(
+            vec![
+                (1 as usize, g.exp((1 as u32 * 7 as u32).into())),
+                (2 as usize, g.exp((1 as u32 * 2 as u32).into())),
+                (8 as usize, g.exp((1 as u32 * 8 as u32).into())),
+                (4 as usize, g.exp((2 as u32 * 4 as u32).into())),
+            ],
+            vec![],
+        );
+        // get the separate divisors defining the numerator
+        let divisors = divisor
+            .numerator()
+            .iter()
+            .map(|num| ConstraintDivisor::new(vec![*num], vec![]))
+            .collect::<Vec<_>>();
+        // get divisor decomposition
+        let decomposed_divisor = divisor.decompose::<BaseElement>(n);
+        // get expected evaluation. This should be l(x^n-1) where l is the divisor numerator length
+        let expected_evaluation = BaseElement::new(divisor.numerator().len() as u128)
+            * default_divisor.evaluate_at(BaseElement::new(42));
+
+        // evaluate each of the decomposed divisors
+        let individual_evaluations = decomposed_divisor
+            .iter()
+            .enumerate()
+            .map(|(i, d)| {
+                d.iter()
+                    .fold(divisors[i].evaluate_at(BaseElement::new(42)), |acc, d| {
+                        acc * d.evaluate_at(BaseElement::new(42))
+                    })
+            })
+            .collect::<Vec<_>>();
+        let actual_evaluation = individual_evaluations
+            .iter()
+            .fold(BaseElement::ZERO, |acc, e| acc + *e);
+        assert_eq!(expected_evaluation, actual_evaluation);
+
+        // 3. default divisor numerator computation
+        let expected_evaluation = ConstraintDivisor::new(vec![(n, BaseElement::ONE)], vec![])
+            .evaluate_at(BaseElement::new(42));
+        let actual_evaluation =
+            ConstraintDivisor::evaluate_default_numerator(n, BaseElement::new(42));
+        assert_eq!(expected_evaluation, actual_evaluation);
     }
 }
