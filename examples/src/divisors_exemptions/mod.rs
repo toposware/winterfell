@@ -63,7 +63,7 @@ impl DivisorsExemptionsExample {
         );
 
         let now = Instant::now();
-        let result_exp = BaseElement::new(2u128).exp((sequence_length[1] as u128 - 1).into());
+        let result_exp = BaseElement::new(2u128).exp(sequence_length[1] as u128 - 1);
         debug!(
             "Computed 2 to the power of {} in {} ms",
             sequence_length[1] - 1,

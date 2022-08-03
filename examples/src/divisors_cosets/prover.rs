@@ -88,7 +88,7 @@ impl Prover for DivisorsCosetsProver {
         let last_step = trace.length() - 1;
         let result = trace.get(0, last_step);
         super::air::PublicInputs {
-            result: result,
+            result,
             range_length: self.range_length,
             offset: self.offset,
         }
