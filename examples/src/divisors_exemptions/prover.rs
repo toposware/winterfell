@@ -81,7 +81,7 @@ impl Prover for DivisorsExemptionsProver {
             trace.get(2, last_exp_step as usize),
         ];
         super::air::PublicInputs {
-            results: results,
+            results,
             last_exp_step: self.last_exp_step,
         }
     }

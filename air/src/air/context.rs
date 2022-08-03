@@ -165,8 +165,8 @@ impl<B: StarkField> AirContext<B> {
         AirContext {
             options,
             trace_info,
-            main_transition_constraint_divisors: vec![0, main_transition_constraint_degrees.len()],
-            aux_transition_constraint_divisors: vec![0, aux_transition_constraint_degrees.len()],
+            main_transition_constraint_divisors: vec![0; main_transition_constraint_degrees.len()],
+            aux_transition_constraint_divisors: vec![0; aux_transition_constraint_degrees.len()],
             main_transition_constraint_degrees,
             aux_transition_constraint_degrees,
             num_main_assertions,

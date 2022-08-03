@@ -81,7 +81,7 @@ impl DivisorsCosetsExample {
         );
 
         let now = Instant::now();
-        let result_exp = BaseElement::new(2u128).exp((sequence_length as u128 - 1).into());
+        let result_exp = BaseElement::new(2u128).exp(sequence_length as u128 - 1);
         debug!(
             "Computed 2 to the power of {} in {} ms",
             sequence_length - 1,
@@ -90,8 +90,8 @@ impl DivisorsCosetsExample {
 
         let public_inputs = air::PublicInputs {
             result: result_exp,
-            range_length: range_length,
-            offset: offset,
+            range_length,
+            offset,
         };
 
         DivisorsCosetsExample {
