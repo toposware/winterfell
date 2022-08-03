@@ -88,12 +88,7 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         // of the constraints by multiplying with default_divisor/custom_divisor each constraint.
         // This avoids doing unecessary inversions per divisor.
         // Currently this only consider the default divisor and the boundary constraints divisors
-        let mut divisors = vec![self
-            .transition_constraints
-            .divisors()
-            .first()
-            .unwrap()
-            .clone()];
+        let mut divisors = vec![self.transition_constraints.divisors()[0].clone()];
         divisors.append(&mut self.boundary_constraints.get_divisors());
 
         // allocate space for constraint evaluations; when we are in debug mode, we also allocate

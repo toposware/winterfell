@@ -166,9 +166,7 @@ impl<B: StarkField> AirContext<B> {
             options,
             trace_info,
             main_transition_constraint_divisors: vec![0, main_transition_constraint_degrees.len()],
-            aux_transition_constraint_divisors: (0..aux_transition_constraint_degrees.len())
-                .map(|_| 0)
-                .collect(),
+            aux_transition_constraint_divisors: vec![0, aux_transition_constraint_degrees.len()],
             main_transition_constraint_degrees,
             aux_transition_constraint_degrees,
             num_main_assertions,
@@ -178,7 +176,7 @@ impl<B: StarkField> AirContext<B> {
             lde_domain_generator: B::get_root_of_unity(log2(lde_domain_size)),
             num_transition_exemptions: 1,
             // The default divisor
-            divisors: Vec::from([1usize]),
+            divisors: vec![1],
         }
     }
 
@@ -261,17 +259,17 @@ impl<B: StarkField> AirContext<B> {
     }
 
     /// Returns a reference to the indices of the divisor used by the AIR main constraints
-    pub fn main_transition_constraint_divisors(&self) -> &Vec<usize> {
+    pub fn main_transition_constraint_divisors(&self) -> &[usize] {
         &self.main_transition_constraint_divisors
     }
 
     /// Returns a reference to the indices of the divisor used by the AIR aux constraints
-    pub fn aux_transition_constraint_divisors(&self) -> &Vec<usize> {
+    pub fn aux_transition_constraint_divisors(&self) -> &[usize] {
         &self.aux_transition_constraint_divisors
     }
 
     /// Returns a reference to the available divisors used by the AIR
-    pub fn divisors(&self) -> &Vec<usize> {
+    pub fn divisors(&self) -> &[usize] {
         &self.divisors
     }
     // DATA MUTATORS
@@ -388,7 +386,7 @@ impl<B: StarkField> AirContext<B> {
             );
         }
 
-        let &min_divisor_degree = divisors.iter().min().unwrap();
+        let min_divisor_degree = *divisors.iter().min().unwrap();
         // make sure the composition polynomial can be computed correctly with the specified
         // number of exemptions
         // TODO: [divisors] refine this
