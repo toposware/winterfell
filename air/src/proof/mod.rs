@@ -132,6 +132,39 @@ impl StarkProof {
         result
     }
 
+    pub fn to_byte_vec(&self) -> Vec<Vec<u8>> {
+        let mut result = Vec::new();
+        
+        let mut bytes  = Vec::new();
+        self.context.write_into(&mut bytes);
+        result.push(bytes);
+
+        let mut bytes  = Vec::new();
+        self.commitments.write_into(&mut bytes);
+        result.push(bytes);
+
+        let mut bytes  = Vec::new();
+        self.trace_queries.write_into(&mut bytes);
+        result.push(bytes);
+
+        let mut bytes  = Vec::new();
+        self.constraint_queries.write_into(&mut bytes);
+        result.push(bytes);
+
+        let mut bytes  = Vec::new();
+        self.ood_frame.write_into(&mut bytes);
+        result.push(bytes);
+
+        let mut bytes  = Vec::new();
+        self.fri_proof.write_into(&mut bytes);
+        result.push(bytes);
+
+        let mut bytes  = Vec::new();
+        bytes.extend_from_slice(&self.pow_nonce.to_le_bytes());
+        result.push(bytes);
+        result
+    }
+
     /// Returns a STARK proof read from the specified `source`.
     ///
     /// # Errors

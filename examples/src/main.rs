@@ -1,5 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates.
-// Copyright (c) 2021-2022 Toposware, Inc.
+// Copyrigh&t (c) 2021-2022 Toposware, Inc.
 //
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
@@ -73,8 +73,18 @@ fn main() {
         now.elapsed().as_millis()
     );
 
+    let proof_bytes = proof.to_byte_vec();
+    debug!("Proof size:");
+    debug!("\t Context: {:.1} KB", proof_bytes[0].len() as f64 / 1024f64);
+    debug!("\t Commitments: {:.1} KB", proof_bytes[1].len() as f64 / 1024f64);
+    debug!("\t Trace queries: {:.1} KB", proof_bytes[2].len() as f64 / 1024f64);
+    debug!("\t Constraint queries: {:.1} KB", proof_bytes[3].len() as f64 / 1024f64);
+    debug!("\t OOD Frame: {:.1} KB", proof_bytes[4].len() as f64 / 1024f64);
+    debug!("\t FRI Proof: {:.1} KB", proof_bytes[5].len() as f64 / 1024f64);
+    debug!("\t POW nonce: {:.1} KB", proof_bytes[6].len() as f64 / 1024f64);
     let proof_bytes = proof.to_bytes();
-    debug!("Proof size: {:.1} KB", proof_bytes.len() as f64 / 1024f64);
+    debug!("  TOTAL: {:.1} KB", proof_bytes.len() as f64 / 1024f64);
+
     debug!("Proof security: {} bits", proof.security_level(true));
     #[cfg(feature = "std")]
     debug!(
