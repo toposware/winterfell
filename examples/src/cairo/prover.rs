@@ -46,7 +46,10 @@ impl CairoProver {
         reader.lock().unwrap().read_line(&mut line).unwrap();
         line.pop();
         let real_length = usize::from_str(&line).unwrap();
-        let padded_length = real_length.next_power_of_two();
+        line.clear();
+        reader.lock().unwrap().read_line(&mut line).unwrap();
+        line.pop();
+        let padded_length = usize::from_str(&line).unwrap();
 
         let mut trace = RapTraceTable::new(TRACE_WIDTH, padded_length);
 
