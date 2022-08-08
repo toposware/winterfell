@@ -10,7 +10,7 @@ use std::time::Instant;
 use structopt::StructOpt;
 use winterfell::StarkProof;
 
-use examples::{cairo_cpu, fibonacci, rescue::*, vcminimal, vdf, ExampleOptions, ExampleType};
+use examples::{cairo_cpu, pedersen_hash, fibonacci, rescue::*, vcminimal, vdf, ExampleOptions, ExampleType};
 #[cfg(feature = "std")]
 use examples::{lamport, merkle, rescue_raps};
 
@@ -33,6 +33,9 @@ fn main() {
     let example = match options.example {
         ExampleType::CairoCpu {num_steps} => {
             cairo_cpu::get_example(options, num_steps)
+        }
+        ExampleType::PedersenHash {num_steps} => {
+            pedersen_hash::get_example(options, num_steps)
         }
         ExampleType::Fib { sequence_length } => {
             fibonacci::fib2::get_example(options, sequence_length)

@@ -5,11 +5,18 @@
 // LICENSE file in the root directory of this source tree.
 
 use core::ops::Range;
+// TODO: Import only StarkField and generalize the print methods
 use winterfell::{
-    math::{fields::f128::BaseElement, FieldElement, StarkField},
+    math::{fields::f128::BaseElement, fields::f63::BaseElement as BaseElement63, FieldElement, StarkField},
     Trace, TraceTable,
 };
 
+/// An elliptic curve group operation utility module
+pub(crate) mod ecc;
+/// A field operation utility module
+pub(crate) mod field;
+/// The Rescue-Prime utility module
+// Public for benchmarking purposes
 pub mod rescue;
 
 // CONSTRAINT EVALUATION HELPERS
@@ -84,6 +91,31 @@ pub fn print_trace(
     }
 }
 
+pub fn print_trace_63(
+    trace: &TraceTable<BaseElement63>,
+    multiples_of: usize,
+    offset: usize,
+    range: Range<usize>,
+) {
+    let trace_width = trace.width();
+
+    let mut state = vec![BaseElement63::ZERO; trace_width];
+    for i in 0..trace.length() {
+        if (i.wrapping_sub(offset)) % multiples_of != 0 {
+            continue;
+        }
+        trace.read_row_into(i, &mut state);
+        println!(
+            "{}\t{:?}",
+            i,
+            state[range.clone()]
+                .iter()
+                .map(|v| v.to_repr())
+                .collect::<Vec<u64>>()
+        );
+    }
+}
+
 pub fn print_trace_step(trace: &[Vec<BaseElement>], step: usize) {
     let trace_width = trace.len();
     let mut state = vec![BaseElement::ZERO; trace_width];
@@ -94,5 +126,18 @@ pub fn print_trace_step(trace: &[Vec<BaseElement>], step: usize) {
         "{}\t{:?}",
         step,
         state.iter().map(|v| v.to_repr()).collect::<Vec<u128>>()
+    );
+}
+
+pub fn print_trace_step_63(trace: &[Vec<BaseElement63>], step: usize) {
+    let trace_width = trace.len();
+    let mut state = vec![BaseElement63::ZERO; trace_width];
+    for i in 0..trace_width {
+        state[i] = trace[i][step];
+    }
+    println!(
+        "{}\t{:?}",
+        step,
+        state.iter().map(|v| v.to_repr()).collect::<Vec<u64>>()
     );
 }

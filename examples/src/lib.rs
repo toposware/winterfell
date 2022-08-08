@@ -21,6 +21,8 @@ pub mod vdf;
 
 pub mod cairo_cpu;
 
+pub mod pedersen_hash;
+
 #[cfg(test)]
 mod tests;
 
@@ -100,6 +102,11 @@ impl ExampleOptions {
 //#[structopt(about = "available examples")]
 pub enum ExampleType {
     CairoCpu {
+        /// Number of steps must be a power of two
+        #[structopt(short = "n", default_value = "1048576")]
+        num_steps: usize,
+    },
+    PedersenHash {
         /// Number of steps must be a power of two
         #[structopt(short = "n", default_value = "1048576")]
         num_steps: usize,
