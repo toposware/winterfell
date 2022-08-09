@@ -8,7 +8,7 @@ use super::{
     TRACE_WIDTH,
 };
 
-use crate::utils::print_trace;
+// use crate::utils::print_trace;
 use rand::Rng;
 
 // DIVISORS COSETS PROVER
@@ -50,13 +50,17 @@ impl DivisorsCosetsProver {
             "offset should be greater than 0 and smaller than sequence_length/range_length"
         );
 
-        // sample random bits to fill the second column
+        // sample random bits to fill the second column. Each bit represent the flag and in the next
+        // computational step the flag should be reversed.
         let mut rng = rand::thread_rng();
         let mut bits = Vec::<u128>::new();
         for i in 0..sequence_length {
             if i % (sequence_length / range_length) == offset {
-                bits.push(rng.gen_range(0..=1u128));
-            } else {
+                let value = rng.gen_range(0..=1u128);
+                let next_value = 1 - value;
+                bits.push(value);
+                bits.push(next_value);
+            } else if i % (sequence_length / range_length) != offset + 1 {
                 bits.push(rng.gen_range(2..=1000u128));
             }
         }
@@ -74,7 +78,7 @@ impl DivisorsCosetsProver {
             },
         );
 
-        print_trace(&trace, 1, 0, 0..2);
+        // print_trace(&trace, 1, 0, 0..2);
         trace
     }
 }

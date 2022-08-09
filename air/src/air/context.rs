@@ -18,7 +18,7 @@ pub struct AirContext<B: StarkField> {
     pub(super) main_transition_constraint_degrees: Vec<TransitionConstraintDegree>,
     pub(super) aux_transition_constraint_degrees: Vec<TransitionConstraintDegree>,
 
-    // Divisor indices to use for main and transition constraint
+    // Divisor indices for main and transition constraint
     pub(super) main_transition_constraint_divisors: Vec<usize>,
     pub(super) aux_transition_constraint_divisors: Vec<usize>,
 
@@ -27,15 +27,9 @@ pub struct AirContext<B: StarkField> {
     pub(super) ce_blowup_factor: usize,
     pub(super) trace_domain_generator: B,
     pub(super) lde_domain_generator: B,
-    // This defines the default divisor which is all points in trace except the num_transition_exemptions last ones (by default 1).
-    // Each custom divisor is a divisor of the default divisor.
-    //
-    // TODO: [divisors] Remove this. Each divisor should be indepenendent and expressed as a polynomial D(X) = Z(X)/D'(X).
-    // Z(X) is the polynomial that vanishes on the trace domain and D(X). This will allow to later divide all constraints once using
-    // Z(X) instead of dividing each constraint with its divisor.
-    pub(super) num_transition_exemptions: usize,
+
     // The vector of available divisors for the given AIR.
-    pub(super) divisors: Vec<usize>,
+    pub(super) divisors: Vec<Vec<(usize, usize, usize)>>,
 }
 
 impl<B: StarkField> AirContext<B> {
@@ -174,9 +168,7 @@ impl<B: StarkField> AirContext<B> {
             ce_blowup_factor,
             trace_domain_generator: B::get_root_of_unity(log2(trace_length)),
             lde_domain_generator: B::get_root_of_unity(log2(lde_domain_size)),
-            num_transition_exemptions: 1,
-            // The default divisor
-            divisors: vec![1],
+            divisors: vec![vec![(trace_length, 0, 1)]],
         }
     }
 
@@ -247,17 +239,6 @@ impl<B: StarkField> AirContext<B> {
         self.num_main_assertions + self.num_aux_assertions
     }
 
-    /// Returns the number of rows at the end of an execution trace to which transition constraints
-    /// do not apply.
-    ///
-    /// This is guaranteed to be at least 1 (which is the default value), but could be greater.
-    /// The maximum number of exemptions is determined by a combination of transition constraint
-    /// degrees and blowup factor specified for the computation.
-    // TODO: [divisors] should probably not be needed
-    pub fn num_transition_exemptions(&self) -> usize {
-        self.num_transition_exemptions
-    }
-
     /// Returns a reference to the indices of the divisor used by the AIR main constraints
     pub fn main_transition_constraint_divisors(&self) -> &[usize] {
         &self.main_transition_constraint_divisors
@@ -269,56 +250,11 @@ impl<B: StarkField> AirContext<B> {
     }
 
     /// Returns a reference to the available divisors used by the AIR
-    pub fn divisors(&self) -> &[usize] {
+    pub fn divisors(&self) -> &[Vec<(usize, usize, usize)>] {
         &self.divisors
     }
     // DATA MUTATORS
     // --------------------------------------------------------------------------------------------
-
-    /// Sets the number of transition exemptions for this context.
-    ///
-    /// # Panics
-    /// Panics if:
-    /// * The number of exemptions is zero.
-    /// * The number of exemptions exceeds half of the trace length.
-    /// * Given the combination of transition constraints degrees and the blowup factor in this
-    ///   context, the number of exemptions is too larger for a valid computation of the constraint
-    ///   composition polynomial.
-    pub fn set_num_transition_exemptions(mut self, n: usize) -> Self {
-        assert!(
-            n > 0,
-            "number of transition exemptions must be greater than zero"
-        );
-        // exemptions which are for more than half the trace plus one are probably a mistake
-        assert!(
-            n <= self.trace_len() / 2 + 1,
-            "number of transition exemptions cannot exceed {}, but was {}",
-            self.trace_len() / 2 + 1,
-            n
-        );
-        // make sure the composition polynomial can be computed correctly with the specified
-        // number of exemptions
-        for degree in self
-            .main_transition_constraint_degrees
-            .iter()
-            .chain(self.aux_transition_constraint_degrees.iter())
-        {
-            let eval_degree = degree.get_evaluation_degree(self.trace_len());
-            let max_exemptions = self.composition_degree() + self.trace_len() - eval_degree;
-            assert!(
-                n <= max_exemptions,
-                "number of transition exemptions cannot exceed: {}, but was {}",
-                max_exemptions,
-                n
-            )
-        }
-
-        self.num_transition_exemptions = n;
-        // TODO: [divisors] currently this corresponds to the default divisor, so changing this means we need to change
-        // the default divisor as well. Remove completely num_transition_exemptions parameter and only have custom divisors.
-        self.divisors[0] = n;
-        self
-    }
 
     /// Sets custom divisors for this context.
     ///
@@ -326,17 +262,19 @@ impl<B: StarkField> AirContext<B> {
     /// Panics if:
     /// * The number of divisors is different than the number of constraints.
     /// * A divisor index exceeds the number of available divisors.
-    /// * A divisor is invalid (currently checking exemptions number only)
+    /// * A divisor is invalid:
+    ///     - it does not define a proper coset combination
+    ///     - it has too many exemptions
+    ///     - the defining cosets have overlapping points
     /// * Given the combination of transition constraints degrees and the blowup factor in this
-    ///   context, the number of exemptions is too larger for a valid computation of the constraint
+    ///   context, the divisors' degrees are too small for a valid computation of the constraint
     ///   composition polynomial.
     pub fn set_custom_divisors(
         mut self,
-        divisors: Vec<usize>,
-        main_constraint_divisors: Vec<usize>,
-        aux_constraint_divisors: Vec<usize>,
+        divisors: &[Vec<(usize, usize, usize)>],
+        main_constraint_divisors: &[usize],
+        aux_constraint_divisors: &[usize],
     ) -> Self {
-        // assert the number of divisors coincides with the number of constraints
         assert_eq!(
             main_constraint_divisors.len(),
             self.main_transition_constraint_degrees.len(),
@@ -353,61 +291,91 @@ impl<B: StarkField> AirContext<B> {
         );
 
         // assert all divisor indexes are valid
-        for index in main_constraint_divisors.iter() {
+        for index in main_constraint_divisors {
             assert!(
-                *index <= divisors.len(),
+                index <= &divisors.len(),
                 "main constraint divisor with index {} does not exist, max divisor index is {}",
                 index,
                 divisors.len()
             );
         }
-        for index in aux_constraint_divisors.iter() {
+        for index in aux_constraint_divisors {
             assert!(
-                *index <= divisors.len(),
+                index <= &divisors.len(),
                 "aux constraint divisor with index {} does not exist, max divisor index is {}",
                 index,
                 divisors.len()
             );
         }
-
         // assert all divisors are valid
-        // TODO: [divisors] refine this
-        for divisor in divisors.iter() {
-            assert!(
-                *divisor > 0,
-                "number of transition exemptions must be greater than zero"
-            );
-            // exemptions which are for more than half the trace plus one are probably a mistake
-            assert!(
-                *divisor <= self.trace_len() / 2 + 1,
-                "number of transition exemptions cannot exceed {}, but was {}",
-                self.trace_len() / 2 + 1,
-                divisor
-            );
+        for divisor in divisors {
+            for (base, offset, exemptions) in divisor {
+                assert!(
+                    base.is_power_of_two(),
+                    "divisor should be defined over a domain that is a power of two"
+                );
+                assert!(
+                    *base <= self.trace_len(),
+                    "divisor should be defined over a domain that is of size smaller or equal to the trace length"
+                );
+                // exemptions which are for more than half the trace plus one are probably a mistake
+                assert!(
+                    *exemptions <= base / 2 + 1,
+                    "number of transition exemptions cannot exceed {}, but was {}",
+                    base / 2 + 1,
+                    exemptions
+                );
+                assert!(
+                    *offset < self.trace_len() / *base,
+                    "divisor offset must be a value in the range 0..{}, but was {}",
+                    self.trace_len() / base,
+                    offset
+                );
+            }
+
+            // closure that checks that a pair of elements of the numerator do not contain overlaping points
+            let valid_pair = |&(s1, o1, _), &(s2, o2, _)| {
+                let (period1, period2) = (self.trace_len() / s1, self.trace_len() / s2);
+                if period1 <= period2 {
+                    o2 % period1 != o1
+                } else {
+                    o1 % period2 != o2
+                }
+            };
+            // compare each pair of elements in the numerator for overlapping points
+            for i in 0..divisor.len() {
+                let (d, ds) = (&divisor[i], &divisor[i + 1..]);
+                assert!(
+                    ds.iter().all(|d2| valid_pair(d, d2)),
+                    "divisors are not valid, they have overlapping points",
+                );
+            }
         }
 
-        let min_divisor_degree = *divisors.iter().min().unwrap();
-        // make sure the composition polynomial can be computed correctly with the specified
-        // number of exemptions
-        // TODO: [divisors] refine this
+        // make sure the composition polynomial can be computed correctly with the specified divisors
+        let min_divisor_degree = divisors
+            .iter()
+            .map(|d| d.iter().fold(0, |acc, (b, _, e)| acc + b - e))
+            .min()
+            .unwrap();
         for degree in self
             .main_transition_constraint_degrees
             .iter()
             .chain(self.aux_transition_constraint_degrees.iter())
         {
-            let eval_degree = degree.get_evaluation_degree(self.trace_len());
-            let max_exemptions = self.composition_degree() + self.trace_len() - eval_degree;
+            let max_constraint_degree =
+                degree.get_evaluation_degree(self.trace_len()) - min_divisor_degree;
             assert!(
-                min_divisor_degree <= max_exemptions,
-                "number of transition exemptions cannot exceed: {}, but was {}",
-                max_exemptions,
-                min_divisor_degree
+                max_constraint_degree <= self.composition_degree(),
+                "constraint evaluation domain must be larger than {} but was {}",
+                max_constraint_degree,
+                self.composition_degree()
             )
         }
 
-        self.main_transition_constraint_divisors = main_constraint_divisors;
-        self.aux_transition_constraint_divisors = aux_constraint_divisors;
-        self.divisors.extend(divisors);
+        self.main_transition_constraint_divisors = main_constraint_divisors.to_vec();
+        self.aux_transition_constraint_divisors = aux_constraint_divisors.to_vec();
+        self.divisors = divisors.to_vec();
         self
     }
 }

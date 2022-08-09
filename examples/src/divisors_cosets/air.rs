@@ -45,10 +45,31 @@ impl Air for DivisorsCosetsAir {
         let degrees = vec![
             TransitionConstraintDegree::new(1),
             TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(1),
         ];
         assert_eq!(TRACE_WIDTH, trace_info.width());
+
+        // initially we only include the default divisor
+        let mut divisors = vec![vec![(trace_info.length(), 0, 1)]];
+
+        // We add the custom divisor
+        let custom_divisor = vec![(
+            pub_inputs.range_length as usize,
+            pub_inputs.offset as usize,
+            0,
+        )];
+
+        divisors.push(custom_divisor);
+
+        let main_constraint_divisors: Vec<usize> = Vec::from([0, 1, 1]);
+        let aux_constraint_divisors: Vec<usize> = Vec::new();
+
         DivisorsCosetsAir {
-            context: AirContext::new(trace_info, degrees, 2, options),
+            context: AirContext::new(trace_info, degrees, 2, options).set_custom_divisors(
+                &divisors,
+                &main_constraint_divisors,
+                &aux_constraint_divisors,
+            ),
             public_inputs: pub_inputs,
         }
     }
@@ -73,6 +94,7 @@ impl Air for DivisorsCosetsAir {
 
         result[0] = are_equal(next[0], current[0] + current[0]);
         result[1] = (current[1] - E::ONE) * current[1];
+        result[2] = next[1] - (E::ONE - current[1]);
     }
 
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {

@@ -9,8 +9,8 @@ use winterfell::{FieldExtension, HashFunction, ProofOptions};
 #[test]
 fn divisors_cosets_test_basic_proof_verification() {
     let div = Box::new(super::DivisorsCosetsExample::new(
-        8,
-        8,
+        16,
+        4,
         0,
         build_options(false),
     ));
@@ -21,8 +21,8 @@ fn divisors_cosets_test_basic_proof_verification() {
 
 fn divisors_cosets_test_basic_proof_verification_extension() {
     let div = Box::new(super::DivisorsCosetsExample::new(
-        8,
-        8,
+        16,
+        4,
         0,
         build_options(true),
     ));
@@ -32,7 +32,7 @@ fn divisors_cosets_test_basic_proof_verification_extension() {
 #[test]
 fn divisors_cosets_test_basic_proof_verification_fail() {
     let div = Box::new(super::DivisorsCosetsExample::new(
-        8,
+        16,
         8,
         0,
         build_options(false),

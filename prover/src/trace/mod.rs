@@ -178,9 +178,8 @@ pub trait Trace: Sized {
             vec![Self::BaseField::ZERO; air.context().num_main_transition_constraints()];
         let mut aux_evaluations = vec![E::ZERO; air.context().num_aux_transition_constraints()];
 
-        // we check transition constraints on all steps except the last k steps, where k is the
-        // number of steps exempt from transition constraints (guaranteed to be at least 1)
-        for step in 0..self.length() - air.context().num_transition_exemptions() {
+        // we check transition constraints on all steps dictated by the divisor
+        for step in 0..self.length() {
             // build periodic values
             for (p, v) in periodic_values_polys.iter().zip(periodic_values.iter_mut()) {
                 let num_cycles = air.trace_length() / p.len();
@@ -195,7 +194,11 @@ pub trait Trace: Sized {
             for (i, &evaluation) in main_evaluations.iter().enumerate() {
                 // only check the transition if the divisor dictates to do so
                 let divisor_idx = air.context().main_transition_constraint_divisors()[i];
-                if step < self.length() - air.context().divisors()[divisor_idx] {
+                if containts(
+                    &air.context().divisors()[divisor_idx],
+                    step,
+                    air.context().trace_len(),
+                ) {
                     assert!(
                         evaluation == Self::BaseField::ZERO,
                         "main transition constraint {} did not evaluate to ZERO at step {}",
@@ -219,7 +222,11 @@ pub trait Trace: Sized {
                 for (i, &evaluation) in aux_evaluations.iter().enumerate() {
                     // only check the transition if the divisor dictates to do so
                     let divisor_idx = air.context().aux_transition_constraint_divisors()[i];
-                    if step < self.length() - air.context().divisors()[divisor_idx] {
+                    if containts(
+                        &air.context().divisors()[divisor_idx],
+                        step,
+                        air.context().trace_len(),
+                    ) {
                         assert!(
                             evaluation == E::ZERO,
                             "auxiliary transition constraint {} did not evaluate to ZERO at step {}",
@@ -257,4 +264,15 @@ where
     for (column, next_value) in MultiColumnIter::new(aux_segments).zip(frame.next_mut()) {
         *next_value = column[next_row_idx];
     }
+}
+
+/// Given a divisor and a computation step, it decides whether the transition constraint should
+/// hold on the step or not
+fn containts(divisor: &[(usize, usize, usize)], step: usize, trace_length: usize) -> bool {
+    divisor.iter().any(|numerator| {
+        let (period, offset, exemptions) = (trace_length / numerator.0, numerator.1, numerator.2);
+        let shifted_step = (trace_length + step - offset) % trace_length;
+
+        (shifted_step % period == 0) && (shifted_step / period < numerator.0 - exemptions)
+    })
 }

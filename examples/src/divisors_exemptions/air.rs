@@ -47,24 +47,30 @@ impl Air for DivisorsExemptionsAir {
         ];
         assert_eq!(TRACE_WIDTH, trace_info.width());
 
-        let mut divisors = Vec::new();
-
         // Set extra divisors used in the AIR. Each custom divisor is described by a set of
         // exemptions points.
-        // TODO: [divisors] change description of divisor to include additionally cosets
-        let custom_divisor = trace_info.length() + 1 - pub_inputs.last_exp_step as usize;
+
+        // initially we only include the default divisor
+        let mut divisors = vec![vec![(trace_info.length(), 0, 1)]];
+
+        // We add the custom divisor
+        let custom_divisor = vec![(
+            trace_info.length(),
+            0,
+            trace_info.length() + 1 - pub_inputs.last_exp_step as usize,
+        )];
         divisors.push(custom_divisor);
 
         // Overwrite main and auxiliary constraint divisors. Each constraint is paired with
         // an index that points in one of the divisors. The first divisor is the default divisor.
-        let main_constraint_divisors: Vec<usize> = Vec::from([0, 0, 1]);
+        let main_constraint_divisors: Vec<usize> = Vec::from([0, 1, 1]);
         let aux_constraint_divisors: Vec<usize> = Vec::new();
 
         DivisorsExemptionsAir {
             context: AirContext::new(trace_info, degrees, 5, options).set_custom_divisors(
-                divisors,
-                main_constraint_divisors,
-                aux_constraint_divisors,
+                &divisors,
+                &main_constraint_divisors,
+                &aux_constraint_divisors,
             ),
             result: pub_inputs,
         }

@@ -55,7 +55,12 @@ pub fn evaluate_constraints<A: Air, E: FieldElement<BaseField = A::BaseField>>(
     // merge all constraint evaluations into a single value by computing their random linear
     // combination using coefficients drawn from the public coin. this also divides the result
     // by the divisor of transition constraints.
-    let mut result = t_constraints.combine_evaluations::<E>(&t_evaluations1, &t_evaluations2, x);
+    let mut result = t_constraints.combine_evaluations::<E>(
+        &t_evaluations1,
+        &t_evaluations2,
+        x,
+        air.trace_length(),
+    );
 
     // 2 ----- evaluate boundary constraints ------------------------------------------------------
 

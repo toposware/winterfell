@@ -9,8 +9,8 @@ use super::{
     ConstraintEvaluationTable, PeriodicValueTable, StarkDomain,
 };
 use air::{
-    Air, AuxTraceRandElements, ConstraintCompositionCoefficients, EvaluationFrame,
-    TransitionConstraints,
+    Air, AuxTraceRandElements, ConstraintCompositionCoefficients, ConstraintDivisor,
+    EvaluationFrame, TransitionConstraints,
 };
 use math::FieldElement;
 use utils::iter_mut;
@@ -83,12 +83,13 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
             "extended trace length is not consistent with evaluation domain"
         );
 
-        // Build a list of constraint divisors; all transition constraints have the same
-        // divisor which we put at the front of the list; any custom divisor is considered during evaluation
-        // of the constraints by multiplying with default_divisor/custom_divisor each constraint.
+        // Build a list of constraint divisors; for transition constraints we use the same divisor which is
+        // the vanishing polynomial of the trace domain x^n-1. This is because we deal with each divisor in
+        // every constraint group and we will only need to divide out this value to combine the constraints.
         // This avoids doing unecessary inversions per divisor.
-        // Currently this only consider the default divisor and the boundary constraints divisors
-        let mut divisors = vec![self.transition_constraints.divisors()[0].clone()];
+        let mut divisors = vec![ConstraintDivisor::from_default_numerator(
+            self.air.trace_length(),
+        )];
         divisors.append(&mut self.boundary_constraints.get_divisors());
 
         // allocate space for constraint evaluations; when we are in debug mode, we also allocate
@@ -170,8 +171,13 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
 
             // evaluate transition constraints and save the merged result the first slot of the
             // evaluations buffer
-            evaluations[0] =
-                self.evaluate_main_transition(&main_frame, x, step, &mut t_evaluations);
+            evaluations[0] = self.evaluate_main_transition(
+                self.air.trace_length(),
+                &main_frame,
+                x,
+                step,
+                &mut t_evaluations,
+            );
 
             // when in debug mode, save transition constraint evaluations
             #[cfg(debug_assertions)]
@@ -226,10 +232,21 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
             // evaluate transition constraints and save the merged result the first slot of the
             // evaluations buffer; we evaluate and compose constraints in the same function, we
             // can just add up the results of evaluating main and auxiliary constraints.
-            evaluations[0] =
-                self.evaluate_main_transition(&main_frame, x, step, &mut tm_evaluations);
-            evaluations[0] +=
-                self.evaluate_aux_transition(&main_frame, &aux_frame, x, step, &mut ta_evaluations);
+            evaluations[0] = self.evaluate_main_transition(
+                self.air.trace_length(),
+                &main_frame,
+                x,
+                step,
+                &mut tm_evaluations,
+            );
+            evaluations[0] += self.evaluate_aux_transition(
+                self.air.trace_length(),
+                &main_frame,
+                &aux_frame,
+                x,
+                step,
+                &mut ta_evaluations,
+            );
 
             // when in debug mode, save transition constraint evaluations
             #[cfg(debug_assertions)]
@@ -266,6 +283,7 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
     #[rustfmt::skip]
     fn evaluate_main_transition(
         &self,
+        trace_length: usize,
         main_frame: &EvaluationFrame<E::BaseField>,
         x: E::BaseField,
         step: usize,
@@ -281,14 +299,14 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         // the results into evaluations buffer
         self.air.evaluate_transition(main_frame, periodic_values, evaluations);
 
-        // merge transition constraint evaluations into a single value and return it;
+        // merge transition constraint evaluations into a pair of values and return it;
+        // the first value is the composition polynomial evaluation and the second the divisor
+        // correction. The evaluation of the constraint on x is evaluation*divisor_correction/(x^n-1)
         // we can do this here because all transition constraints have the same divisor.
-        // TODO [divisors]: change this for cosets
         self.transition_constraints.main_constraints().iter().fold(E::ZERO, |result, group| {
             let custom_divisor = self.transition_constraints.divisors()[group.divisor_index()].clone();
-            let default_divisor = self.transition_constraints.divisors()[0].clone();
 
-            let (evaluation, divisor_correction) = group.merge_evaluations::<E::BaseField,E::BaseField>(evaluations, x, custom_divisor, default_divisor);
+            let (evaluation, divisor_correction) = group.merge_evaluations::<E::BaseField,E::BaseField>(evaluations, trace_length, x, custom_divisor);
             for idx in group.indexes().iter() {
                evaluations[*idx] *= divisor_correction
             }
@@ -304,6 +322,7 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
     #[rustfmt::skip]
     fn evaluate_aux_transition(
         &self,
+        trace_length: usize,
         main_frame: &EvaluationFrame<E::BaseField>,
         aux_frame: &EvaluationFrame<E>,
         x: E::BaseField,
@@ -327,12 +346,13 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         );
 
         // merge transition constraint evaluations into a single value and return it;
-        // we can do this here because all transition constraints have the same divisor.
-        // TODO [divisors]: change this for cosets
         self.transition_constraints.aux_constraints().iter().fold(E::ZERO, |result, group| {
             let custom_divisor = self.transition_constraints.divisors()[group.divisor_index()].clone();
-            let default_divisor = self.transition_constraints.divisors()[0].clone();
-            let (evaluation, divisor_correction) = group.merge_evaluations::<E::BaseField, E>(evaluations, x, custom_divisor, default_divisor);
+
+            let (evaluation, divisor_correction) = group.merge_evaluations::<E::BaseField,E>(evaluations, trace_length, x, custom_divisor);
+            for idx in group.indexes().iter() {
+               evaluations[*idx] *= E::from(divisor_correction)
+            }
             result + evaluation * E::from(divisor_correction)
         })
     }
