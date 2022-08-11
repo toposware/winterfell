@@ -111,8 +111,6 @@ impl StarkProof {
                 self.lde_domain_size() as u64,
             )
         } else {
-            // // TODO: implement provable security estimation
-            // unimplemented!("proven security estimation has not been implement yet")
             get_proven_security(
                 self.context.options(),
                 self.context.num_modulus_bits(),
