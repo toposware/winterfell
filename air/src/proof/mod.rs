@@ -111,8 +111,13 @@ impl StarkProof {
                 self.lde_domain_size() as u64,
             )
         } else {
-            // TODO: implement provable security estimation
-            unimplemented!("proven security estimation has not been implement yet")
+            // // TODO: implement provable security estimation
+            // unimplemented!("proven security estimation has not been implement yet")
+            get_proven_security(
+                self.context.options(),
+                self.context.num_modulus_bits(),
+                self.lde_domain_size() as u64,
+            )
         }
     }
 
@@ -198,4 +203,52 @@ fn get_conjectured_security(
         cmp::min(field_security, query_security) - 1,
         hash_fn_security,
     )
+}
+
+/// Computes proven security level for the specified proof parameters.
+fn get_proven_security(
+    options: &ProofOptions,
+    base_field_bits: u32,
+    lde_domain_size: u64,
+) -> u32 {
+    // define some useful parameters and cast them as floats
+    let extension_field_bits = (base_field_bits * options.field_extension().degree()) as f64;
+    let blowup_bits = log2(options.blowup_factor()) as f64;
+    let num_fri_queries = options.num_queries() as f64;
+    let lde_size_bits = lde_domain_size.trailing_zeros() as f64;
+
+    // m is a parameter that can be anything greater than 3
+    // a larger m gives a worse field security bound but a better query security bound
+    // the optimal m would perfectly balance field and query security but there is no simple closed form solution
+    // this sets m so that field security is equal to the best query security for any value of m
+    // therefore field security should be slightly greater than query security
+    // unless the calculated value is less than 3 in which case it gets rounded up to 3
+    let mut best_m = extension_field_bits;
+    best_m -= options.grinding_factor() as f64;
+    best_m -= (num_fri_queries + 3.0) / 2.0 * blowup_bits;
+    best_m -= 2.0 * lde_size_bits;
+    best_m /= 7.0;
+    best_m = (2.0 as f64).powf(best_m);
+    best_m -= 0.5;
+    best_m = best_m.max(3.0);
+
+    // compute max security we can get for a given field size
+    let field_security = (extension_field_bits - 2.0 * lde_size_bits - 7.0 * (best_m + 0.5).log2() - 3.0 / 2.0 * blowup_bits) as u32;
+
+    // compute max security we can get for a given hash function
+    let hash_fn_security = options.hash_fn().collision_resistance();
+
+    // compute security we get by executing multiple query rounds
+    let security_per_query = 0.5 * blowup_bits - (1.0 + 1.0 / (2.0 * best_m)).log2();
+    let mut query_security = (security_per_query * num_fri_queries) as u32;
+
+    // include grinding factor contributions only for proofs adequate security
+    if query_security >= GRINDING_CONTRIBUTION_FLOOR {
+        query_security += options.grinding_factor();
+    }
+
+    cmp::min(
+        cmp::min(field_security, query_security) - 1,
+        hash_fn_security,
+    )     
 }
