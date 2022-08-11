@@ -28,7 +28,6 @@ rand = { }
 
 [dev-dependencies]
 rand-utils = { version = "0.4", path = "../utils/rand", package = "winter-rand-utils" }
-rand = { }
 
 # Allow math in docs
 [package.metadata.docs.rs]

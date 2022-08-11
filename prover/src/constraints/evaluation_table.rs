@@ -441,7 +441,7 @@ fn build_transition_constraint_degrees<E: FieldElement>(
         let divisor_idx = constraints.main_constraints_divisors()[idx];
         result.push(
             degree.get_evaluation_degree(trace_length)
-                - constraints.divisors()[divisor_idx].degree(),
+                - constraints.divisors()[divisor_idx].0.degree(),
         )
     }
 
@@ -449,7 +449,7 @@ fn build_transition_constraint_degrees<E: FieldElement>(
         let divisor_idx = constraints.aux_constraints_divisors()[idx];
         result.push(
             degree.get_evaluation_degree(trace_length)
-                - constraints.divisors()[divisor_idx].degree(),
+                - constraints.divisors()[divisor_idx].0.degree(),
         )
     }
 

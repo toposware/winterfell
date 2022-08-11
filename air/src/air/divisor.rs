@@ -7,7 +7,7 @@
 use crate::air::Assertion;
 use core::fmt::{Display, Formatter};
 use math::{log2, FieldElement, StarkField};
-use utils::collections::Vec;
+use utils::collections::{BTreeSet, Vec};
 
 // CONSTRAINT DIVISOR
 // ================================================================================================
@@ -60,15 +60,27 @@ impl<B: StarkField> ConstraintDivisor<B> {
     ///
     /// The exemption points are defined by taking the last exemptions elements that were supposed to
     /// be checked.
-    pub fn from_transition<E>(divisor: &[(usize, usize, usize)], trace_length: usize) -> Self
+    pub fn from_transition<E>(
+        divisor: &[(usize, usize, usize)],
+        trace_length: usize,
+    ) -> (Self, BTreeSet<usize>)
     where
         E: FieldElement<BaseField = B>,
     {
+        // assert divisor is defined over cosets of same size
+        let coset_size = divisor[0].0;
+        for d in divisor {
+            assert_eq!(
+                d.0, coset_size,
+                "Divisors should be defined over cosets of the same size"
+            );
+        }
         let mut steps = Vec::new();
         let mut exemptions = Vec::new();
 
-        for numerator in divisor {
-            let &(step, offset, num_exemptions) = numerator;
+        // create a divisor consisting of the given cosets
+        for d in divisor {
+            let &(step, offset, num_exemptions) = d;
             steps.push((
                 step,
                 get_trace_domain_value_at::<B>(trace_length, step * offset),
@@ -80,7 +92,10 @@ impl<B: StarkField> ConstraintDivisor<B> {
                 .collect();
             exemptions.extend(e);
         }
-        Self::new(steps, exemptions)
+
+        // collect offset dlogs
+        let dlogs: BTreeSet<usize> = divisor.iter().map(|d| d.1).collect();
+        (Self::new(steps, exemptions), dlogs)
     }
 
     /// Builds the vanishing polynomial of the trace domain: $z(x) = x^n-1$.
@@ -178,68 +193,29 @@ impl<B: StarkField> ConstraintDivisor<B> {
     // Decomposition
     // --------------------------------------------------------------------------------------------
 
-    /// Express a divisor of the form $x^k - g^{j\cdot k}$ as a divisor of the polynomial $x^n - 1$ where
-    /// $n$ is the trace length. Concretely, we need to compute the polynomial
-    ///
-    /// $$
-    /// D'(x) = \prod_{i=0,i\neq j}^{n/k-1} (x^k - g^{i\cdot k})
-    /// $$
-    pub fn decompose_single<E: FieldElement<BaseField = B>>(&self, trace_length: usize) -> Self {
-        assert_eq!(
-            self.numerator().len(),
-            1,
-            "numerator length should be 1 but was {}",
-            self.numerator().len()
-        );
-
-        let mut numerator: Vec<(usize, B)> = Vec::new();
-        // The number of vanishing points of a divisor
-        let k = self.numerator()[0].0;
-        // subgroup_generator
-        let g = B::get_root_of_unity(trace_length.trailing_zeros());
-        // create a new divisor that contains all the points except the ones defined by the given
-        // numerator
-        for i in 0..trace_length / k {
-            let h = g.exp(((i * k) as u64).into());
-            if h != self.numerator()[0].1 {
-                numerator.push((k, h));
-            }
-        }
-        Self::new(numerator, Vec::new())
-    }
-
-    /// Express a divisor of the form $\Prod_k x^k - g^{j\cdot k}$ as a vector of divisors.
-    /// Each element corresponds to a value k.
-    /// Note that summing the divisors yields the polynomial
-    /// $m(x^n - 1)$ where m is the elements in the numerator of the divisor polynomial
-    pub fn decompose<E: FieldElement<BaseField = B>>(&self, trace_length: usize) -> Vec<Self> {
-        let decomposition = self
-            .numerator()
-            .iter()
-            .map(|numerator| {
-                ConstraintDivisor::new(vec![*numerator], vec![]).decompose_single::<B>(trace_length)
-            })
-            .collect::<Vec<_>>();
-        decomposition
-    }
-
-    /// Evaluates a decomposed divisor at $x$. Note that if the divisor is $d(x)$, the returned
-    /// value is $\frac{x^n-1}{d(x)}$
-    pub fn evaluate_decomposition<E: FieldElement<BaseField = B>>(
+    pub fn decompose<E: FieldElement<BaseField = B>>(
         &self,
         trace_length: usize,
-        x: E,
-    ) -> E {
-        // evaluate each of the decomposed divisors
-        let individual_evaluations = self
-            .decompose::<E>(trace_length)
-            .iter()
-            .map(|d| d.evaluate_at(x))
-            .collect::<Vec<_>>();
+        dlogs: BTreeSet<usize>,
+    ) -> Self {
+        let mut numerator: Vec<(usize, B)> = Vec::new();
 
-        individual_evaluations
-            .iter()
-            .fold(E::ZERO, |acc, e| acc + *e)
+        // The number of vanishing points of a divisor
+        let k = self.numerator()[0].0;
+
+        // subgroup_generator
+        let g = B::get_root_of_unity(trace_length.trailing_zeros());
+
+        // convert the cosets to a set for membership test
+        let offsets: BTreeSet<usize> = (0..(trace_length / self.numerator()[0].0)).collect();
+
+        // create a new divisor that contains all the points except the ones defined by the given
+        // numerator
+        for i in offsets.difference(&dlogs) {
+            let h = g.exp(((i * k) as u64).into());
+            numerator.push((k, h));
+        }
+        Self::new(numerator, Vec::new())
     }
 
     // ASSOCIATED FUNCTIONS
@@ -290,9 +266,6 @@ pub fn get_trace_domain_value_at<B: StarkField>(trace_length: usize, step: usize
 mod tests {
     use super::*;
     use math::{fields::f128::BaseElement, polynom};
-
-    use rand::thread_rng;
-    use rand::Rng;
 
     #[test]
     fn constraint_divisor_degree() {
@@ -452,78 +425,39 @@ mod tests {
     #[test]
     fn divisor_decomposition() {
         let n = 128_usize;
-        let g = BaseElement::get_root_of_unity(n.trailing_zeros());
 
         // Assert divisor decomposition is valid. Product of decomposed values and given divisor
         // should be equal to the evaluation of X^n-1
-        let vanishing_polynomial =
-            ConstraintDivisor::new(vec![(n as usize, BaseElement::ONE)], vec![]);
 
         // sample a random point for checking polynomial relations
         let value = rand_utils::rand_value::<BaseElement>();
 
-        // 1. plain (single numerator element) decomposition
-        // subgroups
-        for k in [1, 2, 4, 8, 16, 32, 64, 128] {
-            // offsets
-            for j in 0..n / k {
-                // create a divisor of period n/k and offset j
-                let divisor = ConstraintDivisor::new(
-                    vec![(k as usize, g.exp((j as u32 * k as u32).into()))],
-                    vec![],
-                );
-                let decomposed_divisor = divisor.decompose_single::<BaseElement>(n);
+        // decomposition
 
-                let expected_evaluation = vanishing_polynomial.evaluate_at(value);
-                let actual_evaluation =
-                    decomposed_divisor.evaluate_at(value) * divisor.evaluate_at(value);
-                assert_eq!(expected_evaluation, actual_evaluation);
-            }
-        }
-
-        // 2. full decomposition
         // sample 5 random divisors
-        let mut rng = thread_rng();
-        let mut numerators = vec![];
-        // choose 10 random divisor numerators
-        for _ in 0..10 {
-            let size = 2usize.pow(rng.gen_range(0..8));
-            // period one implies offset == 0
-            if n / size == 1 {
-                numerators.push((size, g.exp((size as u32 * 0 as u32).into())));
-            } else {
-                let offset = rng.gen_range(0..n / size);
-                numerators.push((size, g.exp((size as u32 * offset as u32).into())));
-            }
-        }
+        let mut divisors = vec![];
+        // choose 4 divisor numerators of size 8
+        let size = 8;
+        divisors.push((size, 0, 0));
+        divisors.push((size, 2, 0));
+        divisors.push((size, 3, 0));
+        divisors.push((size, 6, 0));
         // get the separate divisors defining the numerator
 
-        let divisor = ConstraintDivisor::new(numerators, vec![]);
-        let divisors = divisor
-            .numerator()
-            .iter()
-            .map(|num| ConstraintDivisor::new(vec![*num], vec![]))
-            .collect::<Vec<_>>();
-        // get divisor decomposition
-        let decomposed_divisor = divisor.decompose::<BaseElement>(n);
-        // get expected evaluation. This should be l(x^n-1) where l is the divisor numerator length
-        let expected_evaluation = BaseElement::new(divisor.numerator().len() as u128)
-            * vanishing_polynomial.evaluate_at(value);
+        let (divisor, dlogs) = ConstraintDivisor::from_transition::<BaseElement>(&divisors, n);
 
-        // evaluate each of the decomposed divisors
-        let individual_evaluations = decomposed_divisor
-            .iter()
-            .enumerate()
-            .map(|(i, d)| d.evaluate_at(value) * divisors[i].evaluate_at(value))
-            .collect::<Vec<_>>();
-        let actual_evaluation = individual_evaluations
-            .iter()
-            .fold(BaseElement::ZERO, |acc, e| acc + *e);
+        let decomposed_divisor = divisor.decompose::<BaseElement>(n, dlogs);
+
+        // get expected evaluation. This should be l(x^n-1) where l is the divisor numerator length
+        let expected_evaluation =
+            divisor.evaluate_at(value) * decomposed_divisor.evaluate_at(value);
+
+        let actual_evaluation = ConstraintDivisor::from_default_numerator(n).evaluate_at(value);
         assert_eq!(expected_evaluation, actual_evaluation);
 
-        // 3. default divisor numerator computation
-        let expected_evaluation =
-            ConstraintDivisor::new(vec![(n, BaseElement::ONE)], vec![]).evaluate_at(value);
+        //
+        //  expected_evaluation =
+        ConstraintDivisor::new(vec![(n, BaseElement::ONE)], vec![]).evaluate_at(value);
         let actual_evaluation = ConstraintDivisor::evaluate_default_numerator(n, value);
         assert_eq!(expected_evaluation, actual_evaluation);
     }

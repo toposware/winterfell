@@ -8,7 +8,7 @@ use super::{
     TRACE_WIDTH,
 };
 
-use crate::utils::print_trace;
+// use crate::utils::print_trace;
 
 // DIVISORS EXEMPTIONS PROVER
 // ===============================================================================================
@@ -62,7 +62,7 @@ impl DivisorsExemptionsProver {
             },
         );
 
-        print_trace(&trace, 1, 0, 0..3);
+        // print_trace(&trace, 1, 0, 0..3);
         trace
     }
 }

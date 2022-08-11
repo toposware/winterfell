@@ -4,7 +4,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-use super::{AirContext, BTreeMap, ConstraintDivisor, ExtensionOf, FieldElement, Vec};
+use super::{AirContext, BTreeMap, BTreeSet, ConstraintDivisor, ExtensionOf, FieldElement, Vec};
 
 mod frame;
 pub use frame::EvaluationFrame;
@@ -27,7 +27,7 @@ const MIN_CYCLE_LENGTH: usize = 2;
 /// - Groupings of constraints by their degree, separately for the main trace segment and for
 ///   auxiliary tace segment.
 /// - Index of the divisor used by each constraint.
-/// - Divisor of transition constraints for a computation.
+/// - Divisor of transition constraints for a computation along with the indexes of the cosets.
 pub struct TransitionConstraints<E: FieldElement> {
     main_constraints: Vec<TransitionConstraintGroup<E>>,
     main_constraint_degrees: Vec<TransitionConstraintDegree>,
@@ -35,7 +35,7 @@ pub struct TransitionConstraints<E: FieldElement> {
     aux_constraints: Vec<TransitionConstraintGroup<E>>,
     aux_constraint_degrees: Vec<TransitionConstraintDegree>,
     aux_constraint_divisors: Vec<usize>,
-    divisors: Vec<ConstraintDivisor<E::BaseField>>,
+    divisors: Vec<(ConstraintDivisor<E::BaseField>, BTreeSet<usize>)>,
 }
 
 impl<E: FieldElement> TransitionConstraints<E> {
@@ -54,7 +54,7 @@ impl<E: FieldElement> TransitionConstraints<E> {
             "number of transition constraints must match the number of composition coefficient tuples"
         );
 
-        let divisors: Vec<ConstraintDivisor<E::BaseField>> = context
+        let divisors: Vec<_> = context
             .divisors
             .iter()
             .map(|divisor| ConstraintDivisor::from_transition::<E>(divisor, context.trace_len()))
@@ -73,7 +73,7 @@ impl<E: FieldElement> TransitionConstraints<E> {
             &main_constraint_divisors,
             context,
             main_constraint_coefficients,
-            divisors.iter().map(|d| d.degree()).collect(),
+            divisors.iter().map(|d| d.0.degree()).collect(),
         );
 
         let aux_constraint_degrees = context.aux_transition_constraint_degrees.clone();
@@ -83,7 +83,7 @@ impl<E: FieldElement> TransitionConstraints<E> {
             &aux_constraint_divisors,
             context,
             aux_constraint_coefficients,
-            divisors.iter().map(|d| d.degree()).collect(),
+            divisors.iter().map(|d| d.0.degree()).collect(),
         );
 
         Self {
@@ -153,7 +153,7 @@ impl<E: FieldElement> TransitionConstraints<E> {
     }
 
     /// Returns the list of available divisors for transition constraints.
-    pub fn divisors(&self) -> &Vec<ConstraintDivisor<E::BaseField>> {
+    pub fn divisors(&self) -> &Vec<(ConstraintDivisor<E::BaseField>, BTreeSet<usize>)> {
         &self.divisors
     }
 
@@ -322,7 +322,7 @@ impl<E: FieldElement> TransitionConstraintGroup<E> {
         evaluations: &[F],
         trace_length: usize,
         x: B,
-        custom_divisor: ConstraintDivisor<E::BaseField>,
+        custom_divisor: (ConstraintDivisor<E::BaseField>, BTreeSet<usize>),
     ) -> (E, B)
     where
         B: FieldElement,
@@ -342,8 +342,11 @@ impl<E: FieldElement> TransitionConstraintGroup<E> {
             result += (coefficients.0 + coefficients.1.mul_base(xp)).mul_base(evaluation);
         }
 
-        let divisor_correction = custom_divisor.evaluate_exemptions_at(x)
-            * custom_divisor.evaluate_decomposition(trace_length, x);
+        let decomposed_divisor = custom_divisor
+            .0
+            .decompose::<E>(trace_length, custom_divisor.1);
+        let divisor_correction =
+            custom_divisor.0.evaluate_exemptions_at(x) * decomposed_divisor.evaluate_at(x);
         (result, divisor_correction)
     }
 }

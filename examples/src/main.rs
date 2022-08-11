@@ -11,7 +11,8 @@ use structopt::StructOpt;
 use winterfell::StarkProof;
 
 use examples::{
-    divisors_cosets, divisors_exemptions, fibonacci, rescue::*, vdf, ExampleOptions, ExampleType,
+    collatz_divisors, collatz_periodic, divisors_cosets, divisors_exemptions, fibonacci, rescue::*,
+    vdf, ExampleOptions, ExampleType,
 };
 #[cfg(feature = "std")]
 use examples::{lamport, merkle, rescue_raps};
@@ -33,6 +34,14 @@ fn main() {
 
     // instantiate and prepare the example
     let example = match options.example {
+        ExampleType::CollatzDivisors {
+            input_value,
+            sequence_length,
+        } => collatz_divisors::get_example(options, input_value, sequence_length),
+        ExampleType::CollatzPeriodic {
+            input_value,
+            sequence_length,
+        } => collatz_periodic::get_example(options, input_value, sequence_length),
         ExampleType::DivisorsCosets {
             sequence_length,
             range_length,

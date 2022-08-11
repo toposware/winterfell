@@ -8,7 +8,7 @@ use crate::ProofOptions;
 use crypto::{Hasher, RandomCoin, RandomCoinError};
 use math::{fft, ExtensibleField, ExtensionOf, FieldElement, StarkField};
 use utils::{
-    collections::{BTreeMap, Vec},
+    collections::{BTreeMap, BTreeSet, Vec},
     Serializable,
 };
 
