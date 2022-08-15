@@ -45,7 +45,8 @@ impl CairoProver {
         let mut line = String::new();
         reader.lock().unwrap().read_line(&mut line).unwrap();
         line.pop();
-        let real_length = usize::from_str(&line).unwrap();
+        // TODO: remove real_length on cairo side
+        let _real_length = usize::from_str(&line).unwrap();
         line.clear();
         reader.lock().unwrap().read_line(&mut line).unwrap();
         line.pop();
@@ -62,7 +63,7 @@ impl CairoProver {
                 state.copy_from_slice(
                     &mut line
                         .split([','].as_ref())
-                        .map(|a| BaseElement::new(u128::from_str(&a).unwrap()))
+                        .map(|a| BaseElement::new(u64::from_str(&a).unwrap()))
                         .collect::<Vec<BaseElement>>()[..TRACE_WIDTH],
                 );
             },
@@ -74,7 +75,7 @@ impl CairoProver {
                 state.copy_from_slice(
                     &mut line
                         .split([','].as_ref())
-                        .map(|a| BaseElement::new(u128::from_str(&a).unwrap()))
+                        .map(|a| BaseElement::new(u64::from_str(&a).unwrap()))
                         .collect::<Vec<BaseElement>>()[..TRACE_WIDTH],
                 );
             },

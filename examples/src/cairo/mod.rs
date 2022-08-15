@@ -6,10 +6,9 @@
 
 use crate::{Example, ExampleOptions};
 use log::debug;
-use rand_utils::rand_array;
 use std::time::Instant;
 use winterfell::{
-    math::{fields::f128::BaseElement, log2, ExtensionOf, FieldElement},
+    math::{fields::f64::BaseElement, log2, ExtensionOf, FieldElement},
     ProofOptions, Prover, StarkProof, Trace, TraceTable, VerifierError,
 };
 
@@ -91,13 +90,12 @@ impl Example for CairoExample {
         reader.lock().unwrap().read_line(&mut line).unwrap();
         line.pop();
         let bytecode_length = usize::from_str(&line).unwrap();
-        // println!("{}", bytecode_length);
         line.clear();
         reader.lock().unwrap().read_line(&mut line).unwrap();
         line.pop();
         let bytecode = line
             .split([' '].as_ref())
-            .map(|a| BaseElement::new(u128::from_str(&a).unwrap()))
+            .map(|a| BaseElement::new(u64::from_str(&a).unwrap()))
             .collect::<Vec<BaseElement>>();
         assert!(
             2 * bytecode_length == bytecode.len(),
@@ -109,7 +107,7 @@ impl Example for CairoExample {
         reader.lock().unwrap().read_line(&mut line).unwrap();
         let register_values = line
             .split([' '].as_ref())
-            .map(|a| BaseElement::new(u128::from_str(&a).unwrap()))
+            .map(|a| BaseElement::new(u64::from_str(&a).unwrap()))
             .collect::<Vec<BaseElement>>();
         assert!(
             register_values.len() == 4,
@@ -152,7 +150,7 @@ impl Example for CairoExample {
         line.pop();
         let bytecode = line
             .split([' '].as_ref())
-            .map(|a| BaseElement::new(u128::from_str(&a).unwrap()))
+            .map(|a| BaseElement::new(u64::from_str(&a).unwrap()))
             .collect::<Vec<BaseElement>>();
         assert!(
             2 * bytecode_length == bytecode.len(),
@@ -162,7 +160,7 @@ impl Example for CairoExample {
         reader.lock().unwrap().read_line(&mut line).unwrap();
         let register_values = line
             .split([' '].as_ref())
-            .map(|a| BaseElement::new(u128::from_str(&a).unwrap()))
+            .map(|a| BaseElement::new(u64::from_str(&a).unwrap()))
             .collect::<Vec<BaseElement>>();
         // println!("{:#?}", bytecode);
         let pub_inputs = PublicInputs {
