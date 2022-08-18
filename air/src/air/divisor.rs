@@ -9,6 +9,42 @@ use core::fmt::{Display, Formatter};
 use math::{log2, FieldElement, StarkField};
 use utils::collections::Vec;
 
+// TODO [divisors]: add docs
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ConstraintDivisorProduct<B: StarkField> {
+    pub(super) subgroup: usize,
+    pub(super) coset_dlog: usize,
+    pub(super) coset_elem: B,
+}
+
+impl<B: StarkField> ConstraintDivisorProduct<B> {
+    // TODO [divisors]: add docs
+    fn new(trace_length: usize, period: usize, offset: usize) -> Self {
+        let subgroup = trace_length / period;
+        ConstraintDivisorProduct {
+            subgroup,
+            coset_dlog: subgroup * offset,
+            coset_elem: get_trace_domain_value_at::<B>(trace_length, subgroup * offset),
+        }
+    }
+
+    pub fn subgroup(&self) -> usize {
+        self.subgroup
+    }
+
+    pub fn coset_dlog(&self) -> usize {
+        self.coset_dlog
+    }
+
+    pub fn coset_elem(&self) -> B {
+        self.coset_elem
+    }
+
+    pub fn degree(&self) -> usize {
+        self.subgroup
+    }
+}
+
 // CONSTRAINT DIVISOR
 // ================================================================================================
 /// The denominator portion of boundary and transition constraints.
@@ -23,10 +59,12 @@ use utils::collections::Vec;
 ///
 /// A divisor cannot be instantiated directly, and instead must be created either for an
 /// [Assertion] or for a transition constraint.
+
+// TODO [divisors]: add docs
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ConstraintDivisor<B: StarkField> {
-    pub(super) numerator: Vec<(usize, B)>,
-    pub(super) exemptions: Vec<B>,
+    pub(super) numerator: Vec<ConstraintDivisorProduct<B>>,
+    pub(super) denominator: Vec<ConstraintDivisorProduct<B>>,
 }
 
 impl<B: StarkField> ConstraintDivisor<B> {
@@ -34,10 +72,14 @@ impl<B: StarkField> ConstraintDivisor<B> {
     // --------------------------------------------------------------------------------------------
 
     /// Returns a new divisor instantiated from the provided parameters.
-    fn new(numerator: Vec<(usize, B)>, exemptions: Vec<B>) -> Self {
+    fn new(
+        numerator: Vec<ConstraintDivisorProduct<B>>,
+        denominator: Vec<ConstraintDivisorProduct<B>>,
+    ) -> Self {
+        // TODO [divisors]: assert consistency between divisors
         ConstraintDivisor {
             numerator,
-            exemptions,
+            denominator,
         }
     }
 
@@ -59,10 +101,14 @@ impl<B: StarkField> ConstraintDivisor<B> {
             num_exemptions > 0,
             "invalid number of transition exemptions: must be greater than zero"
         );
-        let exemptions = (trace_length - num_exemptions..trace_length)
-            .map(|step| get_trace_domain_value_at::<B>(trace_length, step))
+        let numerator: ConstraintDivisorProduct<B> =
+            ConstraintDivisorProduct::new(trace_length, 1, 0);
+
+        let denominator = (trace_length - num_exemptions..trace_length)
+            .map(|step| ConstraintDivisorProduct::new(trace_length, trace_length, step))
             .collect();
-        Self::new(vec![(trace_length, B::ONE)], exemptions)
+
+        Self::new(vec![numerator], denominator)
     }
 
     /// Builds a divisor for a boundary constraint described by the assertion.
@@ -93,26 +139,25 @@ impl<B: StarkField> ConstraintDivisor<B> {
         E: FieldElement<BaseField = B>,
     {
         let num_steps = assertion.get_num_steps(trace_length);
-        if assertion.first_step == 0 {
-            Self::new(vec![(num_steps, B::ONE)], vec![])
-        } else {
-            let trace_offset = num_steps * assertion.first_step;
-            let offset = get_trace_domain_value_at::<B>(trace_length, trace_offset);
-            Self::new(vec![(num_steps, offset)], vec![])
-        }
+        let numerator = ConstraintDivisorProduct::new(
+            trace_length,
+            trace_length / num_steps,
+            assertion.first_step,
+        );
+        Self::new(vec![numerator], vec![])
     }
 
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
 
     /// Returns the numerator portion of this constraint divisor.
-    pub fn numerator(&self) -> &[(usize, B)] {
+    pub fn numerator(&self) -> &[ConstraintDivisorProduct<B>] {
         &self.numerator
     }
 
     /// Returns exemption points (the denominator portion) of this constraints divisor.
-    pub fn exemptions(&self) -> &[B] {
-        &self.exemptions
+    pub fn denominator(&self) -> &[ConstraintDivisorProduct<B>] {
+        &self.denominator
     }
 
     /// Returns the degree of the divisor polynomial
@@ -120,8 +165,11 @@ impl<B: StarkField> ConstraintDivisor<B> {
         let numerator_degree = self
             .numerator
             .iter()
-            .fold(0, |degree, term| degree + term.0);
-        let denominator_degree = self.exemptions.len();
+            .fold(0, |degree, term| degree + term.degree());
+        let denominator_degree = self
+            .denominator
+            .iter()
+            .fold(0, |degree, term| degree + term.degree());
         numerator_degree - denominator_degree
     }
 
@@ -131,9 +179,8 @@ impl<B: StarkField> ConstraintDivisor<B> {
     pub fn evaluate_at<E: FieldElement<BaseField = B>>(&self, x: E) -> E {
         // compute the numerator value
         let mut numerator = E::ONE;
-        for (degree, constant) in self.numerator.iter() {
-            let v = x.exp((*degree as u32).into());
-            let v = v - E::from(*constant);
+        for product in self.numerator.iter() {
+            let v = x.exp((product.degree() as u32).into()) - E::from(product.coset_elem);
             numerator *= v;
         }
 
@@ -145,24 +192,26 @@ impl<B: StarkField> ConstraintDivisor<B> {
 
     /// Evaluates the denominator of this divisor (the exemption points) at the provided `x`
     /// coordinate.
+    // TODO [divisors]: change name
     #[inline(always)]
     pub fn evaluate_exemptions_at<E: FieldElement<BaseField = B>>(&self, x: E) -> E {
-        self.exemptions
-            .iter()
-            .fold(E::ONE, |r, &e| r * (x - E::from(e)))
+        let mut denominator = E::ONE;
+        for product in self.denominator.iter() {
+            let v = x.exp((product.degree() as u32).into()) - E::from(product.coset_elem);
+            denominator *= v;
+        }
+        denominator
     }
 }
 
 impl<B: StarkField> Display for ConstraintDivisor<B> {
     fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
-        for (degree, offset) in self.numerator.iter() {
-            write!(f, "(x^{} - {})", degree, offset)?;
+        for product in self.numerator.iter() {
+            write!(f, "(x^{} - {})", product.degree(), product.coset_elem())?;
         }
-        if !self.exemptions.is_empty() {
-            write!(f, " / ")?;
-            for x in self.exemptions.iter() {
-                write!(f, "(x - {})", x)?;
-            }
+        write!(f, " / ")?;
+        for product in self.denominator.iter() {
+            write!(f, "(x^{} - {})", product.degree(), product.coset_elem())?;
         }
         Ok(())
     }
@@ -193,63 +242,86 @@ mod tests {
     #[test]
     fn constraint_divisor_degree() {
         // single term numerator
-        let div = ConstraintDivisor::new(vec![(4, BaseElement::ONE)], vec![]);
+        let div = ConstraintDivisor::new(
+            vec![ConstraintDivisorProduct::<BaseElement>::new(16, 4, 0)],
+            vec![],
+        );
         assert_eq!(4, div.degree());
 
         // multi-term numerator
         let div = ConstraintDivisor::new(
             vec![
-                (4, BaseElement::ONE),
-                (2, BaseElement::new(2)),
-                (3, BaseElement::new(3)),
+                ConstraintDivisorProduct::<BaseElement>::new(16, 4, 1),
+                ConstraintDivisorProduct::<BaseElement>::new(16, 2, 0),
+                ConstraintDivisorProduct::<BaseElement>::new(16, 8, 3),
             ],
             vec![],
         );
-        assert_eq!(9, div.degree());
+        assert_eq!(14, div.degree());
 
         // multi-term numerator with exemption points
         let div = ConstraintDivisor::new(
             vec![
-                (4, BaseElement::ONE),
-                (2, BaseElement::new(2)),
-                (3, BaseElement::new(3)),
+                ConstraintDivisorProduct::<BaseElement>::new(16, 4, 1),
+                ConstraintDivisorProduct::<BaseElement>::new(16, 2, 0),
+                ConstraintDivisorProduct::<BaseElement>::new(16, 8, 3),
             ],
-            vec![BaseElement::ONE, BaseElement::new(2)],
+            vec![
+                ConstraintDivisorProduct::<BaseElement>::new(16, 8, 1),
+                ConstraintDivisorProduct::<BaseElement>::new(16, 16, 0),
+                ConstraintDivisorProduct::<BaseElement>::new(16, 8, 3),
+            ],
         );
-        assert_eq!(7, div.degree());
+        assert_eq!(14 - 5, div.degree());
     }
 
     #[test]
     fn constraint_divisor_evaluation() {
         // single term numerator: (x^4 - 1)
-        let div = ConstraintDivisor::new(vec![(4, BaseElement::ONE)], vec![]);
+        let div = ConstraintDivisor::new(
+            vec![ConstraintDivisorProduct::<BaseElement>::new(16, 4, 0)],
+            vec![],
+        );
         assert_eq!(BaseElement::new(15), div.evaluate_at(BaseElement::new(2)));
 
-        // multi-term numerator: (x^4 - 1) * (x^2 - 2) * (x^3 - 3)
+        // multi-term numerator: (x^4 - g^4) * (x^8 - 1) * (x^2 - g^6)
         let div = ConstraintDivisor::new(
             vec![
-                (4, BaseElement::ONE),
-                (2, BaseElement::new(2)),
-                (3, BaseElement::new(3)),
+                ConstraintDivisorProduct::<BaseElement>::new(16, 4, 1),
+                ConstraintDivisorProduct::<BaseElement>::new(16, 2, 0),
+                ConstraintDivisorProduct::<BaseElement>::new(16, 8, 3),
             ],
             vec![],
         );
-        let expected = BaseElement::new(15) * BaseElement::new(2) * BaseElement::new(5);
+        let g_trace = BaseElement::get_root_of_unity(16_usize.trailing_zeros());
+        let expected = (BaseElement::new(16) - g_trace.exp(4))
+            * BaseElement::new(255)
+            * (BaseElement::new(4) - g_trace.exp(2 * 3));
         assert_eq!(expected, div.evaluate_at(BaseElement::new(2)));
 
         // multi-term numerator with exemption points:
-        // (x^4 - 1) * (x^2 - 2) * (x^3 - 3) / ((x - 1) * (x - 2))
+        // (x^4 - g^4) * (x^8 - 1) * (x^3 - g^6) / (x^2 - g^2) (x-1) (x^2-g^6)
         let div = ConstraintDivisor::new(
             vec![
-                (4, BaseElement::ONE),
-                (2, BaseElement::new(2)),
-                (3, BaseElement::new(3)),
+                ConstraintDivisorProduct::<BaseElement>::new(16, 4, 1),
+                ConstraintDivisorProduct::<BaseElement>::new(16, 2, 0),
+                ConstraintDivisorProduct::<BaseElement>::new(16, 8, 3),
             ],
-            vec![BaseElement::ONE, BaseElement::new(2)],
+            vec![
+                ConstraintDivisorProduct::<BaseElement>::new(16, 8, 1),
+                ConstraintDivisorProduct::<BaseElement>::new(16, 16, 0),
+                ConstraintDivisorProduct::<BaseElement>::new(16, 8, 3),
+            ],
         );
-        let expected = BaseElement::new(255) * BaseElement::new(14) * BaseElement::new(61)
-            / BaseElement::new(6);
-        assert_eq!(expected, div.evaluate_at(BaseElement::new(4)));
+        let expected_numerator = (BaseElement::new(16) - g_trace.exp(4))
+            * BaseElement::new(255)
+            * (BaseElement::new(4) - g_trace.exp(2 * 3));
+        let expected_denominator =
+            (BaseElement::new(4) - g_trace.exp(2)) * (BaseElement::new(4) - g_trace.exp(6));
+        assert_eq!(
+            expected_numerator / expected_denominator,
+            div.evaluate_at(BaseElement::new(2))
+        );
     }
 
     #[test]
@@ -257,7 +329,7 @@ mod tests {
         let n = 8_usize;
         let g = BaseElement::get_root_of_unity(n.trailing_zeros());
         let k = 4 as u32;
-        let j = n as u32 / k;
+        let j = n as u32 / k; // period
 
         // ----- periodic assertion divisor, no offset --------------------------------------------
 
@@ -293,7 +365,14 @@ mod tests {
         let assertion = Assertion::periodic(0, offset as usize, j as usize, BaseElement::ONE);
         let divisor = ConstraintDivisor::from_assertion(&assertion, n);
         assert_eq!(
-            ConstraintDivisor::new(vec![(k as usize, g.exp(k.into()))], vec![]),
+            ConstraintDivisor::new(
+                vec![ConstraintDivisorProduct::new(
+                    n,
+                    j as usize,
+                    offset as usize
+                )],
+                vec![]
+            ),
             divisor
         );
 
@@ -325,7 +404,14 @@ mod tests {
         let assertion = Assertion::periodic(0, offset as usize, j as usize, BaseElement::ONE);
         let divisor = ConstraintDivisor::from_assertion(&assertion, n);
         assert_eq!(
-            ConstraintDivisor::new(vec![(k as usize, g.exp((offset * k).into()))], vec![]),
+            ConstraintDivisor::new(
+                vec![ConstraintDivisorProduct::new(
+                    n,
+                    j as usize,
+                    offset as usize
+                )],
+                vec![]
+            ),
             divisor
         );
 
