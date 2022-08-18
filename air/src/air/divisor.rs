@@ -111,6 +111,47 @@ impl<B: StarkField> ConstraintDivisor<B> {
         Self::new(vec![numerator], denominator)
     }
 
+    pub fn from_transition2(
+        trace_length: usize,
+        divisor: &(Vec<(usize, usize, usize)>, Vec<(usize, usize)>),
+    ) -> Self {
+        let numerator: Vec<ConstraintDivisorProduct<B>> = divisor
+            .0
+            .iter()
+            .map(|(period, offset, _)| {
+                ConstraintDivisorProduct::new(trace_length, *period, *offset)
+            })
+            .collect();
+
+        let mut denominator: Vec<ConstraintDivisorProduct<B>> = vec![];
+
+        for (period, offset, num_exemptions) in divisor.0 {
+            println!(
+                "offset = {}",
+                (trace_length / period - num_exemptions) * period + offset
+            );
+            let exemptions = (1..=num_exemptions)
+                .map(|step| {
+                    ConstraintDivisorProduct::new(
+                        trace_length,
+                        trace_length,
+                        (trace_length / period - step) * period + offset,
+                    )
+                })
+                .collect::<Vec<_>>();
+            denominator.extend(exemptions);
+        }
+
+        let complex_exemptions: Vec<ConstraintDivisorProduct<B>> = divisor
+            .1
+            .iter()
+            .map(|(period, offset)| ConstraintDivisorProduct::new(trace_length, *period, *offset))
+            .collect();
+        denominator.extend(complex_exemptions);
+
+        Self::new(numerator, denominator)
+    }
+
     /// Builds a divisor for a boundary constraint described by the assertion.
     ///
     /// For boundary constraints, the divisor polynomial is defined as:

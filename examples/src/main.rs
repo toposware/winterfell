@@ -10,7 +10,7 @@ use std::time::Instant;
 use structopt::StructOpt;
 use winterfell::StarkProof;
 
-use examples::{fibonacci, rescue::*, vdf, ExampleOptions, ExampleType};
+use examples::{divisors_cosets, fibonacci, rescue::*, vdf, ExampleOptions, ExampleType};
 #[cfg(feature = "std")]
 use examples::{lamport, merkle, rescue_raps};
 
@@ -31,6 +31,11 @@ fn main() {
 
     // instantiate and prepare the example
     let example = match options.example {
+        ExampleType::DivisorsCosets {
+            sequence_length,
+            range_length,
+            offset,
+        } => divisors_cosets::get_example(options, sequence_length, range_length, offset),
         ExampleType::Fib { sequence_length } => {
             fibonacci::fib2::get_example(options, sequence_length)
         }
