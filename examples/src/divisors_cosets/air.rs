@@ -55,11 +55,11 @@ impl Air for DivisorsCosetsAir {
 
         // custom divisor for range checks: period = trace_length/range_length offset given by pub_inputs
         // and no exclustion point. No complex exemptions
-        let custom_divisor: (Vec<(usize, usize, usize)>, Vec<(usize, usize, usize)>) = (
+        let custom_divisor: (Vec<(usize, usize, usize)>, Vec<(usize, usize)>) = (
             vec![(
                 trace_info.length() / pub_inputs.range_length as usize,
                 pub_inputs.offset as usize,
-                0,
+                1,
             )],
             vec![],
         );
@@ -75,16 +75,15 @@ impl Air for DivisorsCosetsAir {
 
         // first constarint uses the defualt divisor
         // the other two constraints use the custom divisor
-        let main_constraint_divisors: Vec<u8> = vec![0, 1, 1];
-        let aux_constraint_divisors: Vec<u8> = vec![];
+        let main_constraint_divisors: Vec<usize> = vec![0, 1, 1];
+        let aux_constraint_divisors: Vec<usize> = vec![];
 
         DivisorsCosetsAir {
-            context: AirContext::new(trace_info, degrees, 2, options),
-            // .set_custom_divisors(
-            //     &divisors,
-            //     &main_constraint_divisors,
-            //     &aux_constraint_divisors,
-            // ),
+            context: AirContext::new(trace_info, degrees, 2, options).set_custom_divisors(
+                &divisors,
+                &main_constraint_divisors,
+                &aux_constraint_divisors,
+            ),
             public_inputs: pub_inputs,
         }
     }

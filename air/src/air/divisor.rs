@@ -125,12 +125,8 @@ impl<B: StarkField> ConstraintDivisor<B> {
 
         let mut denominator: Vec<ConstraintDivisorProduct<B>> = vec![];
 
-        for (period, offset, num_exemptions) in divisor.0 {
-            println!(
-                "offset = {}",
-                (trace_length / period - num_exemptions) * period + offset
-            );
-            let exemptions = (1..=num_exemptions)
+        for (period, offset, num_exemptions) in divisor.0.iter() {
+            let exemptions = (1..=*num_exemptions)
                 .map(|step| {
                     ConstraintDivisorProduct::new(
                         trace_length,

@@ -7,6 +7,8 @@
 use structopt::StructOpt;
 use winterfell::{FieldExtension, HashFunction, ProofOptions, StarkProof, VerifierError};
 
+pub mod collatz_divisors;
+pub mod collatz_periodic;
 pub mod divisors_cosets;
 pub mod fibonacci;
 #[cfg(feature = "std")]
@@ -97,6 +99,25 @@ impl ExampleOptions {
 #[derive(StructOpt, Debug)]
 //#[structopt(about = "available examples")]
 pub enum ExampleType {
+    /// Compute a Collatz sequence using custom divisors
+    CollatzDivisors {
+        /// Input of Collatz sequence
+        #[structopt(short = "x", default_value = "42")]
+        input_value: usize,
+        /// Length of Collatz sequence; must be a power of two
+        #[structopt(short = "n", default_value = "4096")]
+        sequence_length: usize,
+    },
+    /// Compute a Collatz sequence using periodic columns
+    CollatzPeriodic {
+        /// Input of Collatz sequence
+        #[structopt(short = "x", default_value = "42")]
+        input_value: usize,
+        /// Length of Collatz sequence; must be a power of two
+        #[structopt(short = "n", default_value = "4096")]
+        sequence_length: usize,
+    },
+    /// Example to test divisors with different exemptions. Compute fibonacci and exponentiation in parallel
     DivisorsCosets {
         /// Length of exp sequence; must be a power of two
         #[structopt(short = "e", default_value = "16")]

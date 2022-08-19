@@ -473,12 +473,20 @@ fn build_transition_constraint_degrees<E: FieldElement>(
 ) -> Vec<usize> {
     let mut result = Vec::new();
 
-    for degree in constraints.main_constraint_degrees() {
-        result.push(degree.get_evaluation_degree(trace_length) - constraints.divisor().degree())
+    for (idx, degree) in constraints.main_constraint_degrees().iter().enumerate() {
+        let divisor_idx = constraints.main_constraints_divisors()[idx];
+        result.push(
+            degree.get_evaluation_degree(trace_length)
+                - constraints.divisors()[divisor_idx].degree(),
+        )
     }
 
-    for degree in constraints.aux_constraint_degrees() {
-        result.push(degree.get_evaluation_degree(trace_length) - constraints.divisor().degree())
+    for (idx, degree) in constraints.aux_constraint_degrees().iter().enumerate() {
+        let divisor_idx = constraints.aux_constraints_divisors()[idx];
+        result.push(
+            degree.get_evaluation_degree(trace_length)
+                - constraints.divisors()[divisor_idx].degree(),
+        )
     }
 
     result

@@ -168,7 +168,7 @@ impl<B: StarkField> AirContext<B> {
             ce_blowup_factor,
             trace_domain_generator: B::get_root_of_unity(log2(trace_length)),
             lde_domain_generator: B::get_root_of_unity(log2(lde_domain_size)),
-            divisors: vec![(vec![(trace_length, 0, 1)], vec![])],
+            divisors: vec![(vec![(1, 0, 1)], vec![])],
         }
     }
 
@@ -250,7 +250,7 @@ impl<B: StarkField> AirContext<B> {
     }
 
     /// Returns a reference to the available divisors used by the AIR
-    pub fn divisors(&self) -> &(Vec<(usize, usize, usize)>, Vec<(usize, usize)>) {
+    pub fn divisors(&self) -> &[(Vec<(usize, usize, usize)>, Vec<(usize, usize)>)] {
         &self.divisors
     }
     // DATA MUTATORS

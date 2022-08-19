@@ -8,7 +8,7 @@ use super::{
     TRACE_WIDTH,
 };
 
-// use crate::utils::print_trace;
+use crate::utils::print_trace;
 use rand::Rng;
 
 // DIVISORS COSETS PROVER
@@ -75,10 +75,13 @@ impl DivisorsCosetsProver {
             |i, state| {
                 state[0] += state[0];
                 state[1] = BaseElement::new(bits[i + 1]);
+                if i == 29 {
+                    state[1] = BaseElement::new(42);
+                }
             },
         );
 
-        // print_trace(&trace, 1, 0, 0..2);
+        print_trace(&trace, 1, 0, 0..2);
         trace
     }
 }

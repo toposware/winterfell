@@ -42,8 +42,18 @@ impl Air for VdfAir {
         let degrees = vec![TransitionConstraintDegree::new(3)];
         // make sure the last two rows are excluded from transition constraints as we populate
         // values in the last row with garbage
-        let context =
-            AirContext::new(trace_info, degrees, 2, options).set_num_transition_exemptions(2);
+
+        let default_divisor = (vec![(1, 0, 2)], vec![]);
+
+        let divisors = vec![default_divisor];
+        let main_constraint_divisors: Vec<usize> = vec![0];
+        let aux_constraint_divisors: Vec<usize> = vec![];
+
+        let context = AirContext::new(trace_info, degrees, 2, options).set_custom_divisors(
+            &divisors,
+            &main_constraint_divisors,
+            &aux_constraint_divisors,
+        );
         Self {
             context,
             seed: pub_inputs.seed,

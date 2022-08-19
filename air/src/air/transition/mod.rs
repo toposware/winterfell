@@ -35,7 +35,7 @@ pub struct TransitionConstraints<E: FieldElement> {
     aux_constraints: Vec<TransitionConstraintGroup<E>>,
     aux_constraint_degrees: Vec<TransitionConstraintDegree>,
     aux_constraint_divisors: Vec<usize>,
-    divisors: Vec<(ConstraintDivisor<E::BaseField>)>,
+    divisors: Vec<ConstraintDivisor<E::BaseField>>,
 }
 
 impl<E: FieldElement> TransitionConstraints<E> {
@@ -73,7 +73,7 @@ impl<E: FieldElement> TransitionConstraints<E> {
             &main_constraint_divisors,
             context,
             main_constraint_coefficients,
-            divisors.iter().map(|d| d.0.degree()).collect(),
+            &divisors.iter().map(|d| d.degree()).collect::<Vec<_>>(),
         );
 
         let aux_constraint_degrees = context.aux_transition_constraint_degrees.clone();
@@ -83,7 +83,7 @@ impl<E: FieldElement> TransitionConstraints<E> {
             &aux_constraint_divisors,
             context,
             aux_constraint_coefficients,
-            divisors.iter().map(|d| d.0.degree()).collect(),
+            &divisors.iter().map(|d| d.degree()).collect::<Vec<_>>(),
         );
 
         Self {
@@ -116,6 +116,11 @@ impl<E: FieldElement> TransitionConstraints<E> {
         &self.main_constraint_degrees
     }
 
+    /// Returns the vector of divisor indices corresponding to each main constraint.
+    pub fn main_constraints_divisors(&self) -> &[usize] {
+        &self.main_constraint_divisors
+    }
+
     /// Returns the number of constraints applied against the main trace segment of a computation.
     pub fn num_main_constraints(&self) -> usize {
         self.main_constraint_degrees.len()
@@ -136,6 +141,11 @@ impl<E: FieldElement> TransitionConstraints<E> {
         &self.aux_constraint_degrees
     }
 
+    /// Returns the vector of divisor indices corresponding to each auxiliary constraint.
+    pub fn aux_constraints_divisors(&self) -> &[usize] {
+        &self.aux_constraint_divisors
+    }
+
     /// Returns the number of constraints applied against auxiliary trace segments of a
     /// computation.
     pub fn num_aux_constraints(&self) -> usize {
@@ -153,8 +163,8 @@ impl<E: FieldElement> TransitionConstraints<E> {
     ///
     /// This divisor specifies that transition constraints must hold on all steps of the
     /// execution trace except for the last one.
-    pub fn divisor(&self) -> &ConstraintDivisor<E::BaseField> {
-        &self.divisor
+    pub fn divisors(&self) -> &[ConstraintDivisor<E::BaseField>] {
+        &self.divisors
     }
 
     // CONSTRAINT COMPOSITION
@@ -180,9 +190,13 @@ impl<E: FieldElement> TransitionConstraints<E> {
         F: FieldElement<BaseField = E::BaseField>,
         E: ExtensionOf<F>,
     {
+        // TODO [divisors]: optimize for verifier as well
+
         // merge constraint evaluations for the main trace segment
         let mut result = self.main_constraints().iter().fold(E::ZERO, |acc, group| {
-            acc + group.merge_evaluations::<F, F>(main_evaluations, x)
+            let divisor_index = group.divisor_index();
+            let z = E::from(self.divisors()[divisor_index].evaluate_at(x));
+            acc + group.merge_evaluations::<F, F>(main_evaluations, x) / z
         });
 
         // merge constraint evaluations for auxiliary trace segments (if any)
@@ -193,8 +207,7 @@ impl<E: FieldElement> TransitionConstraints<E> {
         }
 
         // divide out the evaluation of divisor at x and return the result
-        let z = E::from(self.divisor.evaluate_at(x));
-        result / z
+        result
     }
 }
 
@@ -233,12 +246,12 @@ impl<E: FieldElement> TransitionConstraintGroup<E> {
 
     /// Returns divisor index of the group.
     pub fn divisor_index(&self) -> usize {
-        self.divisor_index()
+        self.divisor_index
     }
 
     /// Returns divisor index of the group.
     pub fn divisor_degree(&self) -> usize {
-        self.divisor_degree()
+        self.divisor_degree
     }
 
     /// Returns indexes of all constraints in this group.
@@ -287,7 +300,7 @@ impl<E: FieldElement> TransitionConstraintGroup<E> {
     /// them by the divisor later on. The degree of the divisor for transition constraints is
     /// always $n - 1$. Thus, once we divide out the divisor, the evaluations will represent a
     /// polynomial of degree $D$.
-    pub fn merge_evaluations<B, F>(&mut self, evaluations: &[F], x: B) -> E
+    pub fn merge_evaluations<B, F>(&self, evaluations: &[F], x: B) -> E
     where
         B: FieldElement,
         F: FieldElement<BaseField = B::BaseField> + ExtensionOf<B>,
@@ -329,18 +342,14 @@ fn group_constraints<E: FieldElement>(
     // iterate over transition constraint degrees, and assign each constraint to the appropriate
     // group based on its divisor
     let mut groups = BTreeMap::new();
-    for (i, (divisor, degree)) in divisors_indices
-        .iter()
-        .zip(divisor_degrees.iter())
-        .enumerate()
-    {
+    for idx in 0..degrees.len() {
         let group = groups
             // The tree key contains the degree and the divisor index
-            .entry(divisors_indices[i])
+            .entry(divisors_indices[idx])
             .or_insert_with(|| {
                 TransitionConstraintGroup::new(
-                    divisor_degrees[divisors_indices[i]],
-                    divisors_indices[i],
+                    divisors_indices[idx],
+                    divisor_degrees[divisors_indices[idx]],
                 )
             });
         // degree.clone(),
@@ -349,8 +358,9 @@ fn group_constraints<E: FieldElement>(
         group.add(
             context.composition_degree(),
             context.trace_len(),
-            i,
-            coefficients[i],
+            idx,
+            degrees[idx].clone(),
+            coefficients[idx],
         );
     }
 
