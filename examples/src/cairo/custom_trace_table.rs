@@ -248,6 +248,11 @@ impl<B: StarkField> Trace for RapTraceTable<B> {
         aux_columns[8][0] = aux_columns[7][0]
             * (rand_elements[1] - (a + rand_elements[2] * current_row[39].into()))
             / (rand_elements[1] - (a2 + rand_elements[2] * current_row[49].into()));
+        a = current_row[50].into();
+        a2 = current_row[52].into();
+        aux_columns[9][0] = aux_columns[8][0]
+            * (rand_elements[1] - (a + rand_elements[2] * current_row[51].into()))
+            / (rand_elements[1] - (a2 + rand_elements[2] * current_row[53].into()));
 
         // Fill the rest of the rows. The last main trace row is filled with garbage, so we don't need to care about it.
         for index in 1..(self.length() - 1) {
@@ -267,7 +272,7 @@ impl<B: StarkField> Trace for RapTraceTable<B> {
 
             a = current_row[19].into();
             a2 = current_row[40].into();
-            aux_columns[4][index] = aux_columns[8][index - 1]
+            aux_columns[4][index] = aux_columns[9][index - 1]
                 * (rand_elements[1] - (a + rand_elements[2] * current_row[20].into()))
                 / (rand_elements[1] - (a2 + rand_elements[2] * current_row[41].into()));
             a = current_row[21].into();
@@ -290,6 +295,11 @@ impl<B: StarkField> Trace for RapTraceTable<B> {
             aux_columns[8][index] = aux_columns[7][index]
                 * (rand_elements[1] - (a + rand_elements[2] * current_row[39].into()))
                 / (rand_elements[1] - (a2 + rand_elements[2] * current_row[49].into()));
+            a = current_row[50].into();
+            a2 = current_row[52].into();
+            aux_columns[9][index] = aux_columns[8][index]
+                * (rand_elements[1] - (a + rand_elements[2] * current_row[51].into()))
+                / (rand_elements[1] - (a2 + rand_elements[2] * current_row[53].into()));
         }
 
         Some(Matrix::new(aux_columns))

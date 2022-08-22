@@ -35,8 +35,8 @@ use std::sync::Mutex;
 // CONSTANTS
 // ================================================================================================
 
-const TRACE_WIDTH: usize = 50;
-const AUX_WIDTH: usize = 9;
+const TRACE_WIDTH: usize = 54;
+const AUX_WIDTH: usize = 10;
 
 // CAIRO EXAMPLE
 // ================================================================================================
@@ -105,6 +105,7 @@ impl Example for CairoExample {
 
         // read register boundary values
         reader.lock().unwrap().read_line(&mut line).unwrap();
+        line.pop();
         let register_values = line
             .split([' '].as_ref())
             .map(|a| BaseElement::new(u64::from_str(&a).unwrap()))
@@ -113,9 +114,26 @@ impl Example for CairoExample {
             register_values.len() == 4,
             "Wrong number of register boundary values provided."
         );
+        line.clear();
+
+        // read built-in pointers values
+        reader.lock().unwrap().read_line(&mut line).unwrap();
+        let output_pointer_values = line
+            .split([' '].as_ref())
+            .map(|a| BaseElement::new(u64::from_str(&a).unwrap()))
+            .collect::<Vec<BaseElement>>();
+        assert!(
+            output_pointer_values.len() == 2,
+            "Wrong number of output pointer values provided."
+        );
 
         // create a prover
-        let prover = CairoProver::new(self.options.clone(), bytecode, register_values);
+        let prover = CairoProver::new(
+            self.options.clone(),
+            bytecode,
+            register_values,
+            output_pointer_values,
+        );
 
         // generate execution trace
         let now = Instant::now();
@@ -158,14 +176,32 @@ impl Example for CairoExample {
         );
         line.clear();
         reader.lock().unwrap().read_line(&mut line).unwrap();
+        line.pop();
         let register_values = line
             .split([' '].as_ref())
             .map(|a| BaseElement::new(u64::from_str(&a).unwrap()))
             .collect::<Vec<BaseElement>>();
+        assert!(
+            register_values.len() == 4,
+            "Wrong number of register boundary values provided."
+        );
+        line.clear();
+
         // println!("{:#?}", bytecode);
+        reader.lock().unwrap().read_line(&mut line).unwrap();
+        let output_pointer_values = line
+            .split([' '].as_ref())
+            .map(|a| BaseElement::new(u64::from_str(&a).unwrap()))
+            .collect::<Vec<BaseElement>>();
+        assert!(
+            output_pointer_values.len() == 2,
+            "Wrong number of output pointer values provided."
+        );
+
         let pub_inputs = PublicInputs {
             bytecode: bytecode,
             register_values: register_values,
+            output_pointer_values: output_pointer_values,
         };
         winterfell::verify::<CairoAir>(proof, pub_inputs)
     }

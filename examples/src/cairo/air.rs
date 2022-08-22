@@ -18,12 +18,15 @@ pub struct PublicInputs {
     pub bytecode: Vec<BaseElement>,
     // pc_0, pc_final, ap_0, ap_final
     pub register_values: Vec<BaseElement>,
+    // output_begin, output_stop
+    pub output_pointer_values: Vec<BaseElement>,
 }
 
 impl Serializable for PublicInputs {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         target.write(&self.bytecode[..]);
         target.write(&self.register_values[..]);
+        target.write(&self.output_pointer_values[..]);
     }
 }
 
@@ -108,7 +111,7 @@ impl Air for CairoAir {
                 trace_info,
                 main_degrees,
                 aux_degrees,
-                5,
+                7,
                 2,
                 options,
             )
@@ -320,16 +323,22 @@ impl Air for CairoAir {
             * (random_elements[1] - (a2 + random_elements[2] * main_current[49].into()))
             - aux_current[7]
                 * (random_elements[1] - (a + random_elements[2] * main_current[39].into()));
+        a = main_current[50].into();
+        a2 = main_current[52].into();
+        result[8] = aux_current[9]
+            * (random_elements[1] - (a2 + random_elements[2] * main_current[53].into()))
+            - aux_current[7]
+                * (random_elements[1] - (a + random_elements[2] * main_current[51].into()));
         a = main_next[19].into();
         a2 = main_next[40].into();
         result[8] = aux_next[4]
             * (random_elements[1] - (a2 + random_elements[2] * main_next[41].into()))
-            - aux_current[8]
+            - aux_current[9]
                 * (random_elements[1] - (a + random_elements[2] * main_next[20].into()));
     }
 
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
-        // Check boundary register values.
+        // Check boundary register and built-in pointer values.
         let last_step = self.trace_length() - 2;
         vec![
             Assertion::single(19, 0, self.public_inputs.register_values[0]),
@@ -337,6 +346,12 @@ impl Air for CairoAir {
             Assertion::single(27, 0, self.public_inputs.register_values[2]),
             Assertion::single(28, 0, self.public_inputs.register_values[2]),
             Assertion::single(27, last_step, self.public_inputs.register_values[3]),
+            Assertion::single(50, 0, self.public_inputs.output_pointer_values[0]),
+            Assertion::single(
+                50,
+                last_step,
+                self.public_inputs.output_pointer_values[1] - Self::BaseField::ONE,
+            ),
         ]
     }
 
@@ -358,7 +373,7 @@ impl Air for CairoAir {
 
         vec![
             Assertion::single(3, self.trace_length() - 2, E::ONE),
-            Assertion::single(8, self.trace_length() - 2, final_value),
+            Assertion::single(9, self.trace_length() - 2, final_value),
         ]
     }
 }
