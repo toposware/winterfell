@@ -13,7 +13,7 @@ use air::{
     TransitionConstraints,
 };
 use math::FieldElement;
-use utils::iter_mut;
+use utils::{iter_mut, collections::BTreeMap};
 
 #[cfg(feature = "concurrent")]
 use utils::{iterators::*, rayon};
@@ -294,10 +294,22 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         self.air.evaluate_transition(main_frame, periodic_values, evaluations);
 
 
+        let mut adjustments = BTreeMap::new();
+        for group in self.transition_constraints.main_constraints().iter().chain(self.transition_constraints.aux_constraints().iter()) {
+            for constraint in group.constraint_information().iter() {
+                if !adjustments.contains_key(&constraint.1) {
+                    adjustments.insert(constraint.1, x.exp((constraint.1).into()));
+                }
+            }
+        }
+        
         // merge transition constraint evaluations into a vector of values based on their divisor;
         self.transition_constraints.main_constraints().iter().map(|group| 
-            group.merge_evaluations(evaluations, x)
+            group.merge_evaluations2(evaluations, x, &adjustments)
         )
+        // self.transition_constraints.main_constraints().iter().map(|group| 
+        //     group.merge_evaluations(evaluations, x)
+        // )
         .collect::<Vec<_>>()
     }
 

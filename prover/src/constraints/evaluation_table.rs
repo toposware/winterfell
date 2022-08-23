@@ -34,9 +34,11 @@ pub struct ConstraintEvaluationTable<E: FieldElement> {
 
     #[cfg(debug_assertions)]
     main_transition_evaluations: Vec<Vec<E::BaseField>>,
+    #[cfg(debug_assertions)]
     main_divisor_indices: Vec<usize>,
     #[cfg(debug_assertions)]
     aux_transition_evaluations: Vec<Vec<E>>,
+    #[cfg(debug_assertions)]
     aux_divisor_indices: Vec<usize>,
     #[cfg(debug_assertions)]
     expected_transition_degrees: Vec<usize>,

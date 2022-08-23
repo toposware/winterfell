@@ -312,6 +312,35 @@ impl<E: FieldElement> TransitionConstraintGroup<E> {
         }
         result
     }
+
+    pub fn merge_evaluations2<B, F>(
+        &self,
+        evaluations: &[F],
+        x: B,
+        adjustments: &BTreeMap<u32, F>,
+    ) -> E
+    where
+        B: FieldElement,
+        F: FieldElement<BaseField = B::BaseField> + ExtensionOf<B>,
+        E: FieldElement<BaseField = B::BaseField> + ExtensionOf<B> + ExtensionOf<F>,
+    {
+        // TODO [divisors]: Precompute degree adjustments to avoid recomputing them across groups
+
+        // compute linear combination of evaluations as D(x) * (cc_0 + cc_1 * x^p), where D(x)
+        // is an evaluation of a particular constraint, and x^p is the degree adjustment factor
+        let mut result = E::ZERO;
+        for (i, (constraint_idx, degree_adjustment, coefficients)) in
+            self.constraint_information().iter().enumerate()
+        {
+            let evaluation = evaluations[*constraint_idx];
+            result += (coefficients.0
+                + coefficients
+                    .1
+                    .mul_base(*adjustments.get(&degree_adjustment).unwrap()))
+            .mul_base(evaluation);
+        }
+        result
+    }
 }
 
 // HELPER FUNCTIONS
