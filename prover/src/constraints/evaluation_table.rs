@@ -34,8 +34,10 @@ pub struct ConstraintEvaluationTable<E: FieldElement> {
 
     #[cfg(debug_assertions)]
     main_transition_evaluations: Vec<Vec<E::BaseField>>,
+    main_divisor_indices: Vec<usize>,
     #[cfg(debug_assertions)]
     aux_transition_evaluations: Vec<Vec<E>>,
+    aux_divisor_indices: Vec<usize>,
     #[cfg(debug_assertions)]
     expected_transition_degrees: Vec<usize>,
 }
@@ -85,7 +87,9 @@ impl<E: FieldElement> ConstraintEvaluationTable<E> {
             domain_offset: domain.offset(),
             trace_length: domain.trace_length(),
             main_transition_evaluations: uninit_matrix(num_tm_columns, num_rows),
+            main_divisor_indices: transition_constraints.main_constraints_divisors().to_vec(),
             aux_transition_evaluations: uninit_matrix(num_ta_columns, num_rows),
+            aux_divisor_indices: transition_constraints.aux_constraints_divisors().to_vec(),
             expected_transition_degrees,
         }
     }
@@ -105,6 +109,11 @@ impl<E: FieldElement> ConstraintEvaluationTable<E> {
     #[allow(dead_code)]
     pub fn num_columns(&self) -> usize {
         self.evaluations.len()
+    }
+
+    /// Returns the list of transition constraint divisors.
+    pub fn divisors(&self) -> &[ConstraintDivisor<E::BaseField>] {
+        &self.divisors
     }
 
     // TABLE FRAGMENTS
@@ -206,14 +215,16 @@ impl<E: FieldElement> ConstraintEvaluationTable<E> {
 
     #[cfg(debug_assertions)]
     pub fn validate_transition_degrees(&mut self) {
-        // evaluate transition constraint divisor (which is assumed to be the first one in the
-        // divisor list) over the constraint evaluation domain. this is used later to compute
+        // evaluate all transition constraint divisors over the constraint evaluation domain.
+        // This is used later to compute
         // actual degrees of transition constraint evaluations.
-        let div_values = evaluate_divisor::<E::BaseField>(
-            &self.divisors[0],
-            self.num_rows(),
-            self.domain_offset,
-        );
+        let div_values = self
+            .divisors()
+            .iter()
+            .map(|divisor| {
+                evaluate_divisor::<E::BaseField>(divisor, self.num_rows(), self.domain_offset)
+            })
+            .collect::<Vec<_>>();
 
         // collect actual degrees for all transition constraints by interpolating saved
         // constraint evaluations into polynomials and checking their degree; also
@@ -223,15 +234,23 @@ impl<E: FieldElement> ConstraintEvaluationTable<E> {
         let inv_twiddles = fft::get_inv_twiddles::<E::BaseField>(self.num_rows());
 
         // first process transition constraint evaluations for the main trace segment
-        for evaluations in self.main_transition_evaluations.iter() {
-            let degree = get_transition_poly_degree(evaluations, &inv_twiddles, &div_values);
+        for (i, evaluations) in self.main_transition_evaluations.iter().enumerate() {
+            let degree = get_transition_poly_degree(
+                evaluations,
+                &inv_twiddles,
+                &div_values[self.main_divisor_indices[i]],
+            );
             actual_degrees.push(degree);
             max_degree = core::cmp::max(max_degree, degree);
         }
 
         // then process transition constraint evaluations for auxiliary trace segments
-        for evaluations in self.aux_transition_evaluations.iter() {
-            let degree = get_transition_poly_degree(evaluations, &inv_twiddles, &div_values);
+        for (i, evaluations) in self.aux_transition_evaluations.iter().enumerate() {
+            let degree = get_transition_poly_degree(
+                evaluations,
+                &inv_twiddles,
+                &div_values[self.aux_divisor_indices[i]],
+            );
             actual_degrees.push(degree);
             max_degree = core::cmp::max(max_degree, degree);
         }

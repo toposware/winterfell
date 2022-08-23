@@ -130,8 +130,8 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
 
         // when in debug mode, make sure expected transition constraint degrees align with
         // actual degrees we got during constraint evaluation
-        // #[cfg(debug_assertions)]
-        // evaluation_table.validate_transition_degrees();
+        #[cfg(debug_assertions)]
+        evaluation_table.validate_transition_degrees();
 
         evaluation_table
     }

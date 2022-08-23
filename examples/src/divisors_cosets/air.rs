@@ -66,13 +66,6 @@ impl Air for DivisorsCosetsAir {
 
         let divisors = vec![default_divisor, custom_divisor];
 
-        // We add the custom divisor
-        let custom_divisor = vec![(
-            pub_inputs.range_length as usize,
-            pub_inputs.offset as usize,
-            0,
-        )];
-
         // first constarint uses the defualt divisor
         // the other two constraints use the custom divisor
         let main_constraint_divisors: Vec<usize> = vec![0, 1, 1];

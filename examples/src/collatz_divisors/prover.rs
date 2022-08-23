@@ -8,7 +8,7 @@ use super::{
     StarkField, Trace, TraceTable,
 };
 
-use crate::utils::print_trace;
+// use crate::utils::print_trace;
 
 // COLLATZ PROVER
 // ================================================================================================
