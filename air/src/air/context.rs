@@ -260,16 +260,15 @@ impl<B: StarkField> AirContext<B> {
     ///
     /// # Panics
     /// Panics if:
-    /// * The number of divisors is different than the number of constraints.
+    /// * The number of divisors indices is different than the number of constraints.
     /// * A divisor index exceeds the number of available divisors.
-    /// * A divisor is invalid:
+    /// * TODO [divisors]: A divisor is invalid:
     ///     - it does not define a proper coset combination
     ///     - it has too many exemptions
     ///     - the defining cosets have overlapping points
-    /// * Given the combination of transition constraints degrees and the blowup factor in this
+    /// * TODO [divisors]: Given the combination of transition constraints degrees and the blowup factor in this
     ///   context, the divisors' degrees are too small for a valid computation of the constraint
     ///   composition polynomial.
-    // TODO [divisors]: update docs
     pub fn set_custom_divisors(
         mut self,
         divisors: &[(Vec<(usize, usize, usize)>, Vec<(usize, usize)>)],

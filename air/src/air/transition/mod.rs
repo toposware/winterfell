@@ -26,8 +26,8 @@ const MIN_CYCLE_LENGTH: usize = 2;
 ///   trace segments (if any).
 /// - Groupings of constraints by their degree, separately for the main trace segment and for
 ///   auxiliary tace segment.
-/// - Index of the divisor used by each constraint.
-/// - Divisor of transition constraints for a computation along with the indexes of the cosets.
+/// - Index of the divisor used by each constraint (main and aux).
+/// - Divisors used for  transition constraints
 pub struct TransitionConstraints<E: FieldElement> {
     main_constraints: Vec<TransitionConstraintGroup<E>>,
     main_constraint_degrees: Vec<TransitionConstraintDegree>,
@@ -54,13 +54,14 @@ impl<E: FieldElement> TransitionConstraints<E> {
             "number of transition constraints must match the number of composition coefficient tuples"
         );
 
+        // build constraint divisors
         let divisors: Vec<_> = context
             .divisors
             .iter()
-            .map(|divisor| ConstraintDivisor::from_transition2(context.trace_len(), divisor))
+            .map(|divisor| ConstraintDivisor::from_transition(context.trace_len(), divisor))
             .collect();
 
-        // group constraints by their degreeivisorsivisor, separately for constraints against main and auxiliary
+        // group constraints by their divisors, separately for constraints against main and auxiliary
         // trace segments
 
         let (main_constraint_coefficients, aux_constraint_coefficients) =
@@ -68,6 +69,7 @@ impl<E: FieldElement> TransitionConstraints<E> {
 
         let main_constraint_degrees = context.main_transition_constraint_degrees.clone();
         let main_constraint_divisors = context.main_transition_constraint_divisors.clone();
+        // group main constraints by divisors
         let main_constraints = group_constraints(
             &main_constraint_degrees,
             &main_constraint_divisors,
@@ -78,6 +80,7 @@ impl<E: FieldElement> TransitionConstraints<E> {
 
         let aux_constraint_degrees = context.aux_transition_constraint_degrees.clone();
         let aux_constraint_divisors = context.aux_transition_constraint_divisors.clone();
+        // group aux constraints by divisors
         let aux_constraints = group_constraints(
             &aux_constraint_degrees,
             &aux_constraint_divisors,
@@ -116,7 +119,7 @@ impl<E: FieldElement> TransitionConstraints<E> {
         &self.main_constraint_degrees
     }
 
-    /// Returns the vector of divisor indices corresponding to each main constraint.
+    /// Returns the vector of divisor indices corresponding to main constraints.
     pub fn main_constraints_divisors(&self) -> &[usize] {
         &self.main_constraint_divisors
     }
@@ -141,7 +144,7 @@ impl<E: FieldElement> TransitionConstraints<E> {
         &self.aux_constraint_degrees
     }
 
-    /// Returns the vector of divisor indices corresponding to each auxiliary constraint.
+    /// Returns the vector of divisor indices corresponding to auxiliary constraints.
     pub fn aux_constraints_divisors(&self) -> &[usize] {
         &self.aux_constraint_divisors
     }
@@ -152,17 +155,7 @@ impl<E: FieldElement> TransitionConstraints<E> {
         self.aux_constraint_degrees.len()
     }
 
-    /// Returns a divisor for transition constraints.
-    ///
-    /// All transition constraints have the same divisor which has the form:
-    /// $$
-    /// z(x) = \frac{x^n - 1}{x - g^{n - 1}}
-    /// $$
-    /// where: $n$ is the length of the execution trace and $g$ is the generator of the trace
-    /// domain.
-    ///
-    /// This divisor specifies that transition constraints must hold on all steps of the
-    /// execution trace except for the last one.
+    /// Returns the list of divisors for transition constraints.
     pub fn divisors(&self) -> &[ConstraintDivisor<E::BaseField>] {
         &self.divisors
     }
@@ -181,10 +174,10 @@ impl<E: FieldElement> TransitionConstraints<E> {
     /// Thus, this function computes a linear combination of $C(x)$ evaluations. For more detail on
     ///  how this linear combination is computed refer to [TransitionConstraintGroup::merge_evaluations].
     ///
-    /// Since, the divisor polynomial is the same for all transition constraints (see
+    /// Since, the divisor polynomial is the same for all transition constraints in a group (see
     /// [ConstraintDivisor::from_transition]), we can divide the linear combination by the
     /// divisor rather than dividing each individual $C(x)$ evaluation. This requires executing only
-    /// one division at the end.
+    /// one division per group.
     pub fn combine_evaluations<F>(&self, main_evaluations: &[F], aux_evaluations: &[E], x: F) -> E
     where
         F: FieldElement<BaseField = E::BaseField>,
@@ -202,21 +195,23 @@ impl<E: FieldElement> TransitionConstraints<E> {
         // merge constraint evaluations for auxiliary trace segments (if any)
         if self.num_aux_constraints() > 0 {
             result += self.aux_constraints().iter().fold(E::ZERO, |acc, group| {
-                acc + group.merge_evaluations::<F, E>(aux_evaluations, x)
+                let divisor_index = group.divisor_index();
+                let z = E::from(self.divisors()[divisor_index].evaluate_at(x));
+                acc + group.merge_evaluations::<F, E>(aux_evaluations, x) / z
             });
         }
 
-        // divide out the evaluation of divisor at x and return the result
         result
     }
 }
 
 // TRANSITION CONSTRAINT GROUP
 // ================================================================================================
-/// A group of transition constraints all having the same degree.
+/// A group of transition constraints all having the same divisor.
 ///
 /// A transition constraint group does not actually store transition constraints - it stores only
-/// their indexes and the info needed to compute their random linear combination. The indexes are
+/// information about them (their indices, degree_adjustment and coefficients for the linear
+/// combination) the divisor information needed to merge them. The indexes are
 /// assumed to be consistent with the order in which constraint evaluations are written into the
 /// `evaluation` table by the [Air::evaluate_transition()](crate::Air::evaluate_transition) or
 /// [Air::evaluate_aux_transition()](crate::Air::evaluate_aux_transition) function.
@@ -291,15 +286,6 @@ impl<E: FieldElement> TransitionConstraintGroup<E> {
     /// * $d$ is the degree adjustment factor computed as $D + (n - 1) - deg(C_i(x))$, where
     ///   $D$ is the degree of the composition polynomial, $n$ is the length of the execution
     ///   trace, and $deg(C_i(x))$ is the evaluation degree of the $i$th constraint.
-    ///
-    /// There are two things to note here. First, the degree adjustment factor $d$ is the same
-    /// for all constraints in the group (since all constraints have the same degree). Second,
-    /// the merged evaluations represent a polynomial of degree $D + n - 1$, which is higher
-    /// then the target degree of the composition polynomial. This is because at this stage,
-    /// we are merging only the numerators of transition constraints, and we will need to divide
-    /// them by the divisor later on. The degree of the divisor for transition constraints is
-    /// always $n - 1$. Thus, once we divide out the divisor, the evaluations will represent a
-    /// polynomial of degree $D$.
     pub fn merge_evaluations<B, F>(&self, evaluations: &[F], x: B) -> E
     where
         B: FieldElement,
@@ -343,6 +329,7 @@ fn group_constraints<E: FieldElement>(
     // group based on its divisor
     let mut groups = BTreeMap::new();
     for idx in 0..degrees.len() {
+        // retrieve or create the group if it does not exist
         let group = groups
             // The tree key contains the degree and the divisor index
             .entry(divisors_indices[idx])
@@ -352,9 +339,7 @@ fn group_constraints<E: FieldElement>(
                     divisor_degrees[divisors_indices[idx]],
                 )
             });
-        // degree.clone(),
-        // context.trace_len(),
-        // context.composition_degree(),
+        // add the constraint to the group
         group.add(
             context.composition_degree(),
             context.trace_len(),

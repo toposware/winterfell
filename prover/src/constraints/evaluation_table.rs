@@ -339,10 +339,10 @@ fn make_fragments<E: FieldElement>(
     result
 }
 
+/// Accumulates the constraint evaluation divided by the corresponding divisor to the result.
+/// The divisor is already computed and inverted, therefore we simply compute
+/// column[i]*divisor_evaluations[i]
 fn acc_column<E: FieldElement>(column: Vec<E>, divisor_evaluations: &[E], result: &mut [E]) {
-    // for i in 0..column.len() {
-    //     result[i] += column[i] * divisor_evaluations[i];
-    // }
     iter_mut!(result, 1024)
         .zip(column)
         .enumerate()
@@ -383,7 +383,7 @@ fn get_divisor_evaluations<E: FieldElement>(
                     let n = domain_size / a as usize;
                     let g = g_domain.exp(a.into());
 
-                    // Compute unshifted values X^k over domain
+                    // Compute unshifted values X^k-1 over domain
                     let mut evaluations = unsafe { uninit_vector(n) };
                     batch_iter_mut!(
                         &mut evaluations,
@@ -402,16 +402,21 @@ fn get_divisor_evaluations<E: FieldElement>(
                     evaluations
                 });
                 // Compute and insert shifted values
-                let shifted_evaluations = evaluations
-                    .clone()
-                    .iter()
-                    .map(|e| *e + E::ONE - product.coset_elem().into())
-                    .collect::<Vec<_>>();
-                // insert shifted values
-                evaluations_map.insert(shifted_key, shifted_evaluations);
+                if product.coset_dlog() != 0 {
+                    let mut shifted_evaluations =
+                        unsafe { uninit_vector(domain_size / product.degree()) };
+                    let shift = E::ONE - product.coset_elem().into();
+                    iter_mut!(shifted_evaluations, 1024).enumerate().for_each(
+                        |(i, shifted_evaluation)| {
+                            *shifted_evaluation = evaluations[i] + shift;
+                        },
+                    );
+                    evaluations_map.insert(shifted_key, shifted_evaluations);
+                }
             }
         }
-        // TODO: [divisors] should batch these together as well
+        // TODO [divisors]: should batch these together as well
+
         for product in divisor.numerator() {
             let key = (product.degree(), product.coset_dlog());
             // invert and insert the values if not there already
@@ -425,9 +430,9 @@ fn get_divisor_evaluations<E: FieldElement>(
         }
     }
 
-    // compute actual divisor evaluations
-    // TODO: rewrite parallelizable
-    let mut divisors_evaluations = Vec::new();
+    // TODO [divisors]: rewrite parallelizable
+    // compute divisor evaluations using the saved values of the dictionaries
+    let mut divisors_evaluations = vec![];
     for divisor in divisors.iter() {
         // result is the final divisor evaluation
 
@@ -442,7 +447,7 @@ fn get_divisor_evaluations<E: FieldElement>(
         }
         for product in divisor.numerator() {
             let key = (product.degree(), product.coset_dlog());
-            // the values considered for the product
+            // the values considered for the product inverted
             let z = inverse_evaluations_map.get(&key).unwrap();
             for i in 0..domain_size {
                 result[i] *= z[i % z.len()]

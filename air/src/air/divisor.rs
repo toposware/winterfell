@@ -9,7 +9,15 @@ use core::fmt::{Display, Formatter};
 use math::{log2, FieldElement, StarkField};
 use utils::collections::Vec;
 
-// TODO [divisors]: add docs
+// CONSTRAINT DIVISOR PRODUCT
+// ================================================================================================
+/// The building block of a divisor. It expresses sparse polynomials of the form $(X^k - g^b)$.
+/// The term $k$ (subgroup) determines the number of elements on which constraints are
+/// applied/excluded and $g^b$ defines an offset. $g$ is the trace domain generator.
+/// When $b=k*j$ the product applies/excludes the constraints at elements $n/k+j, 2n/k+j,\ldots$.
+///
+/// The product is defined by the number of elements it involves (subgroup), the coset elements
+/// $h=g^b$ and its dlog $b$ w.r.t. the trace domain generator.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ConstraintDivisorProduct<B: StarkField> {
     pub(super) subgroup: usize,
@@ -18,8 +26,15 @@ pub struct ConstraintDivisorProduct<B: StarkField> {
 }
 
 impl<B: StarkField> ConstraintDivisorProduct<B> {
-    // TODO [divisors]: add docs
+    /// Returns a new divisor product. Given a trace_length, a period and an offset
+    /// it returns the product that involves elements in the trace that are period far apart
+    /// with first element being offset.
     fn new(trace_length: usize, period: usize, offset: usize) -> Self {
+        // TODO [divisors]: Assertions:
+        //      1. trace_length is a power of 2
+        //      2. period is a power of 2
+        //      3. period < trace_length
+        //      3. 0 <= offset < period
         let subgroup = trace_length / period;
         ConstraintDivisorProduct {
             subgroup,
@@ -28,18 +43,23 @@ impl<B: StarkField> ConstraintDivisorProduct<B> {
         }
     }
 
+    /// Returns the number of points the product involves.
     pub fn subgroup(&self) -> usize {
         self.subgroup
     }
 
+    /// Returns the dlog of the coset element w.r.t. the trace domain.
     pub fn coset_dlog(&self) -> usize {
         self.coset_dlog
     }
 
+    /// Returns the coset element of the product term.
     pub fn coset_elem(&self) -> B {
         self.coset_elem
     }
 
+    /// Returns the degree of the sparse polynomial defined by the divisor product.
+    /// Note this is equal to subgroup
     pub fn degree(&self) -> usize {
         self.subgroup
     }
@@ -49,13 +69,9 @@ impl<B: StarkField> ConstraintDivisorProduct<B> {
 // ================================================================================================
 /// The denominator portion of boundary and transition constraints.
 ///
-/// A divisor is described by a combination of a sparse polynomial, which describes the numerator
-/// of the divisor and a set of exemption points, which describe the denominator of the divisor.
-/// The numerator polynomial is described as multiplication of tuples where each tuple encodes
-/// an expression $(x^a - b)$. The exemption points encode expressions $(x - a)$.
-///
-/// For example divisor $(x^a - 1) \cdot (x^b - 2) / (x - 3)$ can be represented as:
-/// numerator: `[(a, 1), (b, 2)]`, exemptions: `[3]`.
+/// A divisor is described by a set of [ConstraintDivisorProducts]. The numerator of the divisor
+/// defines the points in the trace where a constraint applies and the denominator portion excludes
+/// points.
 ///
 /// A divisor cannot be instantiated directly, and instead must be created either for an
 /// [Assertion] or for a transition constraint.
@@ -76,7 +92,6 @@ impl<B: StarkField> ConstraintDivisor<B> {
         numerator: Vec<ConstraintDivisorProduct<B>>,
         denominator: Vec<ConstraintDivisorProduct<B>>,
     ) -> Self {
-        // TODO [divisors]: assert consistency between divisors
         ConstraintDivisor {
             numerator,
             denominator,
@@ -85,36 +100,23 @@ impl<B: StarkField> ConstraintDivisor<B> {
 
     /// Builds a divisor for transition constraints.
     ///
-    /// For transition constraints, the divisor polynomial $z(x)$ is always the same:
+    /// Takes as input a tuple of vectors representing products.
     ///
-    /// $$
-    /// z(x) = \frac{x^n - 1}{ \prod_{i=1}^k (x - g^{n-i})}
-    /// $$
+    /// The first vector determines the points where the transition should hold.
+    /// Concretely, the vector is of the form (period, offset, num_exemptions)
+    /// and forces the constraint to hold for all steps in every period steps
+    /// starting from offset and excluding the last num_exemptions steps.
     ///
-    /// where, $n$ is the length of the execution trace, $g$ is the generator of the trace
-    /// domain, and $k$ is the number of exemption points. The default value for $k$ is $1$.
-    ///
-    /// The above divisor specifies that transition constraints must hold on all steps of the
-    /// execution trace except for the last $k$ steps.
-    pub fn from_transition(trace_length: usize, num_exemptions: usize) -> Self {
-        assert!(
-            num_exemptions > 0,
-            "invalid number of transition exemptions: must be greater than zero"
-        );
-        let numerator: ConstraintDivisorProduct<B> =
-            ConstraintDivisorProduct::new(trace_length, 1, 0);
-
-        let denominator = (trace_length - num_exemptions..trace_length)
-            .map(|step| ConstraintDivisorProduct::new(trace_length, trace_length, step))
-            .collect();
-
-        Self::new(vec![numerator], denominator)
-    }
-
-    pub fn from_transition2(
+    /// The second vector determines (complex) exemption points. Its element
+    /// is of the form (period, offset) and exempts all elements in steps
+    /// $offset, offset + period, offset + 2period,\ldots$ from being asserted.
+    pub fn from_transition(
         trace_length: usize,
         divisor: &(Vec<(usize, usize, usize)>, Vec<(usize, usize)>),
     ) -> Self {
+        // TODO [divisors]: add assertions:
+
+        // Build numerator product terms
         let numerator: Vec<ConstraintDivisorProduct<B>> = divisor
             .0
             .iter()
@@ -123,8 +125,10 @@ impl<B: StarkField> ConstraintDivisor<B> {
             })
             .collect();
 
+        // Build denominator product terms. Here we exclude points defined in the
+        // second element of divisor as well as any last step exemptions defined in
+        // the first term.
         let mut denominator: Vec<ConstraintDivisorProduct<B>> = vec![];
-
         for (period, offset, num_exemptions) in divisor.0.iter() {
             let exemptions = (1..=*num_exemptions)
                 .map(|step| {
@@ -229,7 +233,6 @@ impl<B: StarkField> ConstraintDivisor<B> {
 
     /// Evaluates the denominator of this divisor (the exemption points) at the provided `x`
     /// coordinate.
-    // TODO [divisors]: change name
     #[inline(always)]
     pub fn evaluate_exemptions_at<E: FieldElement<BaseField = B>>(&self, x: E) -> E {
         let mut denominator = E::ONE;
@@ -246,9 +249,11 @@ impl<B: StarkField> Display for ConstraintDivisor<B> {
         for product in self.numerator.iter() {
             write!(f, "(x^{} - {})", product.degree(), product.coset_elem())?;
         }
-        write!(f, " / ")?;
-        for product in self.denominator.iter() {
-            write!(f, "(x^{} - {})", product.degree(), product.coset_elem())?;
+        if self.denominator.len() != 0 {
+            write!(f, " / ")?;
+            for product in self.denominator.iter() {
+                write!(f, "(x^{} - {})", product.degree(), product.coset_elem())?;
+            }
         }
         Ok(())
     }
