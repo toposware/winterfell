@@ -139,12 +139,6 @@ pub enum ExampleType {
         chain_length: usize,
     },
     /// Compute a hash chain using Rescue hash function
-    RescueF63 {
-        /// Length of the hash chain; must be a power of two
-        #[structopt(short = "n", default_value = "1024")]
-        chain_length: usize,
-    },
-    /// Compute a hash chain using Rescue hash function
     RescueF128 {
         /// Length of the hash chain; must be a power of two
         #[structopt(short = "n", default_value = "1024")]

@@ -1,16 +1,17 @@
-use ::utils::{
+use cheetah::Fp6;
+use cheetah::{AffinePoint as AffinePointInner, ProjectivePoint as ProjectivePointInner};
+use utils::{
     collections::Vec, string::ToString, ByteReader, ByteWriter, Deserializable,
     DeserializationError, Serializable,
 };
-use cheetah::Fp6;
-use cheetah::{AffinePoint as AffinePointInner, ProjectivePoint as ProjectivePointInner};
 
 use core::borrow::Borrow;
 use core::fmt;
 use core::iter::Sum;
 use core::ops::{Add, AddAssign, Deref, DerefMut, Mul, MulAssign, Neg, Sub, SubAssign};
 
-use crate::fields::f63::BaseElement;
+use crate::fields::f64::BaseElement;
+use crate::StarkField;
 
 pub use cheetah::B;
 
@@ -243,26 +244,26 @@ impl<'b> AddAssign<&'b AffinePoint> for ProjectivePoint {
 }
 
 impl<'b> Mul<&'b Scalar> for AffinePoint {
-    type Output = ProjectivePoint;
+    type Output = AffinePoint;
 
-    fn mul(self, rhs: &'b Scalar) -> ProjectivePoint {
-        ProjectivePoint(self.0.mul(rhs.0))
+    fn mul(self, rhs: &'b Scalar) -> AffinePoint {
+        AffinePoint(self.0.mul(rhs.0).into())
     }
 }
 
 impl<'a> Mul<Scalar> for &'a AffinePoint {
-    type Output = ProjectivePoint;
+    type Output = AffinePoint;
 
-    fn mul(self, rhs: Scalar) -> ProjectivePoint {
-        ProjectivePoint(self.0.mul(rhs.0))
+    fn mul(self, rhs: Scalar) -> AffinePoint {
+        AffinePoint(self.0.mul(rhs.0).into())
     }
 }
 
 impl Mul<Scalar> for AffinePoint {
-    type Output = ProjectivePoint;
+    type Output = AffinePoint;
 
-    fn mul(self, rhs: Scalar) -> ProjectivePoint {
-        ProjectivePoint(self.0.mul(rhs.0))
+    fn mul(self, rhs: Scalar) -> AffinePoint {
+        AffinePoint(self.0.mul(rhs.0).into())
     }
 }
 
@@ -285,90 +286,35 @@ impl AffinePoint {
 
     // Returns the x coordinate of this ProjectivePoint
     pub fn get_x(&self) -> [BaseElement; 6] {
-        self.0.get_x().output_reduced_limbs().map(BaseElement::new)
+        self.0.get_x().output_internal().map(BaseElement::new)
     }
 
     // Returns the y coordinate of this ProjectivePoint
     pub fn get_y(&self) -> [BaseElement; 6] {
-        self.0.get_y().output_reduced_limbs().map(BaseElement::new)
+        self.0.get_y().output_internal().map(BaseElement::new)
     }
 
     pub fn generator() -> AffinePoint {
         AffinePoint(AffinePointInner::generator())
     }
 
-    pub fn to_compressed(&self) -> [u8; 48] {
-        self.0.to_compressed()
-    }
-
-    pub fn to_uncompressed(&self) -> [u8; 96] {
-        self.0.to_uncompressed()
-    }
-
-    /// Attempts to deserialize an uncompressed element.
-    pub fn from_uncompressed(bytes: &[u8; 96]) -> Option<Self> {
-        Self::from_uncompressed_unchecked(bytes).and_then(|p| {
-            if p.is_on_curve() {
-                Some(p)
-            } else {
-                None
-            }
-        })
-    }
-
-    /// Attempts to deserialize an uncompressed element, not checking if the
-    /// element is on the curve and not checking if it is in the correct subgroup.
-    /// **This is dangerous to call unless you trust the bytes you are reading; otherwise,
-    /// API invariants may be broken.** Please consider using `from_uncompressed()` instead.
-    pub fn from_uncompressed_unchecked(bytes: &[u8; 96]) -> Option<Self> {
-        let tmp = AffinePointInner::from_uncompressed_unchecked(bytes);
-        if tmp.is_some().into() {
-            Some(AffinePoint(tmp.unwrap()))
-        } else {
-            None
-        }
-    }
-
-    /// Attempts to deserialize a compressed element.
-    pub fn from_compressed(bytes: &[u8; 48]) -> Option<Self> {
-        let tmp = AffinePointInner::from_compressed(bytes);
-        if tmp.is_some().into() {
-            Some(AffinePoint(tmp.unwrap()))
-        } else {
-            None
-        }
-    }
-
-    /// Attempts to deserialize an uncompressed element, not checking if the
-    /// element is in the correct subgroup.
-    /// **This is dangerous to call unless you trust the bytes you are reading; otherwise,
-    /// API invariants may be broken.** Please consider using `from_compressed()` instead.
-    pub fn from_compressed_unchecked(bytes: &[u8; 48]) -> Option<Self> {
-        let tmp = AffinePointInner::from_compressed_unchecked(bytes);
-        if tmp.is_some().into() {
-            Some(AffinePoint(tmp.unwrap()))
-        } else {
-            None
-        }
-    }
-
     /// Constructs an `AffinePoint` element without checking that it is a valid point.
     pub fn from_raw_coordinates(elems: [BaseElement; 12]) -> Self {
-        let x = Fp6::from([
-            elems[0].output_internal(),
-            elems[1].output_internal(),
-            elems[2].output_internal(),
-            elems[3].output_internal(),
-            elems[4].output_internal(),
-            elems[5].output_internal(),
+        let x = Fp6::new([
+            elems[0].to_repr(),
+            elems[1].to_repr(),
+            elems[2].to_repr(),
+            elems[3].to_repr(),
+            elems[4].to_repr(),
+            elems[5].to_repr(),
         ]);
-        let y = Fp6::from([
-            elems[6].output_internal(),
-            elems[7].output_internal(),
-            elems[8].output_internal(),
-            elems[9].output_internal(),
-            elems[10].output_internal(),
-            elems[11].output_internal(),
+        let y = Fp6::new([
+            elems[6].to_repr(),
+            elems[7].to_repr(),
+            elems[8].to_repr(),
+            elems[9].to_repr(),
+            elems[10].to_repr(),
+            elems[11].to_repr(),
         ]);
         AffinePoint(AffinePointInner::from_raw_coordinates([x, y]))
     }
@@ -625,17 +571,17 @@ impl ProjectivePoint {
 
     // Returns the x coordinate of this ProjectivePoint
     pub fn get_x(&self) -> [BaseElement; 6] {
-        self.0.get_x().output_reduced_limbs().map(BaseElement::new)
+        self.0.get_x().output_internal().map(BaseElement::new)
     }
 
     // Returns the y coordinate of this ProjectivePoint
     pub fn get_y(&self) -> [BaseElement; 6] {
-        self.0.get_y().output_reduced_limbs().map(BaseElement::new)
+        self.0.get_y().output_internal().map(BaseElement::new)
     }
 
     // Returns the z coordinate of this ProjectivePoint
     pub fn get_z(&self) -> [BaseElement; 6] {
-        self.0.get_z().output_reduced_limbs().map(BaseElement::new)
+        self.0.get_z().output_internal().map(BaseElement::new)
     }
 
     /// Returns a fixed generator of the group.
@@ -643,60 +589,31 @@ impl ProjectivePoint {
         ProjectivePoint(ProjectivePointInner::generator())
     }
 
-    /// Outputs a compress byte representation of this `ProjectivePoint` element
-    pub fn to_compressed(&self) -> [u8; 48] {
-        AffinePoint::from(self).to_compressed()
-    }
-
-    /// Outputs an uncompressed byte representation of this `ProjectivePoint` element
-    /// It is twice larger than when calling `ProjectivePoint::to_uncompress()`
-    pub fn to_uncompressed(&self) -> [u8; 96] {
-        AffinePoint::from(self).to_uncompressed()
-    }
-
-    /// Attempts to deserialize an uncompressed element.
-    pub fn from_uncompressed(bytes: &[u8; 96]) -> Option<Self> {
-        AffinePoint::from_uncompressed(bytes).map(ProjectivePoint::from)
-    }
-
-    /// Attempts to deserialize an uncompressed element, not checking if the
-    /// element is on the curve and not checking if it is in the correct subgroup.
-    /// **This is dangerous to call unless you trust the bytes you are reading; otherwise,
-    /// API invariants may be broken.** Please consider using `from_uncompressed()` instead.
-    pub fn from_uncompressed_unchecked(bytes: &[u8; 96]) -> Option<Self> {
-        AffinePoint::from_uncompressed_unchecked(bytes).map(ProjectivePoint::from)
-    }
-
-    /// Attempts to deserialize a compressed element.
-    pub fn from_compressed(bytes: &[u8; 48]) -> Option<Self> {
-        AffinePoint::from_compressed(bytes).map(ProjectivePoint::from)
-    }
-
     /// Constructs a `ProjectivePoint` element without checking that it is a valid point.
     pub fn from_raw_coordinates(elems: [BaseElement; 18]) -> Self {
-        let x = Fp6::from([
-            elems[0].output_internal(),
-            elems[1].output_internal(),
-            elems[2].output_internal(),
-            elems[3].output_internal(),
-            elems[4].output_internal(),
-            elems[5].output_internal(),
+        let x = Fp6::new([
+            elems[0].to_repr(),
+            elems[1].to_repr(),
+            elems[2].to_repr(),
+            elems[3].to_repr(),
+            elems[4].to_repr(),
+            elems[5].to_repr(),
         ]);
-        let y = Fp6::from([
-            elems[6].output_internal(),
-            elems[7].output_internal(),
-            elems[8].output_internal(),
-            elems[9].output_internal(),
-            elems[10].output_internal(),
-            elems[11].output_internal(),
+        let y = Fp6::new([
+            elems[6].to_repr(),
+            elems[7].to_repr(),
+            elems[8].to_repr(),
+            elems[9].to_repr(),
+            elems[10].to_repr(),
+            elems[11].to_repr(),
         ]);
-        let z = Fp6::from([
-            elems[12].output_internal(),
-            elems[13].output_internal(),
-            elems[14].output_internal(),
-            elems[15].output_internal(),
-            elems[16].output_internal(),
-            elems[17].output_internal(),
+        let z = Fp6::new([
+            elems[12].to_repr(),
+            elems[13].to_repr(),
+            elems[14].to_repr(),
+            elems[15].to_repr(),
+            elems[16].to_repr(),
+            elems[17].to_repr(),
         ]);
         ProjectivePoint(ProjectivePointInner::from_raw_coordinates([x, y, z]))
     }
@@ -769,61 +686,41 @@ impl ProjectivePoint {
 
 impl Serializable for AffinePoint {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
-        target.write_u8_slice(&self.to_compressed());
+        target.write_u8_slice(&self.0.to_compressed().to_bytes());
     }
 }
 
 impl Deserializable for AffinePoint {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        use cheetah::CompressedPoint;
         let bytes = source.read_u8_array()?;
-        if bytes.len() < 32 {
-            return Err(DeserializationError::InvalidValue(format!(
-                "not enough bytes for a full field element; expected {} bytes, but was {} bytes",
-                32,
-                bytes.len(),
-            )));
-        }
-        if bytes.len() > 32 {
-            return Err(DeserializationError::InvalidValue(format!(
-                "too many bytes for a field element; expected {} bytes, but was {} bytes",
-                32,
-                bytes.len(),
-            )));
-        }
-
-        AffinePoint::from_compressed(&bytes)
-            .ok_or_else(|| DeserializationError::UnknownError("".to_string()))
+        let pt = AffinePointInner::from_compressed(&CompressedPoint(bytes));
+        if bool::from(pt.is_none()) {
+            return Err(DeserializationError::InvalidValue(
+                "Invalid point".to_string(),
+            ));
+        };
+        Ok(AffinePoint(pt.unwrap()))
     }
 }
 
 impl Serializable for ProjectivePoint {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
-        target.write_u8_slice(&AffinePoint::from(self).to_compressed());
+        target.write_u8_slice(&self.0.to_compressed().to_bytes());
     }
 }
 
 impl Deserializable for ProjectivePoint {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        use cheetah::CompressedPoint;
         let bytes = source.read_u8_array()?;
-        if bytes.len() < 32 {
-            return Err(DeserializationError::InvalidValue(format!(
-                "not enough bytes for a full field element; expected {} bytes, but was {} bytes",
-                32,
-                bytes.len(),
-            )));
-        }
-        if bytes.len() > 32 {
-            return Err(DeserializationError::InvalidValue(format!(
-                "too many bytes for a field element; expected {} bytes, but was {} bytes",
-                32,
-                bytes.len(),
-            )));
-        }
-
-        Ok(ProjectivePoint::from(
-            AffinePoint::from_compressed(&bytes)
-                .ok_or_else(|| DeserializationError::UnknownError("".to_string()))?,
-        ))
+        let pt = ProjectivePointInner::from_compressed(&CompressedPoint(bytes));
+        if bool::from(pt.is_none()) {
+            return Err(DeserializationError::InvalidValue(
+                "Invalid point".to_string(),
+            ));
+        };
+        Ok(ProjectivePoint(pt.unwrap()))
     }
 }
 
@@ -834,7 +731,6 @@ impl Deserializable for ProjectivePoint {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::FieldElement;
     use rand_utils::rand_value;
 
     #[test]
@@ -855,19 +751,16 @@ mod tests {
 
         let gen = AffinePoint::generator();
         let mut coordinates = [0u64; 18];
-        coordinates[0..6].copy_from_slice(&(gen.0.get_x() * z).output_unreduced_limbs());
-        coordinates[6..12].copy_from_slice(&(gen.0.get_y() * z).output_unreduced_limbs());
-        coordinates[12..18].copy_from_slice(&z.output_unreduced_limbs());
-        let mut test = ProjectivePoint::from_raw_coordinates(
-            coordinates.map(|e| BaseElement::from_raw_unchecked(e)),
-        );
+        coordinates[0..6].copy_from_slice(&(gen.0.get_x() * z).output_internal());
+        coordinates[6..12].copy_from_slice(&(gen.0.get_y() * z).output_internal());
+        coordinates[12..18].copy_from_slice(&z.output_internal());
+        let mut test =
+            ProjectivePoint::from_raw_coordinates(coordinates.map(|e| BaseElement::new(e)));
 
         assert!(bool::from(test.is_on_curve()));
 
-        coordinates[0..6].copy_from_slice(&z.output_unreduced_limbs());
-        test = ProjectivePoint::from_raw_coordinates(
-            coordinates.map(|e| BaseElement::from_raw_unchecked(e)),
-        );
+        coordinates[0..6].copy_from_slice(&z.output_internal());
+        test = ProjectivePoint::from_raw_coordinates(coordinates.map(|e| BaseElement::new(e)));
         assert!(!bool::from(test.is_on_curve()));
     }
 
@@ -914,12 +807,10 @@ mod tests {
         ]);
 
         let mut coordinates = [0u64; 18];
-        coordinates[0..6].copy_from_slice(&(a.0.get_x() * z).output_unreduced_limbs());
-        coordinates[6..12].copy_from_slice(&(a.0.get_y() * z).output_unreduced_limbs());
-        coordinates[12..18].copy_from_slice(&z.output_unreduced_limbs());
-        let mut c = ProjectivePoint::from_raw_coordinates(
-            coordinates.map(|e| BaseElement::from_raw_unchecked(e)),
-        );
+        coordinates[0..6].copy_from_slice(&(a.0.get_x() * z).output_internal());
+        coordinates[6..12].copy_from_slice(&(a.0.get_y() * z).output_internal());
+        coordinates[12..18].copy_from_slice(&z.output_internal());
+        let mut c = ProjectivePoint::from_raw_coordinates(coordinates.map(|e| BaseElement::new(e)));
         assert!(bool::from(c.is_on_curve()));
 
         assert!(a == c);
@@ -927,10 +818,8 @@ mod tests {
         assert!(c == a);
         assert!(c != b);
 
-        coordinates[6..12].copy_from_slice(&(-a.0.get_y() * z).output_unreduced_limbs());
-        c = ProjectivePoint::from_raw_coordinates(
-            coordinates.map(|e| BaseElement::from_raw_unchecked(e)),
-        );
+        coordinates[6..12].copy_from_slice(&(-a.0.get_y() * z).output_internal());
+        c = ProjectivePoint::from_raw_coordinates(coordinates.map(|e| BaseElement::new(e)));
         assert!(bool::from(c.is_on_curve()));
 
         assert!(a != c);
@@ -938,11 +827,9 @@ mod tests {
         assert!(c != a);
         assert!(c != b);
 
-        coordinates[0..6].copy_from_slice(&z.output_unreduced_limbs());
-        coordinates[6..12].copy_from_slice(&(a.0.get_y() * z).output_unreduced_limbs());
-        c = ProjectivePoint::from_raw_coordinates(
-            coordinates.map(|e| BaseElement::from_raw_unchecked(e)),
-        );
+        coordinates[0..6].copy_from_slice(&z.output_internal());
+        coordinates[6..12].copy_from_slice(&(a.0.get_y() * z).output_internal());
+        c = ProjectivePoint::from_raw_coordinates(coordinates.map(|e| BaseElement::new(e)));
         assert!(!bool::from(c.is_on_curve()));
         assert!(a != b);
         assert!(a != c);
@@ -969,12 +856,10 @@ mod tests {
         ]);
 
         let mut coordinates = [0u64; 18];
-        coordinates[0..6].copy_from_slice(&(a.0.get_x() * z).output_unreduced_limbs());
-        coordinates[6..12].copy_from_slice(&(a.0.get_y() * z).output_unreduced_limbs());
-        coordinates[12..18].copy_from_slice(&z.output_unreduced_limbs());
-        let c = ProjectivePoint::from_raw_coordinates(
-            coordinates.map(|e| BaseElement::from_raw_unchecked(e)),
-        );
+        coordinates[0..6].copy_from_slice(&(a.0.get_x() * z).output_internal());
+        coordinates[6..12].copy_from_slice(&(a.0.get_y() * z).output_internal());
+        coordinates[12..18].copy_from_slice(&z.output_internal());
+        let c = ProjectivePoint::from_raw_coordinates(coordinates.map(|e| BaseElement::new(e)));
 
         assert_eq!(AffinePoint::from(c), AffinePoint::generator());
     }
@@ -1005,18 +890,18 @@ mod tests {
             assert_eq!(
                 AffinePoint::from(tmp),
                 AffinePoint::from_raw_coordinates([
-                    BaseElement::from_raw_unchecked(0x1ba2d52806f212a),
-                    BaseElement::from_raw_unchecked(0x5e9353a4e8225c8),
-                    BaseElement::from_raw_unchecked(0x13e92423fef3bc2d),
-                    BaseElement::from_raw_unchecked(0x241081e7ae1db310),
-                    BaseElement::from_raw_unchecked(0x29f0073c3351026b),
-                    BaseElement::from_raw_unchecked(0x11233fe9eb7285c0),
-                    BaseElement::from_raw_unchecked(0x3a19dfba18e15ed5),
-                    BaseElement::from_raw_unchecked(0x3691eb6949fca20b),
-                    BaseElement::from_raw_unchecked(0x3ea42cb9ad7430ab),
-                    BaseElement::from_raw_unchecked(0x1b840f91119a2eb3),
-                    BaseElement::from_raw_unchecked(0x1b94f8ccdafc47ba),
-                    BaseElement::from_raw_unchecked(0x19e92e12c3a9cfa),
+                    BaseElement::new(0x7f4c1bfc52278ad8),
+                    BaseElement::new(0xfa8e921f7580e371),
+                    BaseElement::new(0x97252bf35d1c7668),
+                    BaseElement::new(0xe6d0901604cae95a),
+                    BaseElement::new(0xae36bba2ad2ee0d7),
+                    BaseElement::new(0x194b4e35a2a9c77),
+                    BaseElement::new(0x144045efbce03ef8),
+                    BaseElement::new(0x8e5fe3f66f8b370d),
+                    BaseElement::new(0x3d54df63b96bfd20),
+                    BaseElement::new(0x2418219e37948caa),
+                    BaseElement::new(0xd4c1a40432582552),
+                    BaseElement::new(0x367b029f5f146e3d),
                 ])
             );
         }
@@ -1045,12 +930,10 @@ mod tests {
                 ]);
 
                 let mut coordinates = [0u64; 18];
-                coordinates[0..6].copy_from_slice(&(b.0.get_x() * z).output_unreduced_limbs());
-                coordinates[6..12].copy_from_slice(&(b.0.get_y() * z).output_unreduced_limbs());
-                coordinates[12..18].copy_from_slice(&z.output_unreduced_limbs());
-                b = ProjectivePoint::from_raw_coordinates(
-                    coordinates.map(|e| BaseElement::from_raw_unchecked(e)),
-                );
+                coordinates[0..6].copy_from_slice(&(b.0.get_x() * z).output_internal());
+                coordinates[6..12].copy_from_slice(&(b.0.get_y() * z).output_internal());
+                coordinates[12..18].copy_from_slice(&z.output_internal());
+                b = ProjectivePoint::from_raw_coordinates(coordinates.map(|e| BaseElement::new(e)));
             }
             let c = a + b;
             assert!(!bool::from(c.is_identity()));
@@ -1097,12 +980,10 @@ mod tests {
                 ]);
 
                 let mut coordinates = [0u64; 18];
-                coordinates[0..6].copy_from_slice(&(b.0.get_x() * z).output_unreduced_limbs());
-                coordinates[6..12].copy_from_slice(&(b.0.get_y() * z).output_unreduced_limbs());
-                coordinates[12..18].copy_from_slice(&z.output_unreduced_limbs());
-                b = ProjectivePoint::from_raw_coordinates(
-                    coordinates.map(|e| BaseElement::from_raw_unchecked(e)),
-                );
+                coordinates[0..6].copy_from_slice(&(b.0.get_x() * z).output_internal());
+                coordinates[6..12].copy_from_slice(&(b.0.get_y() * z).output_internal());
+                coordinates[12..18].copy_from_slice(&z.output_internal());
+                b = ProjectivePoint::from_raw_coordinates(coordinates.map(|e| BaseElement::new(e)));
             }
             let c = a + b;
             assert!(!bool::from(c.is_identity()));
@@ -1209,18 +1090,18 @@ mod tests {
         assert!(bool::from(id.clear_cofactor().is_on_curve()));
 
         let point = ProjectivePoint::from(&AffinePoint::from_raw_coordinates([
-            BaseElement::from_raw_unchecked(0x30b857b59c073adf),
-            BaseElement::from_raw_unchecked(0x32f03638832472c1),
-            BaseElement::from_raw_unchecked(0x13e9b9fb403eeb05),
-            BaseElement::from_raw_unchecked(0x372a0e4597af835f),
-            BaseElement::from_raw_unchecked(0x24ea2fa836890130),
-            BaseElement::from_raw_unchecked(0x35efbbad95df1753),
-            BaseElement::from_raw_unchecked(0x15af8776c2b621ea),
-            BaseElement::from_raw_unchecked(0x33c482433d49e4af),
-            BaseElement::from_raw_unchecked(0x169525890222c375),
-            BaseElement::from_raw_unchecked(0x22b58bc677671fe),
-            BaseElement::from_raw_unchecked(0x32362b2e277aafea),
-            BaseElement::from_raw_unchecked(0x1b7114359345ab3),
+            BaseElement::new(0x9bfcd3244afcb637),
+            BaseElement::new(0x39005e478830b187),
+            BaseElement::new(0x7046f1c03b42c6cc),
+            BaseElement::new(0xb5eeac99193711e5),
+            BaseElement::new(0x7fd272e724307b98),
+            BaseElement::new(0xcc371dd6dd5d8625),
+            BaseElement::new(0x9d03fdc216dfaae8),
+            BaseElement::new(0xbf4ade2a7665d9b8),
+            BaseElement::new(0xf08b022d5b3262b7),
+            BaseElement::new(0x2eaf583a3cf15c6f),
+            BaseElement::new(0xa92531e4b1338285),
+            BaseElement::new(0x5b8157814141a7a7),
         ]));
 
         assert!(point.is_on_curve());
@@ -1233,18 +1114,18 @@ mod tests {
     #[test]
     fn test_is_torsion_free() {
         let a = AffinePoint::from_raw_coordinates([
-            BaseElement::from_raw_unchecked(0x30b857b59c073adf),
-            BaseElement::from_raw_unchecked(0x32f03638832472c1),
-            BaseElement::from_raw_unchecked(0x13e9b9fb403eeb05),
-            BaseElement::from_raw_unchecked(0x372a0e4597af835f),
-            BaseElement::from_raw_unchecked(0x24ea2fa836890130),
-            BaseElement::from_raw_unchecked(0x35efbbad95df1753),
-            BaseElement::from_raw_unchecked(0x15af8776c2b621ea),
-            BaseElement::from_raw_unchecked(0x33c482433d49e4af),
-            BaseElement::from_raw_unchecked(0x169525890222c375),
-            BaseElement::from_raw_unchecked(0x22b58bc677671fe),
-            BaseElement::from_raw_unchecked(0x32362b2e277aafea),
-            BaseElement::from_raw_unchecked(0x1b7114359345ab3),
+            BaseElement::new(0x9bfcd3244afcb637),
+            BaseElement::new(0x39005e478830b187),
+            BaseElement::new(0x7046f1c03b42c6cc),
+            BaseElement::new(0xb5eeac99193711e5),
+            BaseElement::new(0x7fd272e724307b98),
+            BaseElement::new(0xcc371dd6dd5d8625),
+            BaseElement::new(0x9d03fdc216dfaae8),
+            BaseElement::new(0xbf4ade2a7665d9b8),
+            BaseElement::new(0xf08b022d5b3262b7),
+            BaseElement::new(0x2eaf583a3cf15c6f),
+            BaseElement::new(0xa92531e4b1338285),
+            BaseElement::new(0x5b8157814141a7a7),
         ]);
 
         assert!(bool::from(a.is_on_curve()));
@@ -1289,125 +1170,6 @@ mod tests {
                     assert_eq!(&t[..], &expected[..]);
                 }
             }
-        }
-    }
-
-    // POINT COMPRESSION
-    // ================================================================================================
-
-    #[test]
-    fn test_point_compressed() {
-        // Random points
-        for _ in 0..100 {
-            let point = AffinePoint::from(AffinePoint::generator() * rand_value::<Scalar>());
-            let bytes = point.to_compressed();
-            let point_decompressed = AffinePoint::from_compressed(&bytes).unwrap();
-            assert_eq!(point, point_decompressed);
-
-            let point = ProjectivePoint::from(&point);
-            let bytes = point.to_compressed();
-            let point_decompressed = ProjectivePoint::from_compressed(&bytes).unwrap();
-            assert_eq!(point, point_decompressed);
-        }
-
-        // Identity point
-        {
-            let bytes = AffinePoint::identity().to_compressed();
-            let point_decompressed = AffinePoint::from_compressed(&bytes).unwrap();
-            assert!(bool::from(point_decompressed.is_identity()));
-
-            let bytes = ProjectivePoint::identity().to_compressed();
-            let point_decompressed = ProjectivePoint::from_compressed(&bytes).unwrap();
-            assert!(bool::from(point_decompressed.is_identity()));
-        }
-
-        // Invalid points
-        {
-            let point = AffinePoint::from_raw_coordinates([BaseElement::ZERO; 12]);
-            let bytes = point.to_compressed();
-            let point_decompressed = AffinePoint::from_compressed(&bytes);
-            assert!(point_decompressed.is_none());
-
-            let point = ProjectivePoint::from(&point);
-            let bytes = point.to_compressed();
-            let point_decompressed = ProjectivePoint::from_compressed(&bytes);
-            assert!(point_decompressed.is_none());
-        }
-        {
-            let bytes = [
-                1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            ];
-            let point_decompressed = AffinePoint::from_compressed_unchecked(&bytes);
-            assert!(bool::from(point_decompressed.is_none()));
-        }
-    }
-
-    #[test]
-    fn test_point_uncompressed() {
-        // Random points
-        for _ in 0..100 {
-            let point = AffinePoint::from(AffinePoint::generator() * rand_value::<Scalar>());
-            let bytes = point.to_uncompressed();
-            let point_decompressed = AffinePoint::from_uncompressed(&bytes).unwrap();
-            assert_eq!(point, point_decompressed);
-
-            let point = ProjectivePoint::from(&point);
-            let bytes = point.to_uncompressed();
-            let point_decompressed = ProjectivePoint::from_uncompressed(&bytes).unwrap();
-            assert_eq!(point, point_decompressed);
-        }
-
-        // Identity point
-        {
-            let bytes = AffinePoint::identity().to_uncompressed();
-            let point_decompressed = AffinePoint::from_uncompressed(&bytes).unwrap();
-            assert!(bool::from(point_decompressed.is_identity()));
-
-            let bytes = ProjectivePoint::identity().to_uncompressed();
-            let point_decompressed = ProjectivePoint::from_uncompressed(&bytes).unwrap();
-            assert!(bool::from(point_decompressed.is_identity()));
-        }
-
-        // Invalid points
-        {
-            let point = AffinePoint::from_raw_coordinates([BaseElement::ZERO; 12]);
-            let bytes = point.to_uncompressed();
-            let point_decompressed = AffinePoint::from_uncompressed(&bytes);
-            assert!(bool::from(point_decompressed.is_none()));
-
-            let point = ProjectivePoint::from(&point);
-            let bytes = point.to_uncompressed();
-            let point_decompressed = ProjectivePoint::from_uncompressed(&bytes);
-            assert!(bool::from(point_decompressed.is_none()));
-        }
-        {
-            let bytes = [
-                255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 255,
-                255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-                255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            ];
-            let point_decompressed = AffinePoint::from_uncompressed_unchecked(&bytes);
-            assert!(bool::from(point_decompressed.is_none()));
-
-            let point_decompressed = ProjectivePoint::from_uncompressed_unchecked(&bytes);
-            assert!(bool::from(point_decompressed.is_none()));
-        }
-        {
-            let bytes = [
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255,
-                255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-                255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-                255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-            ];
-            let point_decompressed = AffinePoint::from_uncompressed_unchecked(&bytes);
-            assert!(bool::from(point_decompressed.is_none()));
-
-            let point_decompressed = ProjectivePoint::from_uncompressed_unchecked(&bytes);
-            assert!(bool::from(point_decompressed.is_none()));
         }
     }
 }
