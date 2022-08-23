@@ -170,15 +170,16 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
             // evaluation domain, into a step in LDE domain, in case these domains are different
             trace.read_main_trace_frame_into(step << lde_shift, &mut main_frame);
 
-            // evaluate transition constraints and save the merged result the first slot of the
-            // evaluations buffer
+            // evaluate transition constraints per divisor and save the merged results at the first 
+            // l slot of the evaluations buffer where l is the number of transition constraint
+            // divisors used
             let main_evals = self.evaluate_main_transition(&main_frame, x, step, &mut t_evaluations);
             for i in 0..main_evals.len() {
                 evaluations[i] = main_evals[i];
             }
             // when in debug mode, save transition constraint evaluations
-            // #[cfg(debug_assertions)]
-            // fragment.update_transition_evaluations(step, &t_evaluations, &[]);
+            #[cfg(debug_assertions)]
+            fragment.update_transition_evaluations(step, &t_evaluations, &[]);
 
             // evaluate boundary constraints; the results go into remaining slots of the
             // evaluations buffer
@@ -226,8 +227,9 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
             trace.read_main_trace_frame_into(step << lde_shift, &mut main_frame);
             trace.read_aux_trace_frame_into(step << lde_shift, &mut aux_frame);
 
-            // evaluate transition constraints and save the merged result the first slot of the
-            // evaluations buffer; we evaluate and compose constraints in the same function, we
+            // evaluate transition constraints per divisor and save the merged results at the first 
+            // l slot of the evaluations buffer where l is the number of transition constraint
+            // divisors used;  we evaluate and compose constraints in the same function, we
             // can just add up the results of evaluating main and auxiliary constraints.
             let main_evals = self.evaluate_main_transition(&main_frame, x, step, &mut tm_evaluations);
             for i in 0..main_evals.len() {
@@ -241,8 +243,8 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
 
             // TODO [divisors]: restore assertion
             // when in debug mode, save transition constraint evaluations
-            // #[cfg(debug_assertions)]
-            // fragment.update_transition_evaluations(step, &tm_evaluations, &ta_evaluations);
+            #[cfg(debug_assertions)]
+            fragment.update_transition_evaluations(step, &tm_evaluations, &ta_evaluations);
 
             // evaluate boundary constraints; the results go into remaining slots of the
             // evaluations buffer
@@ -256,10 +258,6 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
                 step,
                 &mut evaluations[main_evals.len()..],
             );
-
-            // let main_state = main_frame.current();
-            // self.boundary_constraints
-            //     .evaluate_main(main_state, x, step, &mut evaluations[main_evals.len()..]);
 
             // record the result in the evaluation table
             fragment.update_row(i, &evaluations);
