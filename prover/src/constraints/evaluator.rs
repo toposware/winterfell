@@ -304,7 +304,6 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         }
         
         // merge transition constraint evaluations into a vector of values based on their divisor;
-        // DUMMY COMMENT
         self.transition_constraints.main_constraints().iter().map(|group| 
             group.merge_evaluations2(evaluations, x, &adjustments)
         )
