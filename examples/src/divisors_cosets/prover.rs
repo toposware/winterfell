@@ -54,30 +54,32 @@ impl DivisorsCosetsProver {
         // computational step the flag should be reversed.
         let mut rng = rand::thread_rng();
         let mut bits = Vec::<u128>::new();
-        for i in 0..sequence_length {
-            if i % (sequence_length / range_length) == offset {
-                let value = rng.gen_range(0..=1u128);
-                let next_value = 1 - value;
-                bits.push(value);
-                bits.push(next_value);
-            } else if i % (sequence_length / range_length) != offset + 1 {
+        // get random numbers
+        for _ in 0..range_length {
+            let value = rng.gen_range(0..=1u128);
+            let next_value = 1 - value;
+            bits.push(value);
+            bits.push(next_value);
+            for _ in 0..(sequence_length / range_length - 2) {
                 bits.push(rng.gen_range(2..=1000u128));
             }
         }
+        println!("{:?}", bits);
 
         // TODO: [divisors] fill only the correct places with bit to test custom divisors
         let mut trace = TraceTable::new(TRACE_WIDTH, sequence_length as usize);
         trace.fill(
             |state| {
                 state[0] = BaseElement::ONE;
-                state[1] = BaseElement::new(bits[0]);
+                state[1] = BaseElement::new(
+                    bits[(sequence_length as usize - offset as usize) % sequence_length as usize],
+                );
             },
             |i, state| {
+                let idx =
+                    (sequence_length as usize + i + 1 - offset as usize) % sequence_length as usize;
                 state[0] += state[0];
-                state[1] = BaseElement::new(bits[i + 1]);
-                if i == 29 {
-                    state[1] = BaseElement::new(42);
-                }
+                state[1] = BaseElement::new(bits[idx]);
             },
         );
 

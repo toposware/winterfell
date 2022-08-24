@@ -96,136 +96,144 @@ pub trait Trace: Sized {
 
     // VALIDATION
     // --------------------------------------------------------------------------------------------
-    // /// Checks if this trace is valid against the specified AIR, and panics if not.
-    // ///
-    // /// NOTE: this is a very expensive operation and is intended for use only in debug mode.
-    // fn validate<A, E>(
-    //     &self,
-    //     air: &A,
-    //     aux_segments: &[Matrix<E>],
-    //     aux_rand_elements: &AuxTraceRandElements<E>,
-    // ) where
-    //     A: Air<BaseField = Self::BaseField>,
-    //     E: FieldElement<BaseField = Self::BaseField>,
-    // {
-    //     // make sure the width align; if they don't something went terribly wrong
-    //     assert_eq!(
-    //         self.main_trace_width(),
-    //         air.trace_layout().main_trace_width(),
-    //         "inconsistent trace width: expected {}, but was {}",
-    //         self.main_trace_width(),
-    //         air.trace_layout().main_trace_width(),
-    //     );
+    /// Checks if this trace is valid against the specified AIR, and panics if not.
+    ///
+    /// NOTE: this is a very expensive operation and is intended for use only in debug mode.
+    fn validate<A, E>(
+        &self,
+        air: &A,
+        aux_segments: &[Matrix<E>],
+        aux_rand_elements: &AuxTraceRandElements<E>,
+    ) where
+        A: Air<BaseField = Self::BaseField>,
+        E: FieldElement<BaseField = Self::BaseField>,
+    {
+        // make sure the width align; if they don't something went terribly wrong
+        assert_eq!(
+            self.main_trace_width(),
+            air.trace_layout().main_trace_width(),
+            "inconsistent trace width: expected {}, but was {}",
+            self.main_trace_width(),
+            air.trace_layout().main_trace_width(),
+        );
 
-    //     // --- 1. make sure the assertions are valid ----------------------------------------------
+        // --- 1. make sure the assertions are valid ----------------------------------------------
 
-    //     // first, check assertions against the main segment of the execution trace
-    //     for assertion in air.get_assertions() {
-    //         assertion.apply(self.length(), |step, value| {
-    //             assert!(
-    //                 value == self.main_segment().get(assertion.column(), step),
-    //                 "trace does not satisfy assertion main_trace({}, {}) == {}",
-    //                 assertion.column(),
-    //                 step,
-    //                 value
-    //             );
-    //         });
-    //     }
+        // first, check assertions against the main segment of the execution trace
+        for assertion in air.get_assertions() {
+            assertion.apply(self.length(), |step, value| {
+                assert!(
+                    value == self.main_segment().get(assertion.column(), step),
+                    "trace does not satisfy assertion main_trace({}, {}) == {}",
+                    assertion.column(),
+                    step,
+                    value
+                );
+            });
+        }
 
-    //     // then, check assertions against auxiliary trace segments
-    //     for assertion in air.get_aux_assertions(aux_rand_elements) {
-    //         // find which segment the assertion is for and remap assertion column index to the
-    //         // column index in the context of this segment
-    //         let mut column_idx = assertion.column();
-    //         let mut segment_idx = 0;
-    //         for i in 0..self.layout().num_aux_segments() {
-    //             let segment_width = self.layout().get_aux_segment_width(i);
-    //             if column_idx < segment_width {
-    //                 segment_idx = i;
-    //                 break;
-    //             }
-    //             column_idx -= segment_width;
-    //         }
+        // then, check assertions against auxiliary trace segments
+        for assertion in air.get_aux_assertions(aux_rand_elements) {
+            // find which segment the assertion is for and remap assertion column index to the
+            // column index in the context of this segment
+            let mut column_idx = assertion.column();
+            let mut segment_idx = 0;
+            for i in 0..self.layout().num_aux_segments() {
+                let segment_width = self.layout().get_aux_segment_width(i);
+                if column_idx < segment_width {
+                    segment_idx = i;
+                    break;
+                }
+                column_idx -= segment_width;
+            }
 
-    //         // get the matrix and verify the assertion against it
-    //         assertion.apply(self.length(), |step, value| {
-    //             assert!(
-    //                 value == aux_segments[segment_idx].get(column_idx, step),
-    //                 "trace does not satisfy assertion aux_trace({}, {}) == {}",
-    //                 assertion.column(),
-    //                 step,
-    //                 value
-    //             );
-    //         });
-    //     }
+            // get the matrix and verify the assertion against it
+            assertion.apply(self.length(), |step, value| {
+                assert!(
+                    value == aux_segments[segment_idx].get(column_idx, step),
+                    "trace does not satisfy assertion aux_trace({}, {}) == {}",
+                    assertion.column(),
+                    step,
+                    value
+                );
+            });
+        }
 
-    //     // --- 2. make sure this trace satisfies all transition constraints -----------------------
+        // --- 2. make sure this trace satisfies all transition constraints -----------------------
 
-    //     // collect the info needed to build periodic values for a specific step
-    //     let g = air.trace_domain_generator();
-    //     let periodic_values_polys = air.get_periodic_column_polys();
-    //     let mut periodic_values = vec![Self::BaseField::ZERO; periodic_values_polys.len()];
+        // collect the info needed to build periodic values for a specific step
+        let g = air.trace_domain_generator();
+        let periodic_values_polys = air.get_periodic_column_polys();
+        let mut periodic_values = vec![Self::BaseField::ZERO; periodic_values_polys.len()];
 
-    //     // initialize buffers to hold evaluation frames and results of constraint evaluations
-    //     let mut x = Self::BaseField::ONE;
-    //     let mut main_frame = EvaluationFrame::new(self.main_trace_width());
-    //     let mut aux_frame = if air.trace_info().is_multi_segment() {
-    //         Some(EvaluationFrame::<E>::new(self.aux_trace_width()))
-    //     } else {
-    //         None
-    //     };
-    //     let mut main_evaluations =
-    //         vec![Self::BaseField::ZERO; air.context().num_main_transition_constraints()];
-    //     let mut aux_evaluations = vec![E::ZERO; air.context().num_aux_transition_constraints()];
+        // initialize buffers to hold evaluation frames and results of constraint evaluations
+        let mut x = Self::BaseField::ONE;
+        let mut main_frame = EvaluationFrame::new(self.main_trace_width());
+        let mut aux_frame = if air.trace_info().is_multi_segment() {
+            Some(EvaluationFrame::<E>::new(self.aux_trace_width()))
+        } else {
+            None
+        };
+        let mut main_evaluations =
+            vec![Self::BaseField::ZERO; air.context().num_main_transition_constraints()];
+        let mut aux_evaluations = vec![E::ZERO; air.context().num_aux_transition_constraints()];
 
-    //     // we check transition constraints on all steps except the last k steps, where k is the
-    //     // number of steps exempt from transition constraints (guaranteed to be at least 1)
-    //     for step in 0..self.length() - air.context().num_transition_exemptions() {
-    //         // build periodic values
-    //         for (p, v) in periodic_values_polys.iter().zip(periodic_values.iter_mut()) {
-    //             let num_cycles = air.trace_length() / p.len();
-    //             let x = x.exp((num_cycles as u32).into());
-    //             *v = polynom::eval(p, x);
-    //         }
+        // we check transition constraints on all steps dictated by the divisor
+        for step in 0..self.length() {
+            // build periodic values
+            for (p, v) in periodic_values_polys.iter().zip(periodic_values.iter_mut()) {
+                let num_cycles = air.trace_length() / p.len();
+                let x = x.exp((num_cycles as u32).into());
+                *v = polynom::eval(p, x);
+            }
 
-    //         // evaluate transition constraints for the main trace segment and make sure they all
-    //         // evaluate to zeros
-    //         self.read_main_frame(step, &mut main_frame);
-    //         air.evaluate_transition(&main_frame, &periodic_values, &mut main_evaluations);
-    //         for (i, &evaluation) in main_evaluations.iter().enumerate() {
-    //             assert!(
-    //                 evaluation == Self::BaseField::ZERO,
-    //                 "main transition constraint {} did not evaluate to ZERO at step {}",
-    //                 i,
-    //                 step
-    //             );
-    //         }
+            // evaluate transition constraints for the main trace segment and make sure they all
+            // evaluate to zeros
+            self.read_main_frame(step, &mut main_frame);
+            air.evaluate_transition(&main_frame, &periodic_values, &mut main_evaluations);
+            for (i, &evaluation) in main_evaluations.iter().enumerate() {
+                // only check the transition if the divisor dictates to do so
+                let divisor_idx = air.context().main_transition_constraint_divisors()[i];
+                if contains(
+                    &air.context().divisors()[divisor_idx].0,
+                    &air.context().divisors()[divisor_idx].1,
+                    step,
+                    air.context().trace_len(),
+                ) {
+                    assert!(
+                        evaluation == Self::BaseField::ZERO,
+                        "main transition constraint {} did not evaluate to ZERO at step {}",
+                        i,
+                        step
+                    );
+                }
 
-    //         // evaluate transition constraints for auxiliary trace segments (if any) and make
-    //         // sure they all evaluate to zeros
-    //         if let Some(ref mut aux_frame) = aux_frame {
-    //             read_aux_frame(aux_segments, step, aux_frame);
-    //             air.evaluate_aux_transition(
-    //                 &main_frame,
-    //                 aux_frame,
-    //                 &periodic_values,
-    //                 aux_rand_elements,
-    //                 &mut aux_evaluations,
-    //             );
-    //             for (i, &evaluation) in aux_evaluations.iter().enumerate() {
-    //                 assert!(
-    //                     evaluation == E::ZERO,
-    //                     "auxiliary transition constraint {} did not evaluate to ZERO at step {}",
-    //                     i,
-    //                     step
-    //                 );
-    //             }
-    //         }
+                // evaluate transition constraints for auxiliary trace segments (if any) and make
+                // sure they all evaluate to zeros
+                if let Some(ref mut aux_frame) = aux_frame {
+                    read_aux_frame(aux_segments, step, aux_frame);
+                    air.evaluate_aux_transition(
+                        &main_frame,
+                        aux_frame,
+                        &periodic_values,
+                        aux_rand_elements,
+                        &mut aux_evaluations,
+                    );
+                    for (i, &evaluation) in aux_evaluations.iter().enumerate() {
+                        assert!(
+                        evaluation == E::ZERO,
+                        "auxiliary transition constraint {} did not evaluate to ZERO at step {}",
+                        i,
+                        step
+                    );
+                    }
+                }
+            }
 
-    //         // update x coordinate of the domain
-    //         x *= g;
-    //     }
-    // }
+            // update x coordinate of the domain
+            x *= g;
+        }
+    }
 }
 
 // HELPER FUNCTIONS
@@ -249,4 +257,34 @@ where
     for (column, next_value) in MultiColumnIter::new(aux_segments).zip(frame.next_mut()) {
         *next_value = column[next_row_idx];
     }
+}
+
+/// Given a divisor and a computation step, it decides whether the transition constraint should
+/// hold on the step or not
+fn contains(
+    divisor_numerators: &[(usize, usize, usize)],
+    divisor_denominators: &[(usize, usize)],
+    step: usize,
+    trace_length: usize,
+) -> bool {
+    // check that the constraint is considered in the divisor numerator
+    let b1 = divisor_numerators
+        .iter()
+        .any(|(period, offset, exemptions)| {
+            // shift step by offset
+            let shifted_step = (trace_length + step - offset) % trace_length;
+
+            // check that shifted step falls on period and it is not one of the last exemption steps
+            (shifted_step % period == 0)
+                && (shifted_step / period < trace_length / period - exemptions)
+        });
+    // check that the constraint is not excluded by a denominator
+    let b2 = divisor_denominators.iter().all(|(period, offset)| {
+        // shift step by offset
+        let shifted_step = (trace_length + step - offset) % trace_length;
+
+        // check that shifted step falls on period and it is not one of the last exemption steps
+        shifted_step % period != 0
+    });
+    b1 && b2
 }

@@ -66,7 +66,7 @@ impl CollatzProver {
 
             for _ in 0..128 {
                 decomposition.push((div / 2, div % 2));
-                div = div / 2;
+                div /= 2;
             }
             decomposition
         };

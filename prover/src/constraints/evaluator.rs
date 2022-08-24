@@ -174,9 +174,7 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
             // l slot of the evaluations buffer where l is the number of transition constraint
             // divisors used
             let main_evals = self.evaluate_main_transition(&main_frame, x, step, &mut t_evaluations);
-            for i in 0..main_evals.len() {
-                evaluations[i] = main_evals[i];
-            }
+            evaluations[..main_evals.len()].copy_from_slice(&main_evals[..]);
             // when in debug mode, save transition constraint evaluations
             #[cfg(debug_assertions)]
             fragment.update_transition_evaluations(step, &t_evaluations, &[]);
@@ -297,15 +295,14 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         let mut adjustments = BTreeMap::new();
         for group in self.transition_constraints.main_constraints().iter().chain(self.transition_constraints.aux_constraints().iter()) {
             for constraint in group.constraint_information().iter() {
-                if !adjustments.contains_key(&constraint.1) {
-                    adjustments.insert(constraint.1, x.exp((constraint.1).into()));
-                }
+                adjustments.entry(constraint.1).or_insert_with(|| x.exp((constraint.1).into()));
             }
         }
         
         // merge transition constraint evaluations into a vector of values based on their divisor;
         self.transition_constraints.main_constraints().iter().map(|group| 
-            group.merge_evaluations2(evaluations, x, &adjustments)
+            // group.merge_evaluations(evaluations, x)
+            group.merge_evaluations2(evaluations, &adjustments)
         )
         // self.transition_constraints.main_constraints().iter().map(|group| 
         //     group.merge_evaluations(evaluations, x)

@@ -249,7 +249,7 @@ impl<B: StarkField> Display for ConstraintDivisor<B> {
         for product in self.numerator.iter() {
             write!(f, "(x^{} - {})", product.degree(), product.coset_elem())?;
         }
-        if self.denominator.len() != 0 {
+        if self.denominator.is_empty() {
             write!(f, " / ")?;
             for product in self.denominator.iter() {
                 write!(f, "(x^{} - {})", product.degree(), product.coset_elem())?;

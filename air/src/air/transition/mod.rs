@@ -230,8 +230,8 @@ impl<E: FieldElement> TransitionConstraintGroup<E> {
     /// Returns a new transition constraint group to hold constraints of the specified degree.
     pub(super) fn new(divisor_index: usize, divisor_degree: usize) -> Self {
         TransitionConstraintGroup {
-            divisor_index: divisor_index,
-            divisor_degree: divisor_degree,
+            divisor_index,
+            divisor_degree,
             constraint_information: vec![],
         }
     }
@@ -313,12 +313,7 @@ impl<E: FieldElement> TransitionConstraintGroup<E> {
         result
     }
 
-    pub fn merge_evaluations2<B, F>(
-        &self,
-        evaluations: &[F],
-        x: B,
-        adjustments: &BTreeMap<u32, F>,
-    ) -> E
+    pub fn merge_evaluations2<B, F>(&self, evaluations: &[F], adjustments: &BTreeMap<u32, F>) -> E
     where
         B: FieldElement,
         F: FieldElement<BaseField = B::BaseField> + ExtensionOf<B>,
@@ -329,14 +324,14 @@ impl<E: FieldElement> TransitionConstraintGroup<E> {
         // compute linear combination of evaluations as D(x) * (cc_0 + cc_1 * x^p), where D(x)
         // is an evaluation of a particular constraint, and x^p is the degree adjustment factor
         let mut result = E::ZERO;
-        for (i, (constraint_idx, degree_adjustment, coefficients)) in
-            self.constraint_information().iter().enumerate()
+        for (constraint_idx, degree_adjustment, coefficients) in
+            self.constraint_information().iter()
         {
             let evaluation = evaluations[*constraint_idx];
             result += (coefficients.0
                 + coefficients
                     .1
-                    .mul_base(*adjustments.get(&degree_adjustment).unwrap()))
+                    .mul_base(*adjustments.get(degree_adjustment).unwrap()))
             .mul_base(evaluation);
         }
         result

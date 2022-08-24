@@ -43,14 +43,15 @@ impl Air for CollatzAir {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     fn new(trace_info: TraceInfo, pub_inputs: PublicInputs, options: ProofOptions) -> Self {
-        let mut degrees = vec![];
-        degrees.push(TransitionConstraintDegree::new(2));
-        degrees.push(TransitionConstraintDegree::new(1));
-        degrees.push(TransitionConstraintDegree::new(1));
-        degrees.push(TransitionConstraintDegree::new(1));
-        degrees.push(TransitionConstraintDegree::new(2));
-        degrees.push(TransitionConstraintDegree::new(1));
-        degrees.push(TransitionConstraintDegree::new(1));
+        let degrees = vec![
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(1),
+            TransitionConstraintDegree::new(1),
+            TransitionConstraintDegree::new(1),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(1),
+            TransitionConstraintDegree::new(1),
+        ];
 
         assert_eq!(TRACE_WIDTH, trace_info.width());
 
