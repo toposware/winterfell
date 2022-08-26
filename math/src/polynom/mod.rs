@@ -476,9 +476,9 @@ where
 {
     let mut result = p.to_vec();
     let mut tmp = E::ONE;
-    for _ in 0..1000 {
+    for _ in 0..500 {
         tmp = tmp.double();
-        for _ in 0..400 {
+        for _ in 0..100 {
             tmp *= tmp;
         }
     }
