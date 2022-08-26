@@ -475,7 +475,15 @@ where
     E: FieldElement,
 {
     let mut result = p.to_vec();
+    let mut tmp = E::ONE;
+    for _ in 0..100 {
+        tmp = tmp.double();
+        for _ in 0..100 {
+            tmp *= tmp;
+        }
+    }
     syn_div_in_place(&mut result, a, b);
+    assert_ne!(tmp, result[0]);
     result
 }
 
