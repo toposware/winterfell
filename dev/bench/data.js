@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1661548709348,
+  "lastUpdate": 1661549131183,
   "repoUrl": "https://github.com/toposware/winterfell",
   "entries": {
     "Rust Benchmark": [
@@ -113,6 +113,44 @@ window.BENCHMARK_DATA = {
             "name": "syn_div/high_degree/1048576",
             "value": 13234499,
             "range": "± 149173",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "toposware",
+            "username": "toposware"
+          },
+          "committer": {
+            "name": "toposware",
+            "username": "toposware"
+          },
+          "id": "69c483e572789b81610c9947c7de522d5edc963a",
+          "message": "Test benchmarking in CI",
+          "timestamp": "2022-08-20T21:50:10Z",
+          "url": "https://github.com/toposware/winterfell/pull/37/commits/69c483e572789b81610c9947c7de522d5edc963a"
+        },
+        "date": 1661549130737,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "syn_div/high_degree/262144",
+            "value": 1943167,
+            "range": "± 25789",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "syn_div/high_degree/524288",
+            "value": 5120360,
+            "range": "± 70520",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "syn_div/high_degree/1048576",
+            "value": 12114198,
+            "range": "± 77116",
             "unit": "ns/iter"
           }
         ]
