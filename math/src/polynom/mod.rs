@@ -478,7 +478,7 @@ where
     let mut tmp = E::ONE;
     for _ in 0..1000 {
         tmp = tmp.double();
-        for _ in 0..100 {
+        for _ in 0..300 {
             tmp *= tmp;
         }
     }
