@@ -1,0 +1,26 @@
+name: Benchmark
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, repoened, synchronize]
+
+jobs:
+  benchmark:
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - { name: Linux, os: ubuntu-latest, triple: x86_64-unknown-linux-gnu }
+        version:
+          - stable
+    name: ${{ matrix.version }} - Benchmark
+    runs-on: ${{ matrix.target.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: docker/build-push-action@v3
+        with:
+          target: benchmark
+          build-args: |
+            TOOLCHAIN_VERSION=${{ matrix.version }}

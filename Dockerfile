@@ -35,3 +35,7 @@ FROM base AS lint
 RUN rustup component add clippy
 COPY . .
 RUN cargo clippy --all -- -D clippy::all -D warnings
+
+FROM base AS benchmark
+COPY . .
+RUN cargo bench
