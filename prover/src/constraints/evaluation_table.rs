@@ -14,6 +14,8 @@ use utils::{
 
 #[cfg(debug_assertions)]
 use air::TransitionConstraints;
+#[cfg(feature = "std")]
+use std::time::Instant;
 
 #[cfg(feature = "concurrent")]
 use utils::iterators::*;
@@ -500,8 +502,10 @@ fn get_divisor_evaluations<E: FieldElement>(
 ) -> Vec<Vec<E::BaseField>> {
     // First, we evaluate X^k evaluations for all terms appearing at products
 
+    let now = Instant::now();
     let (evaluations_map, inverse_evaluations_map) =
         get_divisor_product_evaluations::<E::BaseField>(divisors, domain_size, domain_offset);
+    println!("Computed products in {} ms", now.elapsed().as_millis());
 
     // TODO [divisors]: rewrite parallelizable
     // compute divisor evaluations using the saved values of the dictionaries
@@ -522,25 +526,35 @@ fn get_divisor_evaluations<E: FieldElement>(
         // it would make sense to sort divisors by degree to aggregate multiplications
 
         // results is the final divisor evaluation
-        let mut results = vec![E::BaseField::ONE; domain_size / min_degree];
+        let mut results = unsafe { uninit_vector(domain_size / min_degree) };
+        let key = (
+            divisor.numerator()[0].degree(),
+            divisor.numerator()[0].coset_dlog(),
+        );
+        let zs = inverse_evaluations_map.get(&key).unwrap();
+        iter_mut!(results, 1024)
+            .enumerate()
+            .for_each(|(i, result)| {
+                *result = zs[i % zs.len()];
+            });
         if !divisor.denominator().is_empty() {
             for product in divisor.denominator() {
                 let key = (product.degree(), product.coset_dlog());
                 let zs = evaluations_map.get(&key).unwrap();
                 iter_mut!(results, 1024)
-                    .zip(zs.iter().cycle())
-                    .for_each(|(result, z)| {
-                        *result *= *z;
+                    .enumerate()
+                    .for_each(|(i, result)| {
+                        *result *= zs[i % zs.len()];
                     });
             }
         }
-        for product in divisor.numerator() {
+        for product in divisor.numerator().iter().skip(1) {
             let key = (product.degree(), product.coset_dlog());
             let zs = inverse_evaluations_map.get(&key).unwrap();
             iter_mut!(results, 1024)
-                .zip(zs.iter().cycle())
-                .for_each(|(result, z)| {
-                    *result *= *z;
+                .enumerate()
+                .for_each(|(i, result)| {
+                    *result *= zs[i % zs.len()];
                 });
         }
         divisors_evaluations.push(results);
