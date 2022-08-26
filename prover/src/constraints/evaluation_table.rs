@@ -5,7 +5,7 @@
 // LICENSE file in the root directory of this source tree.
 
 use super::{CompositionPoly, ConstraintDivisor, ProverError, StarkDomain};
-use math::{batch_inversion, fft, ExtensionOf, FieldElement, StarkField};
+use math::{batch_inversion, fft, FieldElement, StarkField};
 use utils::{
     batch_iter_mut,
     collections::{BTreeMap, Vec},
@@ -184,9 +184,9 @@ impl<E: FieldElement> ConstraintEvaluationTable<E> {
         let mut combined_poly = E::zeroed_vector(self.num_rows());
 
         // evaluate all divisors in the evaluation domain
+
         let divisors_evaluations =
             get_divisor_evaluations::<E>(&self.divisors, self.evaluations[0].len(), domain_offset);
-
         // iterate over all columns of the constraint evaluation table, divide each column
         // by the evaluations of its corresponding divisor, and add all resulting evaluations
         // together into a single vector
@@ -198,8 +198,8 @@ impl<E: FieldElement> ConstraintEvaluationTable<E> {
         {
             // in debug mode, make sure post-division degree of each column matches the expected
             // degree
-            #[cfg(debug_assertions)]
-            validate_column_degree(&column, divisor, domain_offset, column.len() - 1)?;
+            // #[cfg(debug_assertions)]
+            // validate_column_degree(&column, divisor, domain_offset, column.len() - 1)?;
 
             acc_column(column, &divisors_evaluations[i], &mut combined_poly);
         }
@@ -363,118 +363,187 @@ fn make_fragments<E: FieldElement>(
 /// Accumulates the constraint evaluation divided by the corresponding divisor to the result.
 /// The divisor is already computed and inverted, therefore we simply compute
 /// column[i]*divisor_evaluations[i]
-fn acc_column<E: FieldElement>(column: Vec<E>, divisor_evaluations: &[E], result: &mut [E]) {
+fn acc_column<E: FieldElement>(
+    column: Vec<E>,
+    divisor_evaluations: &[E::BaseField],
+    result: &mut [E],
+) {
     iter_mut!(result, 1024)
         .zip(column)
         .enumerate()
         .for_each(|(i, (acc_value, value))| {
-            *acc_value += value * divisor_evaluations[i];
+            *acc_value += value.mul_base(divisor_evaluations[i % divisor_evaluations.len()]);
         });
 }
 
-/// Takes a list of divisors and evaluates them over the domain
-fn get_divisor_evaluations<E: FieldElement>(
+/// Takes a list of divisors and evaluates all the product terms over the domain
+fn get_divisor_product_evaluations<E: FieldElement>(
     divisors: &[ConstraintDivisor<E::BaseField>],
     domain_size: usize,
     domain_offset: E::BaseField,
-) -> Vec<Vec<E>> {
+) -> (
+    BTreeMap<(usize, usize), std::vec::Vec<E::BaseField>>,
+    BTreeMap<(usize, usize), std::vec::Vec<E::BaseField>>,
+) {
+    // First, we evaluate X^k evaluations for all terms appearing at products
+    let mut exponentiations_map = BTreeMap::new();
     // A map to save the evaluations of divisor denominator (exemption) products
     let mut evaluations_map = BTreeMap::new();
     // A map to save the inverse evaluations of divisor numerator products
     let mut inverse_evaluations_map = BTreeMap::new();
 
-    let g_domain = E::BaseField::get_root_of_unity(domain_size.trailing_zeros());
-    // iterate over divisors to get all product terms
+    // vector of keys for product evaluations
+    let mut keys = vec![];
+
+    // vector of keys for inverted product evaluations
+    let mut inv_keys = vec![];
+
+    // collect all keys from divisor products
     for divisor in divisors {
-        // evaluate numerator and denominator values
+        // all product will be evaluated
+        // numerator products will also be inverted
         for product in divisor
             .numerator()
             .iter()
             .chain(divisor.denominator().iter())
         {
-            // if the product (X^k - h) has been previously evaluated simply ignore
-            if !evaluations_map.contains_key(&(product.degree(), product.coset_dlog())) {
-                // otherwise check if some other term X^k has been evaluate and shift it by h
-                // if not evaluate the product and save both X^k and (X^k-h) evaluations.
-                // We do this since shifting is cheaper than evaluating the exponentiations
-                let key = (product.degree(), 0);
-                let shifted_key = (product.degree(), product.coset_dlog());
-                let evaluations = evaluations_map.entry(key).or_insert_with(|| {
-                    let a = product.degree() as u64;
-                    let n = domain_size / a as usize;
-                    let g = g_domain.exp(a.into());
-
-                    // Compute unshifted values X^k-1 over domain
-                    let mut evaluations = unsafe { uninit_vector(n) };
-                    batch_iter_mut!(
-                        &mut evaluations,
-                        128, // min batch size
-                        |batch: &mut [E], batch_offset: usize| {
-                            let mut x = domain_offset
-                                .exp(a.into())
-                                .mul_base(g.exp((batch_offset as u64).into()));
-                            for evaluation in batch.iter_mut() {
-                                let val: E = x.into();
-                                *evaluation = val - E::ONE;
-                                x *= g;
-                            }
-                        }
-                    );
-                    evaluations
-                });
-                // Compute and insert shifted values
-                if product.coset_dlog() != 0 {
-                    let mut shifted_evaluations =
-                        unsafe { uninit_vector(domain_size / product.degree()) };
-                    let shift = E::ONE - product.coset_elem().into();
-                    iter_mut!(shifted_evaluations, 1024).enumerate().for_each(
-                        |(i, shifted_evaluation)| {
-                            *shifted_evaluation = evaluations[i] + shift;
-                        },
-                    );
-                    evaluations_map.insert(shifted_key, shifted_evaluations);
-                }
-            }
+            keys.push((product.degree(), product.coset_dlog(), product.coset_elem()));
+            inv_keys.push((product.degree(), product.coset_dlog()));
         }
-        // TODO [divisors]: should batch these together as well
+        for product in divisor.denominator() {
+            keys.push((product.degree(), product.coset_dlog(), product.coset_elem()));
+        }
+    }
+    // remove duplicates from keys
+    // keys.sort_by(|a, b| a.0.cmp(&b.0));
+    // keys.dedup_by(|(d1, dlog1, _), (d2, dlog2, _)| d1 == d2 && dlog1 == dlog2);
+    keys.sort_by(|a, b| (a.0, a.1).cmp(&(b.0, b.1)));
+    keys.dedup();
+    inv_keys.sort();
+    inv_keys.dedup();
 
-        for product in divisor.numerator() {
-            let key = (product.degree(), product.coset_dlog());
-            // invert and insert the values if not there already
-            let _ = inverse_evaluations_map.entry(key).or_insert_with(|| {
-                batch_inversion(
-                    evaluations_map
-                        .get(&(product.degree(), product.coset_dlog()))
-                        .unwrap(), // should never fail
-                )
+    let g_domain = E::BaseField::get_root_of_unity(domain_size.trailing_zeros());
+    // set initial values
+    let mut degree = 1;
+    // subgroup generator for the product term
+    let mut g = g_domain;
+    // domain offset element
+    let mut h = domain_offset;
+
+    for key in &keys {
+        {
+            if key.0 != degree {
+                let degree_difference = key.0 / degree;
+                degree = key.0;
+                // subgroup generator for the product term
+                g = g.exp((degree_difference as u64).into());
+                // domain offset element
+                h = h.exp((degree_difference as u64).into());
+                // initialization of vector for saving evaluations
+            }
+            // number of evaluations needed for the product term
+            let n = domain_size / key.0 as usize;
+            let exponentiations = exponentiations_map.entry(key.0).or_insert_with(|| {
+                let mut evaluations = unsafe { uninit_vector(n) };
+                batch_iter_mut!(
+                    &mut evaluations,
+                    128, // min batch size
+                    |batch: &mut [E::BaseField], batch_offset: usize| {
+                        let mut x = h * g.exp((batch_offset as u64).into());
+                        for evaluation in batch.iter_mut() {
+                            *evaluation = x;
+                            x *= g;
+                        }
+                    }
+                );
+                evaluations
+            });
+            evaluations_map.entry((key.0, key.1)).or_insert_with(|| {
+                let mut evaluations = unsafe { uninit_vector(n) };
+                iter_mut!(evaluations, 1024)
+                    .zip(exponentiations.iter())
+                    .for_each(|(evaluation, exponentiation)| {
+                        *evaluation = *exponentiation - key.2;
+                    });
+                evaluations
             });
         }
     }
 
+    // batch inverse all numerator values
+    let mut numerator_vals = vec![];
+    for key in &inv_keys {
+        let values = evaluations_map.get(&key).unwrap();
+        numerator_vals.extend(values);
+    }
+
+    let inverse_numerator_vals = batch_inversion(&numerator_vals);
+
+    let mut last_idx = 0;
+
+    for key in &inv_keys {
+        inverse_evaluations_map.insert(
+            *key,
+            inverse_numerator_vals[last_idx..(last_idx + domain_size / key.0)].to_vec(),
+        );
+        last_idx += domain_size / key.0;
+    }
+
+    (evaluations_map, inverse_evaluations_map)
+}
+
+/// Takes a list of divisors and evaluates all the product terms over the domain
+fn get_divisor_evaluations<E: FieldElement>(
+    divisors: &[ConstraintDivisor<E::BaseField>],
+    domain_size: usize,
+    domain_offset: E::BaseField,
+) -> Vec<Vec<E::BaseField>> {
+    // First, we evaluate X^k evaluations for all terms appearing at products
+
+    let (evaluations_map, inverse_evaluations_map) =
+        get_divisor_product_evaluations::<E::BaseField>(divisors, domain_size, domain_offset);
+
     // TODO [divisors]: rewrite parallelizable
     // compute divisor evaluations using the saved values of the dictionaries
-    let mut divisors_evaluations = vec![];
+    let mut divisors_evaluations = Vec::with_capacity(divisors.len());
     for divisor in divisors.iter() {
-        // result is the final divisor evaluation
+        // find the product of the divisor with the lowest degree  defining the
+        // number of evaluations needed
 
-        let mut result = vec![E::ONE; domain_size];
-        for product in divisor.denominator() {
-            let key = (product.degree(), product.coset_dlog());
-            // the values considered for the product
-            let z = evaluations_map.get(&key).unwrap();
-            for i in 0..domain_size {
-                result[i] *= z[i % z.len()];
+        let min_degree = divisor
+            .numerator()
+            .iter()
+            .chain(divisor.denominator().iter())
+            .map(|x| x.degree())
+            .min()
+            .unwrap();
+
+        // TODO [divisors]: in more complex cases with any produts per divisor
+        // it would make sense to sort divisors by degree to aggregate multiplications
+
+        // results is the final divisor evaluation
+        let mut results = vec![E::BaseField::ONE; domain_size / min_degree];
+        if !divisor.denominator().is_empty() {
+            for product in divisor.denominator() {
+                let key = (product.degree(), product.coset_dlog());
+                let zs = evaluations_map.get(&key).unwrap();
+                iter_mut!(results, 1024)
+                    .zip(zs.iter().cycle())
+                    .for_each(|(result, z)| {
+                        *result *= *z;
+                    });
             }
         }
         for product in divisor.numerator() {
             let key = (product.degree(), product.coset_dlog());
-            // the values considered for the product inverted
-            let z = inverse_evaluations_map.get(&key).unwrap();
-            for i in 0..domain_size {
-                result[i] *= z[i % z.len()]
-            }
+            let zs = inverse_evaluations_map.get(&key).unwrap();
+            iter_mut!(results, 1024)
+                .zip(zs.iter().cycle())
+                .for_each(|(result, z)| {
+                    *result *= *z;
+                });
         }
-        divisors_evaluations.push(result);
+        divisors_evaluations.push(results);
     }
 
     divisors_evaluations

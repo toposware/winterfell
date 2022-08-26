@@ -36,10 +36,11 @@ impl<B: StarkField> ConstraintDivisorProduct<B> {
         //      3. period < trace_length
         //      3. 0 <= offset < period
         let subgroup = trace_length / period;
+        let coset_dlog = subgroup * offset;
         ConstraintDivisorProduct {
             subgroup,
-            coset_dlog: subgroup * offset,
-            coset_elem: get_trace_domain_value_at::<B>(trace_length, subgroup * offset),
+            coset_dlog,
+            coset_elem: get_trace_domain_value_at::<B>(trace_length, coset_dlog),
         }
     }
 
@@ -128,7 +129,9 @@ impl<B: StarkField> ConstraintDivisor<B> {
         // Build denominator product terms. Here we exclude points defined in the
         // second element of divisor as well as any last step exemptions defined in
         // the first term.
-        let mut denominator: Vec<ConstraintDivisorProduct<B>> = vec![];
+        let denominator_size = divisor.0.iter().fold(0, |acc, n| acc + n.2) + divisor.1.len();
+        let mut denominator: Vec<ConstraintDivisorProduct<B>> =
+            Vec::with_capacity(denominator_size);
         for (period, offset, num_exemptions) in divisor.0.iter() {
             let exemptions = (1..=*num_exemptions)
                 .map(|step| {
@@ -249,7 +252,7 @@ impl<B: StarkField> Display for ConstraintDivisor<B> {
         for product in self.numerator.iter() {
             write!(f, "(x^{} - {})", product.degree(), product.coset_elem())?;
         }
-        if self.denominator.is_empty() {
+        if !self.denominator.is_empty() {
             write!(f, " / ")?;
             for product in self.denominator.iter() {
                 write!(f, "(x^{} - {})", product.degree(), product.coset_elem())?;
