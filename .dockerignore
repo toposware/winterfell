@@ -1,0 +1,7 @@
+/target/
+/.idea/
+/.github/
+/.devcontainer/
+/.vscode/
+/.git/
+Dockerfile
