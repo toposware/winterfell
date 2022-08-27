@@ -68,7 +68,7 @@ impl<E: FieldElement> TransitionConstraints<E> {
             &main_constraint_degrees,
             context,
             main_constraint_coefficients,
-            divisor.degree(),
+            divisor.degree(), //+ divisor.exemptions().len()
         );
         let aux_constraint_degrees = context.aux_transition_constraint_degrees.clone();
         let aux_constraints = group_constraints(
@@ -213,11 +213,11 @@ impl<E: FieldElement> TransitionConstraintGroup<E> {
         degree: TransitionConstraintDegree,
         trace_length: usize,
         composition_degree: usize,
-        divisor_degree: usize,
+        divisor_domain_size: usize,
     ) -> Self {
         // We want to make sure that once we divide a constraint polynomial by its divisor, the
         // degree of the resulting polynomial will be exactly equal to the composition_degree.
-        let target_degree = composition_degree + divisor_degree;
+        let target_degree = composition_degree + divisor_domain_size;
         let evaluation_degree = degree.get_evaluation_degree(trace_length);
         let degree_adjustment = (target_degree - evaluation_degree) as u32;
         TransitionConstraintGroup {
@@ -300,7 +300,7 @@ fn group_constraints<E: FieldElement>(
     degrees: &[TransitionConstraintDegree],
     context: &AirContext<E::BaseField>,
     coefficients: &[(E, E)],
-    divisor_degree: usize,
+    divisor_domain_size: usize,
 ) -> Vec<TransitionConstraintGroup<E>> {
     // iterate over transition constraint degrees, and assign each constraint to the appropriate
     // group based on its degree
@@ -312,7 +312,7 @@ fn group_constraints<E: FieldElement>(
                 degree.clone(),
                 context.trace_len(),
                 context.composition_degree(),
-                divisor_degree,
+                divisor_domain_size,
             )
         });
         group.add(i, coefficients[i]);

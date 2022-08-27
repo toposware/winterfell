@@ -9,6 +9,8 @@
 use super::{are_equal, is_binary, not, EvaluationResult};
 use winterfell::math::{fields::f63::BaseElement, FieldElement};
 
+use std::iter::repeat;
+
 pub type ECPoint = [BaseElement; AFFINE_POINT_WIDTH];
 
 // CONSTANTS
@@ -59,10 +61,6 @@ pub(crate) fn apply_point_addition(state: &mut [BaseElement], point: &[BaseEleme
     if state[PROJECTIVE_POINT_WIDTH] == BaseElement::ONE {
         compute_add(state, point)
     };
-}
-
-/// Apply a point mixed addition between the current `state` registers with a given point.
-pub(crate) fn apply_point_addition_mixed(state: &mut [BaseElement], point: &[BaseElement]) {
     if state[PROJECTIVE_POINT_WIDTH] == BaseElement::ONE {
         compute_add_mixed(state, point)
     };
@@ -70,6 +68,80 @@ pub(crate) fn apply_point_addition_mixed(state: &mut [BaseElement], point: &[Bas
 
 // CONSTRAINTS
 // ================================================================================================
+
+/// When flag = 1, checks if the constraints for performing a point addition in affine coordinates
+/// are satisfied `point, lhs, rhs` and `slope`. + represents adition over the curve group, .
+/// This function returns a vector of base field elements being all zero if and only if point `point` is indeed
+/// the result of adding `lhs` with `rhs`.
+pub(crate) fn enforce_point_addition_affine<E: FieldElement + From<BaseElement>>(
+    result: &mut [E],
+    lhs: &[E],
+    rhs: &[E],
+    slope: &[E],
+    point: &[E],
+    flag: E,
+) {
+    let mut target = [E::ZERO; AFFINE_POINT_WIDTH];
+
+    let x1 = &lhs[0..POINT_COORDINATE_WIDTH];
+    let x2 = &rhs[0..POINT_COORDINATE_WIDTH];
+
+    let y1 = &lhs[POINT_COORDINATE_WIDTH..AFFINE_POINT_WIDTH];
+    let y2 = &rhs[POINT_COORDINATE_WIDTH..AFFINE_POINT_WIDTH];
+
+    let mut slope_witness = sub_fp6(&x2, &x1);
+    slope_witness = mul_fp6(slope, &slope_witness);
+    slope_witness = sub_fp6(
+        &slope_witness, 
+        &sub_fp6(y2, y1));
+    let slope_witness = slope_witness.iter().zip(repeat(flag))
+        .map(
+            |(&slope_witness, flag)| flag*slope_witness
+        ).collect::<Vec<_>>();
+    result[0..POINT_COORDINATE_WIDTH].copy_from_slice(&slope_witness);
+
+    target.copy_from_slice(lhs);
+    compute_add_affine(&mut target, rhs, slope);
+
+    // Make sure that the results are equal
+    for i in 0..AFFINE_POINT_WIDTH {
+        result.agg_constraint(
+            i + POINT_COORDINATE_WIDTH, 
+            flag, 
+            are_equal(target[i], point[i]));
+    }
+}
+
+#[test]
+fn test_point_addition_affine() {
+    let twice_the_generator = [
+        BaseElement::new(0x7f4c1bfc52278ad8),
+        BaseElement::new(0xfa8e921f7580e371),
+        BaseElement::new(0x97252bf35d1c7668),
+        BaseElement::new(0xe6d0901604cae95a),
+        BaseElement::new(0xae36bba2ad2ee0d7),
+        BaseElement::new(0x194b4e35a2a9c77),
+        BaseElement::new(0x144045efbce03ef8),
+        BaseElement::new(0x8e5fe3f66f8b370d),
+        BaseElement::new(0x3d54df63b96bfd20),
+        BaseElement::new(0x2418219e37948caa),
+        BaseElement::new(0xd4c1a40432582552),
+        BaseElement::new(0x367b029f5f146e3d)
+    ];
+    let mut slope = [BaseElement::ZERO; POINT_COORDINATE_WIDTH];
+    compute_slope(&mut slope, &GENERATOR, &GENERATOR);
+    let mut result = [BaseElement::ZERO; AFFINE_POINT_WIDTH + POINT_COORDINATE_WIDTH + 1];
+    enforce_point_addition_affine(
+        &mut result,
+        &GENERATOR,
+        &GENERATOR,
+        &slope,
+        &twice_the_generator,
+        BaseElement::ONE
+    );
+    assert_eq!(result, [BaseElement::ZERO; AFFINE_POINT_WIDTH + POINT_COORDINATE_WIDTH + 1])
+}
+
 
 /// When flag = 1, enforces constraints for performing a point doubling.
 pub(crate) fn enforce_point_doubling<E: FieldElement + From<BaseElement>>(
@@ -329,8 +401,8 @@ fn compute_add<E: FieldElement + From<BaseElement>>(state: &mut [E], point: &[E]
     state[AFFINE_POINT_WIDTH..PROJECTIVE_POINT_WIDTH].copy_from_slice(&z3);
 }
 
-/// Compute the addition of the current point, stored as [X,Y] in affine coordinates, with a given one
-/// and the slope.
+/// Compute the addition of the current point, stored as [X,Y] in affine coordinates, with another
+/// point. It aditionals receives as input slope, which is assumed to be equal to (Y2 - Y1)/(X2 - X1).
 /// Addition is computed as:
 ///
 ///  X3 =  slope * slope - X1 - X2
@@ -341,9 +413,8 @@ pub fn compute_add_affine<E: FieldElement + From<BaseElement>>(state: &mut [E], 
     let y1 = &state[POINT_COORDINATE_WIDTH..AFFINE_POINT_WIDTH];
 
     let x2 = &point[0..POINT_COORDINATE_WIDTH];
-    let y2 = &point[POINT_COORDINATE_WIDTH..AFFINE_POINT_WIDTH];
     
-    let x3  = &mul_fp6(slope, slope);
+    let x3 = &mul_fp6(slope, slope);
     let x3 = &sub_fp6(x3, x1);
     let x3 = &sub_fp6(x3, x2);
     let x3 = &sub_fp6(x3, point);

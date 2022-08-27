@@ -45,8 +45,6 @@ mod tests;
 // CONSTANTS
 // ================================================================================================
 
-const TRACE_WIDTH: usize = 33;
-
 // FIBONACCI EXAMPLE
 // ================================================================================================
 
@@ -106,10 +104,10 @@ impl Example for PedersenHashExample {
     }
 
     fn verify(&self, proof: StarkProof) -> Result<(), VerifierError> {
-        winterfell::verify::<PedersenHashAir>(proof, PublicInputs{})
+        winterfell::verify::<<PedersenHashProver as Prover>::Air>(proof, PublicInputs{})
     }
 
     fn verify_with_wrong_inputs(&self, proof: StarkProof) -> Result<(), VerifierError> {
-        winterfell::verify::<PedersenHashAir>(proof, PublicInputs{})
+        winterfell::verify::<<PedersenHashProver as Prover>::Air>(proof, PublicInputs{})
     }
 }
