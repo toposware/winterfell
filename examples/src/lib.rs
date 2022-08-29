@@ -9,7 +9,6 @@ use winterfell::{FieldExtension, HashFunction, ProofOptions, StarkProof, Verifie
 
 pub mod collatz_divisors;
 pub mod collatz_periodic;
-pub mod divisors_cosets;
 pub mod fibonacci;
 #[cfg(feature = "std")]
 pub mod lamport;
@@ -116,18 +115,6 @@ pub enum ExampleType {
         /// Length of Collatz sequence; must be a power of two
         #[structopt(short = "n", default_value = "4096")]
         sequence_length: usize,
-    },
-    /// Example to test divisors with different exemptions. Compute fibonacci and exponentiation in parallel
-    DivisorsCosets {
-        /// Length of exp sequence; must be a power of two
-        #[structopt(short = "e", default_value = "16")]
-        sequence_length: u64,
-        /// Length of range sequence; must be a power of two
-        #[structopt(short = "r", default_value = "16")]
-        range_length: u64,
-        /// Coset offset
-        #[structopt(short = "c", default_value = "0")]
-        offset: u64,
     },
     /// Compute a Fibonacci sequence using trace table with 2 registers
     Fib {

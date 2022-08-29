@@ -14,8 +14,6 @@ use utils::{
 
 #[cfg(debug_assertions)]
 use air::TransitionConstraints;
-#[cfg(feature = "std")]
-use std::time::Instant;
 
 #[cfg(feature = "concurrent")]
 use utils::iterators::*;
@@ -188,6 +186,7 @@ impl<E: FieldElement> ConstraintEvaluationTable<E> {
         // evaluate all divisors in the evaluation domain
         let divisors_evaluations =
             get_divisor_evaluations::<E::BaseField>(&self.divisors, self.num_rows(), domain_offset);
+
         // iterate over all columns of the constraint evaluation table, divide each column
         // by the evaluations of its corresponding divisor, and add all resulting evaluations
         // together into a single vector
@@ -199,8 +198,8 @@ impl<E: FieldElement> ConstraintEvaluationTable<E> {
         {
             // in debug mode, make sure post-division degree of each column matches the expected
             // degree
-            // #[cfg(debug_assertions)]
-            // validate_column_degree(&column, divisor, domain_offset, column.len() - 1)?;
+            #[cfg(debug_assertions)]
+            validate_column_degree(&column, divisor, domain_offset, column.len() - 1)?;
 
             acc_column(column, &divisors_evaluations[i], &mut combined_poly);
         }
@@ -392,41 +391,60 @@ fn get_divisor_product_evaluations<B: StarkField>(
     // A map to save the inverse evaluations of divisor numerator products
     let mut inverse_evaluations_map = BTreeMap::new();
 
+    // we record the total number of elements to be inverted for faster
+    // vector initialization
+    let mut numerator_vals_size = 0;
+
     // vector of keys for product evaluations
     let mut keys = vec![];
 
-    // vector of keys for inverted product evaluations
-    let mut inv_keys = vec![];
-
-    let mut numerator_vals_size = 0;
     // collect all keys from divisor products
     for divisor in divisors {
-        // all product will be evaluated
-        // numerator products will also be inverted
+        // we flag products to be inverted (numerator) with "true"
         for product in divisor.numerator() {
-            keys.push((product.degree(), product.coset_dlog(), product.coset_elem()));
-            inv_keys.push((product.degree(), product.coset_dlog()));
+            keys.push((
+                product.degree(),
+                product.coset_dlog(),
+                product.coset_elem(),
+                true,
+            ));
             numerator_vals_size += domain_size / product.degree();
         }
         for product in divisor.denominator() {
-            keys.push((product.degree(), product.coset_dlog(), product.coset_elem()));
+            keys.push((
+                product.degree(),
+                product.coset_dlog(),
+                product.coset_elem(),
+                false,
+            ));
         }
     }
-    keys.sort_by(|a, b| (a.0, a.1).cmp(&(b.0, b.1)));
+    // We sort products to save exponentiations
+    keys.sort_by(|a, b| (a.0, a.1, a.3).cmp(&(b.0, b.1, b.3)));
     keys.dedup();
-    inv_keys.sort();
-    inv_keys.dedup();
 
     let g_domain = B::get_root_of_unity(domain_size.trailing_zeros());
     // set initial values
+
+    // product degree
     let mut degree = 1;
+
     // subgroup generator for the product term
     let mut g = g_domain;
+
     // domain offset element
     let mut h = domain_offset;
 
+    // number of values to be computed
     let mut n = domain_size as usize;
+
+    // this vector caches exponentiations
     let mut exponentiations = unsafe { uninit_vector(domain_size) };
+
+    // we initialize a vector to record values to be inverted.
+    // we also recall the last index we accessed
+    let mut numerator_vals = unsafe { uninit_vector(numerator_vals_size) };
+    let mut last_idx = 0;
 
     for (i, key) in keys.iter().enumerate() {
         {
@@ -438,7 +456,6 @@ fn get_divisor_product_evaluations<B: StarkField>(
                 g = g.exp((degree_difference as u64).into());
                 // domain offset element
                 h = h.exp((degree_difference as u64).into());
-                // initialization of vector for saving evaluations
                 // number of evaluations needed for the product term
                 n = domain_size / key.0 as usize;
                 batch_iter_mut!(
@@ -453,33 +470,44 @@ fn get_divisor_product_evaluations<B: StarkField>(
                     }
                 );
             }
-            let mut evaluations = unsafe { uninit_vector(n) };
-            iter_mut!(evaluations, 1024)
-                .enumerate()
-                .for_each(|(i, evaluation)| {
-                    *evaluation = exponentiations[i] - key.2;
-                });
-            evaluations_map.insert((key.0, key.1), evaluations);
+            // numerator
+            if key.3 {
+                batch_iter_mut!(
+                    &mut numerator_vals[last_idx..(last_idx + n)],
+                    128,
+                    |batch: &mut [B], batch_offset: usize| {
+                        let coset = key.2;
+                        for (i, evaluation) in batch.iter_mut().enumerate() {
+                            *evaluation = exponentiations[batch_offset + i] - coset;
+                        }
+                    }
+                );
+                last_idx += n;
+            } else {
+                let mut evaluations = unsafe { uninit_vector(n) };
+                batch_iter_mut!(
+                    &mut evaluations,
+                    128,
+                    |batch: &mut [B], batch_offset: usize| {
+                        let coset = key.2;
+                        for (i, evaluation) in batch.iter_mut().enumerate() {
+                            *evaluation = exponentiations[batch_offset + i] - coset;
+                        }
+                    }
+                );
+                evaluations_map.insert((key.0, key.1), evaluations);
+            }
         }
     }
 
     // batch inverse all numerator values
-    let mut last_idx = 0;
-
-    let mut numerator_vals = unsafe { uninit_vector(numerator_vals_size) };
-    for key in &inv_keys {
-        let values = evaluations_map.get(&key).unwrap();
-        numerator_vals[last_idx..(last_idx + domain_size / key.0)].clone_from_slice(&values);
-        last_idx += domain_size / key.0;
-    }
-
     let inverse_numerator_vals = batch_inversion(&numerator_vals);
 
     last_idx = 0;
 
-    for key in &inv_keys {
+    for key in keys.iter().filter(|x| x.3) {
         inverse_evaluations_map.insert(
-            *key,
+            (key.0, key.1),
             inverse_numerator_vals[last_idx..(last_idx + domain_size / key.0)].to_vec(),
         );
         last_idx += domain_size / key.0;
