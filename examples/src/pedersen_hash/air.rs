@@ -5,7 +5,7 @@
 
 use super::{
     BaseElement, FieldElement, ProofOptions, prover::{TRACE_WIDTH, BITS_PER_CHUNK},
-    hash::get_constant_points, ecc::GENERATOR};
+    hash::{get_intial_constant_point, get_constant_points}, ecc::GENERATOR};
 use crate::utils::ecc::{enforce_point_addition_affine, AFFINE_POINT_WIDTH, POINT_COORDINATE_WIDTH};
 use winterfell::{
     Air, AirContext, Assertion, ByteWriter, EvaluationFrame, Serializable, TraceInfo, TransitionConstraintDegree,
@@ -26,6 +26,10 @@ pub struct PedersenHashAir<const CYCLE_LENGTH: usize, const EXEPTIONS: usize> {
     context: AirContext<BaseElement>
 }
 
+impl<const CYCLE_LENGTH: usize, const EXEMPTIONS: usize> PedersenHashAir<CYCLE_LENGTH, EXEMPTIONS>{
+    const INITAL_PEDERSEN_POINT: [BaseElement; AFFINE_POINT_WIDTH] = get_intial_constant_point();
+}
+
 impl<const CYCLE_LENGTH: usize, const EXEMPTIONS: usize> Air for PedersenHashAir<CYCLE_LENGTH, EXEMPTIONS>{
     type BaseField = BaseElement;
     type PublicInputs = PublicInputs;
@@ -39,15 +43,16 @@ impl<const CYCLE_LENGTH: usize, const EXEMPTIONS: usize> Air for PedersenHashAir
         ];
         degrees.append(&mut vec![
             TransitionConstraintDegree::with_cycles(
-                2,
-                vec![CYCLE_LENGTH, BITS_PER_CHUNK.next_power_of_two()]
+                3,
+                vec![BITS_PER_CHUNK.next_power_of_two()]
             );
             12
         ]);
         degrees.append(&mut vec![
             TransitionConstraintDegree::with_cycles(
-                2,
-                vec![BITS_PER_CHUNK.next_power_of_two(), BITS_PER_CHUNK.next_power_of_two()]
+                3,
+                // TODO: The second cycle was only a guess and I still nedd to understand how is this happening
+                vec![BITS_PER_CHUNK.next_power_of_two(), CYCLE_LENGTH]
             );
             6
         ]);
@@ -58,7 +63,7 @@ impl<const CYCLE_LENGTH: usize, const EXEMPTIONS: usize> Air for PedersenHashAir
             AirContext::new(
                 trace_info, 
                 degrees,
-                1,
+                12,
                 options).set_num_transition_exemptions(EXEMPTIONS);
         PedersenHashAir {
             context,
@@ -96,10 +101,11 @@ impl<const CYCLE_LENGTH: usize, const EXEMPTIONS: usize> Air for PedersenHashAir
     }
 
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
-        // Add a dummy assetion for now.
-        vec![
-            Assertion::single(0, 0, GENERATOR[0])
-        ]
+        let mut initial_point_assertions = Vec::new();
+        for i in 0..AFFINE_POINT_WIDTH {
+            initial_point_assertions.push(Assertion::single(i, 0, Self::INITAL_PEDERSEN_POINT[i]));
+        }
+        initial_point_assertions
     }
     fn get_periodic_column_values(&self) -> Vec<Vec<Self::BaseField>> {
         let mut periodic_columns = vec![Vec::new(); AFFINE_POINT_WIDTH];

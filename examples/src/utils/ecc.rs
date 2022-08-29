@@ -39,6 +39,21 @@ pub const GENERATOR: ECPoint = [
     BaseElement::from_raw_unchecked(0xe13dca26b2ac6ab),
 ];
 
+pub const TWICE_THE_GENERATOR: ECPoint = [
+    BaseElement::from_raw_unchecked(0x1ba2d52806f212a),
+    BaseElement::from_raw_unchecked(0x5e9353a4e8225c8),
+    BaseElement::from_raw_unchecked(0x13e92423fef3bc2d),
+    BaseElement::from_raw_unchecked(0x241081e7ae1db310),
+    BaseElement::from_raw_unchecked(0x29f0073c3351026b),
+    BaseElement::from_raw_unchecked(0x11233fe9eb7285c0),
+    BaseElement::from_raw_unchecked(0x3a19dfba18e15ed5),
+    BaseElement::from_raw_unchecked(0x3691eb6949fca20b),
+    BaseElement::from_raw_unchecked(0x3ea42cb9ad7430ab),
+    BaseElement::from_raw_unchecked(0x1b840f91119a2eb3),
+    BaseElement::from_raw_unchecked(0x1b94f8ccdafc47ba),
+    BaseElement::from_raw_unchecked(0x19e92e12c3a9cfa),
+];
+
 pub const B3: [BaseElement; POINT_COORDINATE_WIDTH] = [
     BaseElement::new(4580716109223965136),
     BaseElement::new(2805468717395796313),
@@ -101,7 +116,7 @@ pub(crate) fn enforce_point_addition_affine<E: FieldElement + From<BaseElement>>
     result[0..POINT_COORDINATE_WIDTH].copy_from_slice(&slope_witness);
 
     target.copy_from_slice(lhs);
-    compute_add_affine(&mut target, rhs, slope);
+    compute_add_affine_with_slope(&mut target, rhs, slope);
 
     // Make sure that the results are equal
     for i in 0..AFFINE_POINT_WIDTH {
@@ -408,7 +423,7 @@ fn compute_add<E: FieldElement + From<BaseElement>>(state: &mut [E], point: &[E]
 ///  X3 =  slope * slope - X1 - X2
 ///  Y3 = slope * (X1 - X3) - Y1
 #[inline(always)]
-pub fn compute_add_affine<E: FieldElement + From<BaseElement>>(state: &mut [E], point: &[E], slope: &[E]) {
+pub fn compute_add_affine_with_slope<E: FieldElement + From<BaseElement>>(state: &mut [E], point: &[E], slope: &[E]) {
     let x1 = &state[0..POINT_COORDINATE_WIDTH];
     let y1 = &state[POINT_COORDINATE_WIDTH..AFFINE_POINT_WIDTH];
 
@@ -424,6 +439,15 @@ pub fn compute_add_affine<E: FieldElement + From<BaseElement>>(state: &mut [E], 
     let y3 = &sub_fp6(y3, y1);
     state[0..POINT_COORDINATE_WIDTH].copy_from_slice(x3);
     state[POINT_COORDINATE_WIDTH..AFFINE_POINT_WIDTH].copy_from_slice(y3);
+}
+
+/// Compute the addition of the current point, stored as [X,Y] in affine coordinates, with another
+/// point.
+pub fn compute_add_affine<E: FieldElement + From<BaseElement>>(state: &mut [E], point: &[E]) {
+    let mut slope = [E::ZERO; POINT_COORDINATE_WIDTH];
+    
+    compute_slope(&mut slope, state, point);   
+    compute_add_affine_with_slope(state, point, &slope);
 }
 
 /// Computes the slope required in the addition.

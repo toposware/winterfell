@@ -9,9 +9,9 @@ use super::{
 
 use std::ops::Range;
 
-use super::{hash::get_constant_points};
+use super::hash::{get_intial_constant_point, get_constant_points};
 use winterfell::math::{fields::f63::BaseElement, FieldElement};
-use crate::utils::ecc::{compute_slope, compute_add_affine, AFFINE_POINT_WIDTH, POINT_COORDINATE_WIDTH};
+use crate::utils::ecc::{compute_slope, compute_add_affine_with_slope, AFFINE_POINT_WIDTH, POINT_COORDINATE_WIDTH};
 use crate::utils::print_trace_63;
 
 // PEDERSEN HASH PROVER
@@ -61,8 +61,9 @@ impl PedersenHashProver {
         let bits  = EXAMPLE;
 
         let mut trace = TraceTable::new(TRACE_WIDTH, TRACE_LENGTH);
+        let initial_pedersen_point = get_intial_constant_point();
         let pedersen_constant_points = get_constant_points();
-        update_with_subset_sum(&mut trace, bits, pedersen_constant_points);
+        update_with_subset_sum(&mut trace, bits, initial_pedersen_point, pedersen_constant_points);
         print_trace_63(&trace, 1, 0, 11..13);
         trace
     }
@@ -73,7 +74,7 @@ impl Prover for PedersenHashProver {
     type Air = PedersenHashAir<TRACE_LENGTH, 1>;
     type Trace = TraceTable<BaseElement>;
 
-    fn get_pub_inputs(&self, _trace: &Self::Trace) -> PublicInputs {
+    fn get_pub_inputs(&self, trace: &Self::Trace) -> PublicInputs {
         PublicInputs{}
     }
 
@@ -120,12 +121,13 @@ fn get_prefixes(bits: &[[u64; BITS_PER_CHUNK]; N_CHUNKS]) -> Vec<Vec<BaseElement
 fn update_with_subset_sum(
     trace: &mut TraceTable<BaseElement>,
     bits: [[u64; BITS_PER_CHUNK]; N_CHUNKS],
-    constant_points: [[BaseElement; AFFINE_POINT_WIDTH]; TRACE_LENGTH + 1])
+    initial_constant_point: [BaseElement; AFFINE_POINT_WIDTH], 
+    constant_points: [[BaseElement; AFFINE_POINT_WIDTH]; TRACE_LENGTH])
 {
     let prefixes = get_prefixes(&bits);
     
     let mut state = [BaseElement::ZERO; TRACE_WIDTH];
-    state[CURVE_POINT].copy_from_slice(&constant_points[0]);
+    state[CURVE_POINT].copy_from_slice(&initial_constant_point);
 
     for i in 0..N_CYCLES {
 
@@ -136,12 +138,13 @@ fn update_with_subset_sum(
         compute_slope(
             &mut state[SLOPE],
             &point,
-            &constant_points[current_row_index + 1]
+            &constant_points[current_row_index]
         );
         state[PREFIX] = prefixes[i][0];
         trace.update_row(i*CYCLE_LENGTH, &state);
 
         for (current, next) in (0..CYCLE_LENGTH-1).zip(1..CYCLE_LENGTH) {
+            let current_row_index = i*CYCLE_LENGTH + current;
             let next_row_index = i*CYCLE_LENGTH + next;
 
             state[PREFIX] = prefixes[i][next];
@@ -151,14 +154,14 @@ fn update_with_subset_sum(
                 // retrieve the slope of the current row
                 let slope = &mut [BaseElement::ZERO; POINT_COORDINATE_WIDTH];
                 slope.copy_from_slice(&state[SLOPE]);
-                compute_add_affine(&mut state[CURVE_POINT], &constant_points[next_row_index], slope);
+                compute_add_affine_with_slope(&mut state[CURVE_POINT], &constant_points[current_row_index], slope);
             }
             // compute the slope for the next row
             point.copy_from_slice(&state[CURVE_POINT]);
             compute_slope(
                 &mut state[SLOPE],
                 &point,
-                &constant_points[next_row_index + 1]
+                &constant_points[next_row_index]
             );
             trace.update_row(next_row_index, &state);
         }
