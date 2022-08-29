@@ -14,7 +14,7 @@ jobs:
         target:
           - { name: Linux, os: ubuntu-latest, triple: x86_64-unknown-linux-gnu }
         version:
-          - nightly
+          - stable
     name: ${{ matrix.version }} - Benchmark
     runs-on: ${{ matrix.target.os }}
     steps:
@@ -38,7 +38,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: true
           # Show alert with commit comment on detecting possible performance regression
-          alert-threshold: "200%"
+          alert-threshold: "5%"
           comment-on-alert: true
           fail-on-alert: true
           alert-comment-cc-users: "@Nashtare"
