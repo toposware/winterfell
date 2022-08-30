@@ -7,7 +7,7 @@
 use crate::air::Assertion;
 use core::fmt::{Display, Formatter};
 use math::{log2, FieldElement, StarkField};
-use utils::collections::Vec;
+use utils::collections::{BTreeMap, Vec};
 
 // CONSTRAINT DIVISOR PRODUCT
 // ================================================================================================
@@ -223,9 +223,15 @@ impl<B: StarkField> ConstraintDivisor<B> {
     pub fn evaluate_at<E: FieldElement<BaseField = B>>(&self, x: E) -> E {
         // compute the numerator value
         let mut numerator = E::ONE;
+        let mut powers = BTreeMap::<usize, E>::new();
         for product in self.numerator.iter() {
-            let v = x.exp((product.degree() as u32).into()) - E::from(product.coset_elem);
-            numerator *= v;
+            if let Some(&power) = powers.get(&product.degree()) {
+                numerator *= power - E::from(product.coset_elem);
+            } else {
+                let power = x.exp((product.degree() as u32).into());
+                powers.insert(product.degree(), power);
+                numerator *= power - E::from(product.coset_elem);
+            }
         }
 
         // compute the denominator value
@@ -239,9 +245,15 @@ impl<B: StarkField> ConstraintDivisor<B> {
     #[inline(always)]
     pub fn evaluate_exemptions_at<E: FieldElement<BaseField = B>>(&self, x: E) -> E {
         let mut denominator = E::ONE;
+        let mut powers = BTreeMap::<usize, E>::new();
         for product in self.denominator.iter() {
-            let v = x.exp((product.degree() as u32).into()) - E::from(product.coset_elem);
-            denominator *= v;
+            if let Some(&power) = powers.get(&product.degree()) {
+                denominator *= power - E::from(product.coset_elem);
+            } else {
+                let power = x.exp((product.degree() as u32).into());
+                powers.insert(product.degree(), power);
+                denominator *= power - E::from(product.coset_elem);
+            }
         }
         denominator
     }

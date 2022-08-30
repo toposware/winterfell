@@ -61,7 +61,7 @@ impl<E: FieldElement> TransitionConstraints<E> {
             .map(|divisor| ConstraintDivisor::from_transition(context.trace_len(), divisor))
             .collect();
 
-        // group constraints by their divisors, separately for constraints against main and auxiliary
+        // group constraints by their degree and divisors, separately for constraints against main and auxiliary
         // trace segments
 
         let (main_constraint_coefficients, aux_constraint_coefficients) =
@@ -69,7 +69,6 @@ impl<E: FieldElement> TransitionConstraints<E> {
 
         let main_constraint_degrees = context.main_transition_constraint_degrees.clone();
         let main_constraint_divisors = context.main_transition_constraint_divisors.clone();
-        // group main constraints by divisors
         let main_constraints = group_constraints(
             &main_constraint_degrees,
             &main_constraint_divisors,
@@ -80,7 +79,6 @@ impl<E: FieldElement> TransitionConstraints<E> {
 
         let aux_constraint_degrees = context.aux_transition_constraint_degrees.clone();
         let aux_constraint_divisors = context.aux_transition_constraint_divisors.clone();
-        // group aux constraints by divisors
         let aux_constraints = group_constraints(
             &aux_constraint_degrees,
             &aux_constraint_divisors,
@@ -207,68 +205,71 @@ impl<E: FieldElement> TransitionConstraints<E> {
 
 // TRANSITION CONSTRAINT GROUP
 // ================================================================================================
-/// A group of transition constraints all having the same divisor.
+/// A group of transition constraints all having the same degree and the same divisor.
 ///
 /// A transition constraint group does not actually store transition constraints - it stores only
-/// information about them (their indices, degree_adjustment and coefficients for the linear
-/// combination) the divisor information needed to merge them. The indexes are
+/// their indexes and the info needed to compute their random linear combination. The indexes are
 /// assumed to be consistent with the order in which constraint evaluations are written into the
 /// `evaluation` table by the [Air::evaluate_transition()](crate::Air::evaluate_transition) or
 /// [Air::evaluate_aux_transition()](crate::Air::evaluate_aux_transition) function.
 // TODO [divisors]: DOCS
 #[derive(Clone, Debug)]
 pub struct TransitionConstraintGroup<E: FieldElement> {
+    degree: TransitionConstraintDegree,
+    degree_adjustment: u32,
+    indexes: Vec<usize>,
+    coefficients: Vec<(E, E)>,
     divisor_index: usize,
-    divisor_degree: usize,
-    // information regarding contraints inside the group: indices, degree_adjustment, and coefficients
-    constraint_information: Vec<(usize, u32, (E, E))>,
 }
 
 impl<E: FieldElement> TransitionConstraintGroup<E> {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     /// Returns a new transition constraint group to hold constraints of the specified degree.
-    pub(super) fn new(divisor_index: usize, divisor_degree: usize) -> Self {
+    pub(super) fn new(
+        degree: TransitionConstraintDegree,
+        trace_length: usize,
+        composition_degree: usize,
+        divisor_degree: usize,
+        divisor_index: usize,
+    ) -> Self {
+        // We want to make sure that once we divide a constraint polynomial by its divisor, the
+        // degree of the resulting polynomial will be exactly equal to the composition_degree.
+        let target_degree = composition_degree + divisor_degree;
+        let evaluation_degree = degree.get_evaluation_degree(trace_length);
+        let degree_adjustment = (target_degree - evaluation_degree) as u32;
         TransitionConstraintGroup {
+            degree,
+            degree_adjustment,
+            indexes: vec![],
+            coefficients: vec![],
             divisor_index,
-            divisor_degree,
-            constraint_information: vec![],
         }
     }
 
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
 
+    /// Returns indexes of all constraints in this group.
+    pub fn indexes(&self) -> &[usize] {
+        &self.indexes
+    }
+
+    /// Returns degree descriptors for all constraints in this group.
+    pub fn degree(&self) -> &TransitionConstraintDegree {
+        &self.degree
+    }
+
     /// Returns divisor index of the group.
     pub fn divisor_index(&self) -> usize {
         self.divisor_index
     }
 
-    /// Returns divisor index of the group.
-    pub fn divisor_degree(&self) -> usize {
-        self.divisor_degree
-    }
-
-    /// Returns indexes of all constraints in this group.
-    pub fn constraint_information(&self) -> &[(usize, u32, (E, E))] {
-        &self.constraint_information
-    }
-
     /// Adds a new constraint to the group. The constraint is identified by an index in the
     /// evaluation table.
-    pub fn add(
-        &mut self,
-        composition_degree: usize,
-        trace_length: usize,
-        constraint_idx: usize,
-        degree: TransitionConstraintDegree,
-        coefficients: (E, E),
-    ) {
-        let target_degree = composition_degree + self.divisor_degree;
-        let evaluation_degree = degree.get_evaluation_degree(trace_length);
-        let degree_adjustment = (target_degree - evaluation_degree) as u32;
-        self.constraint_information
-            .push((constraint_idx, degree_adjustment, coefficients));
+    pub fn add(&mut self, constraint_idx: usize, coefficients: (E, E)) {
+        self.indexes.push(constraint_idx);
+        self.coefficients.push(coefficients);
     }
 
     // EVALUATOR
@@ -286,53 +287,30 @@ impl<E: FieldElement> TransitionConstraintGroup<E> {
     /// * $d$ is the degree adjustment factor computed as $D + (n - 1) - deg(C_i(x))$, where
     ///   $D$ is the degree of the composition polynomial, $n$ is the length of the execution
     ///   trace, and $deg(C_i(x))$ is the evaluation degree of the $i$th constraint.
+    ///
+    /// There are two things to note here. First, the degree adjustment factor $d$ is the same
+    /// for all constraints in the group (since all constraints have the same degree). Second,
+    /// the merged evaluations represent a polynomial of degree $D + n - 1$, which is higher
+    /// then the target degree of the composition polynomial. This is because at this stage,
+    /// we are merging only the numerators of transition constraints, and we will need to divide
+    /// them by the divisor later on. The degree of the divisor for transition constraints is
+    /// always $n - 1$. Thus, once we divide out the divisor, the evaluations will represent a
+    /// polynomial of degree $D$.
     pub fn merge_evaluations<B, F>(&self, evaluations: &[F], x: B) -> E
     where
         B: FieldElement,
         F: FieldElement<BaseField = B::BaseField> + ExtensionOf<B>,
         E: FieldElement<BaseField = B::BaseField> + ExtensionOf<B> + ExtensionOf<F>,
     {
-        // TODO [divisors]: Precompute degree adjustments to avoid recomputing them across groups
-
-        // compute degree adjustments factors for this group
-        let xp = self
-            .constraint_information()
-            .iter()
-            .map(|&constraint_info| x.exp(constraint_info.1.into()))
-            .collect::<Vec<_>>();
+        // compute degree adjustment factor for this group
+        let xp = x.exp(self.degree_adjustment.into());
 
         // compute linear combination of evaluations as D(x) * (cc_0 + cc_1 * x^p), where D(x)
         // is an evaluation of a particular constraint, and x^p is the degree adjustment factor
         let mut result = E::ZERO;
-        for (i, (constraint_idx, _, coefficients)) in
-            self.constraint_information().iter().enumerate()
-        {
-            let evaluation = evaluations[*constraint_idx];
-            result += (coefficients.0 + coefficients.1.mul_base(xp[i])).mul_base(evaluation);
-        }
-        result
-    }
-
-    pub fn merge_evaluations2<B, F>(&self, evaluations: &[F], adjustments: &BTreeMap<u32, F>) -> E
-    where
-        B: FieldElement,
-        F: FieldElement<BaseField = B::BaseField> + ExtensionOf<B>,
-        E: FieldElement<BaseField = B::BaseField> + ExtensionOf<B> + ExtensionOf<F>,
-    {
-        // TODO [divisors]: Precompute degree adjustments to avoid recomputing them across groups
-
-        // compute linear combination of evaluations as D(x) * (cc_0 + cc_1 * x^p), where D(x)
-        // is an evaluation of a particular constraint, and x^p is the degree adjustment factor
-        let mut result = E::ZERO;
-        for (constraint_idx, degree_adjustment, coefficients) in
-            self.constraint_information().iter()
-        {
-            let evaluation = evaluations[*constraint_idx];
-            result += (coefficients.0
-                + coefficients
-                    .1
-                    .mul_base(*adjustments.get(degree_adjustment).unwrap()))
-            .mul_base(evaluation);
+        for (&constraint_idx, coefficients) in self.indexes.iter().zip(self.coefficients.iter()) {
+            let evaluation = evaluations[constraint_idx];
+            result += (coefficients.0 + coefficients.1.mul_base(xp)).mul_base(evaluation);
         }
         result
     }
@@ -341,7 +319,7 @@ impl<E: FieldElement> TransitionConstraintGroup<E> {
 // HELPER FUNCTIONS
 // ================================================================================================
 
-/// Groups transition constraints by their divisor.
+/// Groups transition constraints by their degree and divisors.
 fn group_constraints<E: FieldElement>(
     degrees: &[TransitionConstraintDegree],
     divisors_indices: &[usize],
@@ -350,27 +328,23 @@ fn group_constraints<E: FieldElement>(
     divisor_degrees: &[usize],
 ) -> Vec<TransitionConstraintGroup<E>> {
     // iterate over transition constraint degrees, and assign each constraint to the appropriate
-    // group based on its divisor
+    // group based on its degree and divisor
     let mut groups = BTreeMap::new();
-    for idx in 0..degrees.len() {
-        // retrieve or create the group if it does not exist
+    for (i, degree) in degrees.iter().enumerate() {
+        let evaluation_degree = degree.get_evaluation_degree(context.trace_len());
         let group = groups
             // The tree key contains the degree and the divisor index
-            .entry(divisors_indices[idx])
+            .entry((evaluation_degree, divisors_indices[i]))
             .or_insert_with(|| {
                 TransitionConstraintGroup::new(
-                    divisors_indices[idx],
-                    divisor_degrees[divisors_indices[idx]],
+                    degree.clone(),
+                    context.trace_len(),
+                    context.composition_degree(),
+                    divisor_degrees[divisors_indices[i]],
+                    divisors_indices[i],
                 )
             });
-        // add the constraint to the group
-        group.add(
-            context.composition_degree(),
-            context.trace_len(),
-            idx,
-            degrees[idx].clone(),
-            coefficients[idx],
-        );
+        group.add(i, coefficients[i]);
     }
 
     // convert from hash map into a vector and return

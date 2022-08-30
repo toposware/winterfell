@@ -220,14 +220,23 @@ impl<E: FieldElement> ConstraintEvaluationTable<E> {
         // evaluate all transition constraint divisors over the constraint evaluation domain.
         // This is used later to compute
         // actual degrees of transition constraint evaluations.
+
+        // fn get_divisor_evaluations<B: StarkField>(
+        //     divisors: &[ConstraintDivisor<B>],
+        //     domain_size: usize,
+        //     domain_offset: B,
         let div_values = self
             .divisors()
             .iter()
+            .take(1)
             .map(|divisor| {
                 evaluate_divisor::<E::BaseField>(divisor, self.num_rows(), self.domain_offset)
             })
             .collect::<Vec<_>>();
 
+        let divisors = &self.divisors().clone()[..1];
+        let div_values2 =
+            get_divisor_evaluations::<E::BaseField>(divisors, self.num_rows(), self.domain_offset);
         // collect actual degrees for all transition constraints by interpolating saved
         // constraint evaluations into polynomials and checking their degree; also
         // determine max transition constraint degree
@@ -527,7 +536,6 @@ fn get_divisor_evaluations<B: StarkField>(
     let (evaluations_map, inverse_evaluations_map) =
         get_divisor_product_evaluations::<B>(divisors, domain_size, domain_offset);
 
-    // TODO [divisors]: rewrite parallelizable
     // compute divisor evaluations using the saved values of the dictionaries
     let mut divisors_evaluations = Vec::with_capacity(divisors.len());
     for divisor in divisors.iter() {
