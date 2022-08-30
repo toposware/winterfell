@@ -99,6 +99,8 @@ impl Air for CairoAir {
             TransitionConstraintDegree::new(2),
             TransitionConstraintDegree::new(2),
             TransitionConstraintDegree::new(2),
+            // Rangecheck built-in constraint
+            TransitionConstraintDegree::new(1),
         ];
         let aux_degrees = vec![
             // Offset permutation constraints
@@ -282,6 +284,10 @@ impl Air for CairoAir {
         result[50] = (current[49] - current[47]) * (current[48] - current[46] - one);
         result[51] = (current[56] - current[49]) * (current[55] - current[48] - one);
         result[52] = (next[41] - current[56]) * (next[40] - current[55] - one);
+
+        // Rangecheck built-in constraint
+        result[53] =
+            current[51] - (current[52] + two_to_16 * current[53] + two_to_32 * current[54]);
     }
 
     fn evaluate_aux_transition<F, E>(
