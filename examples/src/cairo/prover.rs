@@ -21,6 +21,7 @@ pub struct CairoProver {
     options: ProofOptions,
     bytecode: Vec<BaseElement>,
     register_values: Vec<BaseElement>,
+    rangecheck_pointer_values: Vec<BaseElement>,
 }
 
 impl CairoProver {
@@ -28,11 +29,13 @@ impl CairoProver {
         options: ProofOptions,
         bytecode: Vec<BaseElement>,
         register_values: Vec<BaseElement>,
+        rangecheck_pointer_values: Vec<BaseElement>,
     ) -> Self {
         Self {
             options,
             bytecode,
             register_values,
+            rangecheck_pointer_values,
         }
     }
 
@@ -51,7 +54,6 @@ impl CairoProver {
         reader.lock().unwrap().read_line(&mut line).unwrap();
         line.pop();
         let padded_length = usize::from_str(&line).unwrap();
-
         let mut trace = RapTraceTable::new(TRACE_WIDTH, padded_length);
 
         trace.fill(
@@ -94,6 +96,7 @@ impl Prover for CairoProver {
         PublicInputs {
             bytecode: self.bytecode.clone(),
             register_values: self.register_values.clone(),
+            rangecheck_pointer_values: self.rangecheck_pointer_values.clone(),
         }
     }
 

@@ -35,8 +35,8 @@ use std::sync::Mutex;
 // CONSTANTS
 // ================================================================================================
 
-const TRACE_WIDTH: usize = 50;
-const AUX_WIDTH: usize = 9;
+const TRACE_WIDTH: usize = 66;
+const AUX_WIDTH: usize = 16;
 
 // CAIRO EXAMPLE
 // ================================================================================================
@@ -105,6 +105,7 @@ impl Example for CairoExample {
 
         // read register boundary values
         reader.lock().unwrap().read_line(&mut line).unwrap();
+        line.pop();
         let register_values = line
             .split([' '].as_ref())
             .map(|a| BaseElement::new(u64::from_str(&a).unwrap()))
@@ -113,14 +114,30 @@ impl Example for CairoExample {
             register_values.len() == 4,
             "Wrong number of register boundary values provided."
         );
+        line.clear();
+
+        // read rangecheck built-in pointer values
+        reader.lock().unwrap().read_line(&mut line).unwrap();
+        let rangecheck_pointer_values = line
+            .split([' '].as_ref())
+            .map(|a| BaseElement::new(u64::from_str(&a).unwrap()))
+            .collect::<Vec<BaseElement>>();
+        assert!(
+            rangecheck_pointer_values.len() == 2,
+            "Wrong number of rangecheck pointer values provided."
+        );
 
         // create a prover
-        let prover = CairoProver::new(self.options.clone(), bytecode, register_values);
+        let prover = CairoProver::new(
+            self.options.clone(),
+            bytecode,
+            register_values,
+            rangecheck_pointer_values,
+        );
 
         // generate execution trace
         let now = Instant::now();
         let trace = prover.build_trace_from_file(&self.trace_file_path);
-
         let trace_width = trace.width();
         let trace_length = trace.length();
         debug!(
@@ -146,6 +163,7 @@ impl Example for CairoExample {
         line.pop();
         let bytecode_length = usize::from_str(&line).unwrap();
         line.clear();
+
         reader.lock().unwrap().read_line(&mut line).unwrap();
         line.pop();
         let bytecode = line
@@ -157,15 +175,35 @@ impl Example for CairoExample {
             "Wrong number of values provided."
         );
         line.clear();
+
         reader.lock().unwrap().read_line(&mut line).unwrap();
+        line.pop();
         let register_values = line
             .split([' '].as_ref())
             .map(|a| BaseElement::new(u64::from_str(&a).unwrap()))
             .collect::<Vec<BaseElement>>();
+        assert!(
+            register_values.len() == 4,
+            "Wrong number of register boundary values provided."
+        );
+        line.clear();
+
+        // read rangecheck built-in pointer values
+        reader.lock().unwrap().read_line(&mut line).unwrap();
+        let rangecheck_pointer_values = line
+            .split([' '].as_ref())
+            .map(|a| BaseElement::new(u64::from_str(&a).unwrap()))
+            .collect::<Vec<BaseElement>>();
+        assert!(
+            rangecheck_pointer_values.len() == 2,
+            "Wrong number of rangecheck pointer values provided."
+        );
+
         // println!("{:#?}", bytecode);
         let pub_inputs = PublicInputs {
             bytecode: bytecode,
             register_values: register_values,
+            rangecheck_pointer_values: rangecheck_pointer_values,
         };
         winterfell::verify::<CairoAir>(proof, pub_inputs)
     }

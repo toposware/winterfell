@@ -18,12 +18,15 @@ pub struct PublicInputs {
     pub bytecode: Vec<BaseElement>,
     // pc_0, pc_final, ap_0, ap_final
     pub register_values: Vec<BaseElement>,
+    // rangecheck_begin, rangecheck_stop
+    pub rangecheck_pointer_values: Vec<BaseElement>,
 }
 
 impl Serializable for PublicInputs {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         target.write(&self.bytecode[..]);
         target.write(&self.register_values[..]);
+        target.write(&self.rangecheck_pointer_values[..]);
     }
 }
 
@@ -77,7 +80,15 @@ impl Air for CairoAir {
             TransitionConstraintDegree::new(2),
             TransitionConstraintDegree::new(2),
             TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
             // Memory accesses contiguity and read-only
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
             TransitionConstraintDegree::new(2),
             TransitionConstraintDegree::new(2),
             TransitionConstraintDegree::new(2),
@@ -95,7 +106,14 @@ impl Air for CairoAir {
             TransitionConstraintDegree::new(2),
             TransitionConstraintDegree::new(2),
             TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
             // Memory permutation constraints
+            TransitionConstraintDegree::new(2),
             TransitionConstraintDegree::new(2),
             TransitionConstraintDegree::new(2),
             TransitionConstraintDegree::new(2),
@@ -108,7 +126,7 @@ impl Air for CairoAir {
                 trace_info,
                 main_degrees,
                 aux_degrees,
-                5,
+                7,
                 2,
                 options,
             )
@@ -242,20 +260,28 @@ impl Air for CairoAir {
         result[31] = (current[35] - current[34]) * (current[35] - current[34] - one);
         result[32] = (current[36] - current[35]) * (current[36] - current[35] - one);
         result[33] = (current[37] - current[36]) * (current[37] - current[36] - one);
-        result[34] = (next[34] - current[37]) * (next[34] - current[37] - one);
+        result[34] = (current[60] - current[37]) * (current[60] - current[37] - one);
+        result[35] = (current[61] - current[60]) * (current[61] - current[60] - one);
+        result[36] = (current[62] - current[61]) * (current[62] - current[61] - one);
+        result[37] = (current[63] - current[62]) * (current[63] - current[62] - one);
+        result[38] = (current[64] - current[63]) * (current[64] - current[63] - one);
+        result[39] = (current[65] - current[64]) * (current[65] - current[64] - one);
+        result[40] = (next[34] - current[65]) * (next[34] - current[65] - one);
 
         // Memory accesses contiguity and read-only
-        result[35] = (current[42] - current[40]) * (current[42] - current[40] - one);
-        result[36] = (current[44] - current[42]) * (current[44] - current[42] - one);
-        result[37] = (current[46] - current[44]) * (current[46] - current[44] - one);
-        result[38] = (current[48] - current[46]) * (current[48] - current[46] - one);
-        result[39] = (next[40] - current[48]) * (next[40] - current[48] - one);
+        result[41] = (current[42] - current[40]) * (current[42] - current[40] - one);
+        result[42] = (current[44] - current[42]) * (current[44] - current[42] - one);
+        result[43] = (current[46] - current[44]) * (current[46] - current[44] - one);
+        result[44] = (current[48] - current[46]) * (current[48] - current[46] - one);
+        result[45] = (current[55] - current[48]) * (current[55] - current[48] - one);
+        result[46] = (next[40] - current[55]) * (next[40] - current[55] - one);
 
-        result[40] = (current[43] - current[41]) * (current[42] - current[40] - one);
-        result[41] = (current[45] - current[43]) * (current[44] - current[42] - one);
-        result[42] = (current[47] - current[45]) * (current[46] - current[44] - one);
-        result[43] = (current[49] - current[47]) * (current[48] - current[46] - one);
-        result[44] = (next[41] - current[49]) * (next[40] - current[48] - one);
+        result[47] = (current[43] - current[41]) * (current[42] - current[40] - one);
+        result[48] = (current[45] - current[43]) * (current[44] - current[42] - one);
+        result[49] = (current[47] - current[45]) * (current[46] - current[44] - one);
+        result[50] = (current[49] - current[47]) * (current[48] - current[46] - one);
+        result[51] = (current[56] - current[49]) * (current[55] - current[48] - one);
+        result[52] = (next[41] - current[56]) * (next[40] - current[55] - one);
     }
 
     fn evaluate_aux_transition<F, E>(
@@ -291,45 +317,63 @@ impl Air for CairoAir {
             - aux_current[1] * (random_elements[0] - main_current[18].into());
         result[2] = aux_current[3] * (random_elements[0] - main_current[37].into())
             - aux_current[2] * (random_elements[0] - main_current[33].into());
-        result[3] = aux_next[0] * (random_elements[0] - main_next[34].into())
-            - aux_current[3] * (random_elements[0] - main_next[16].into());
+        result[3] = aux_current[4] * (random_elements[0] - main_current[60].into())
+            - aux_current[3] * (random_elements[0] - main_current[52].into());
+        result[4] = aux_current[5] * (random_elements[0] - main_current[61].into())
+            - aux_current[4] * (random_elements[0] - main_current[53].into());
+        result[5] = aux_current[6] * (random_elements[0] - main_current[62].into())
+            - aux_current[5] * (random_elements[0] - main_current[54].into());
+        result[6] = aux_current[7] * (random_elements[0] - main_current[63].into())
+            - aux_current[6] * (random_elements[0] - main_current[57].into());
+        result[7] = aux_current[8] * (random_elements[0] - main_current[64].into())
+            - aux_current[7] * (random_elements[0] - main_current[58].into());
+        result[8] = aux_current[9] * (random_elements[0] - main_current[65].into())
+            - aux_current[8] * (random_elements[0] - main_current[59].into());
+        result[9] = aux_next[0] * (random_elements[0] - main_next[34].into())
+            - aux_current[9] * (random_elements[0] - main_next[16].into());
 
         // Memory permutation arguments
         // Necessary variables: into() fails otherwise. Any better way to do this?
         let mut a: E = main_current[21].into();
         let mut a2: E = main_current[42].into();
-        result[4] = aux_current[5]
+        result[10] = aux_current[11]
             * (random_elements[1] - (a2 + random_elements[2] * main_current[43].into()))
-            - aux_current[4]
+            - aux_current[10]
                 * (random_elements[1] - (a + random_elements[2] * main_current[22].into()));
         a = main_current[23].into();
         a2 = main_current[44].into();
-        result[5] = aux_current[6]
+        result[11] = aux_current[12]
             * (random_elements[1] - (a2 + random_elements[2] * main_current[45].into()))
-            - aux_current[5]
+            - aux_current[11]
                 * (random_elements[1] - (a + random_elements[2] * main_current[24].into()));
         a = main_current[25].into();
         a2 = main_current[46].into();
-        result[6] = aux_current[7]
+        result[12] = aux_current[13]
             * (random_elements[1] - (a2 + random_elements[2] * main_current[47].into()))
-            - aux_current[6]
+            - aux_current[12]
                 * (random_elements[1] - (a + random_elements[2] * main_current[26].into()));
         a = main_current[38].into();
         a2 = main_current[48].into();
-        result[7] = aux_current[8]
+        result[13] = aux_current[14]
             * (random_elements[1] - (a2 + random_elements[2] * main_current[49].into()))
-            - aux_current[7]
+            - aux_current[13]
                 * (random_elements[1] - (a + random_elements[2] * main_current[39].into()));
+        a = main_current[50].into();
+        a2 = main_current[55].into();
+        result[14] = aux_current[15]
+            * (random_elements[1] - (a2 + random_elements[2] * main_current[56].into()))
+            - aux_current[14]
+                * (random_elements[1] - (a + random_elements[2] * main_current[51].into()));
         a = main_next[19].into();
         a2 = main_next[40].into();
-        result[8] = aux_next[4]
+        result[15] = aux_next[10]
             * (random_elements[1] - (a2 + random_elements[2] * main_next[41].into()))
-            - aux_current[8]
+            - aux_current[15]
                 * (random_elements[1] - (a + random_elements[2] * main_next[20].into()));
     }
 
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
-        // Check boundary register values.
+        // Check boundary register and rangecheck pointer values.
         let last_step = self.trace_length() - 2;
         vec![
             Assertion::single(19, 0, self.public_inputs.register_values[0]),
@@ -337,6 +381,12 @@ impl Air for CairoAir {
             Assertion::single(27, 0, self.public_inputs.register_values[2]),
             Assertion::single(28, 0, self.public_inputs.register_values[2]),
             Assertion::single(27, last_step, self.public_inputs.register_values[3]),
+            Assertion::single(50, 0, self.public_inputs.rangecheck_pointer_values[0]),
+            Assertion::single(
+                50,
+                last_step,
+                self.public_inputs.rangecheck_pointer_values[1] - Self::BaseField::ONE,
+            ),
         ]
     }
 
@@ -357,8 +407,8 @@ impl Air for CairoAir {
         }
 
         vec![
-            Assertion::single(3, self.trace_length() - 2, E::ONE),
-            Assertion::single(8, self.trace_length() - 2, final_value),
+            Assertion::single(9, self.trace_length() - 2, E::ONE),
+            Assertion::single(15, self.trace_length() - 2, final_value),
         ]
     }
 }
