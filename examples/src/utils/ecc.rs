@@ -7,7 +7,9 @@
 // except according to those terms.
 
 use super::{are_equal, is_binary, not, EvaluationResult};
-use winterfell::math::{fields::f63::BaseElement, FieldElement};
+use winterfell::math::{
+    fields::f63::BaseElement, FieldElement,
+};
 
 use std::iter::repeat;
 
@@ -37,6 +39,22 @@ pub const GENERATOR: ECPoint = [
     BaseElement::from_raw_unchecked(0x3df7b90927efc7ec),
     BaseElement::from_raw_unchecked(0xab8bbf4a53af6a0),
     BaseElement::from_raw_unchecked(0xe13dca26b2ac6ab),
+];
+
+pub const _IDENTITY: ECPoint = [
+    BaseElement::ZERO,
+    BaseElement::ZERO,
+    BaseElement::ZERO,
+    BaseElement::ZERO,
+    BaseElement::ZERO,
+    BaseElement::ZERO,
+
+    BaseElement::ONE,
+    BaseElement::ZERO,
+    BaseElement::ZERO,
+    BaseElement::ZERO,
+    BaseElement::ZERO,
+    BaseElement::ZERO
 ];
 
 pub const TWICE_THE_GENERATOR: ECPoint = [
@@ -127,36 +145,70 @@ pub(crate) fn enforce_point_addition_affine<E: FieldElement + From<BaseElement>>
     }
 }
 
-#[test]
-fn test_point_addition_affine() {
-    let twice_the_generator = [
-        BaseElement::new(0x7f4c1bfc52278ad8),
-        BaseElement::new(0xfa8e921f7580e371),
-        BaseElement::new(0x97252bf35d1c7668),
-        BaseElement::new(0xe6d0901604cae95a),
-        BaseElement::new(0xae36bba2ad2ee0d7),
-        BaseElement::new(0x194b4e35a2a9c77),
-        BaseElement::new(0x144045efbce03ef8),
-        BaseElement::new(0x8e5fe3f66f8b370d),
-        BaseElement::new(0x3d54df63b96bfd20),
-        BaseElement::new(0x2418219e37948caa),
-        BaseElement::new(0xd4c1a40432582552),
-        BaseElement::new(0x367b029f5f146e3d)
-    ];
-    let mut slope = [BaseElement::ZERO; POINT_COORDINATE_WIDTH];
-    compute_slope(&mut slope, &GENERATOR, &GENERATOR);
-    let mut result = [BaseElement::ZERO; AFFINE_POINT_WIDTH + POINT_COORDINATE_WIDTH + 1];
-    enforce_point_addition_affine(
-        &mut result,
-        &GENERATOR,
-        &GENERATOR,
-        &slope,
-        &twice_the_generator,
-        BaseElement::ONE
-    );
-    assert_eq!(result, [BaseElement::ZERO; AFFINE_POINT_WIDTH + POINT_COORDINATE_WIDTH + 1])
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cheetah::{AffinePoint, ProjectivePoint};
 
+    #[test]
+    fn test_slope() {
+        let lhs = AffinePoint::from(ProjectivePoint::generator().double());
+        let rhs = AffinePoint::from(ProjectivePoint::generator().double().double());
+        let denominator = rhs.get_x() - lhs.get_x();
+        let numerator = rhs.get_y() - lhs.get_y();
+        let expected = (numerator*(denominator.invert().unwrap())).output_reduced_limbs().map(BaseElement::new);
+
+        let lhs = [
+            lhs.get_x().output_reduced_limbs().map(BaseElement::new),
+            lhs.get_y().output_reduced_limbs().map(BaseElement::new)
+        ].concat();
+        let rhs = [
+            rhs.get_x().output_reduced_limbs().map(BaseElement::new),
+            rhs.get_y().output_reduced_limbs().map(BaseElement::new)
+        ].concat();
+
+        let mut slope = [BaseElement::ZERO; POINT_COORDINATE_WIDTH];
+        compute_slope(&mut slope, &lhs, &rhs);
+
+        assert_eq!(expected, slope);
+    }
+
+    #[test]
+    fn test_point_addition_affine() {
+        let lhs = ProjectivePoint::generator().double();
+        let rhs = ProjectivePoint::generator().double().double();
+        let expected = AffinePoint::from(lhs + rhs);
+        let lhs = AffinePoint::from(lhs);
+        let rhs = AffinePoint::from(rhs);
+        let lhs_vec = [
+            lhs.get_x().output_reduced_limbs().map(BaseElement::new),
+            lhs.get_y().output_reduced_limbs().map(BaseElement::new)
+        ].concat();
+        let rhs_vec = [
+            rhs.get_x().output_reduced_limbs().map(BaseElement::new),
+            rhs.get_y().output_reduced_limbs().map(BaseElement::new)
+        ].concat();
+        let expected = [
+            expected.get_x().output_reduced_limbs().map(BaseElement::new),
+            expected.get_y().output_reduced_limbs().map(BaseElement::new)
+        ].concat();
+
+        let denominator = rhs.get_x() - lhs.get_x();
+        let numerator = rhs.get_y() - lhs.get_y();
+        let slope = (numerator*(denominator.invert().unwrap())).output_reduced_limbs().map(BaseElement::new);
+        
+        let mut result = [BaseElement::ZERO; POINT_COORDINATE_WIDTH + AFFINE_POINT_WIDTH];
+        enforce_point_addition_affine(
+            &mut result,
+            &lhs_vec,
+            &rhs_vec,
+            &slope,
+            &expected,
+            BaseElement::ONE
+        );
+        assert_eq!(result, [BaseElement::ZERO; AFFINE_POINT_WIDTH + POINT_COORDINATE_WIDTH])
+    }
+}
 
 /// When flag = 1, enforces constraints for performing a point doubling.
 pub(crate) fn enforce_point_doubling<E: FieldElement + From<BaseElement>>(
@@ -429,10 +481,9 @@ pub fn compute_add_affine_with_slope<E: FieldElement + From<BaseElement>>(state:
 
     let x2 = &point[0..POINT_COORDINATE_WIDTH];
     
-    let x3 = &mul_fp6(slope, slope);
+    let x3 = &square_fp6(slope);
     let x3 = &sub_fp6(x3, x1);
     let x3 = &sub_fp6(x3, x2);
-    let x3 = &sub_fp6(x3, point);
     
     let y3 = &sub_fp6(x1, x3);
     let y3 = &mul_fp6(slope, y3);
