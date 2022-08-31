@@ -8,8 +8,6 @@ use super::{
     StarkField, Trace, TraceTable,
 };
 
-// use crate::utils::print_trace;
-
 // COLLATZ PROVER
 // ================================================================================================
 
@@ -86,9 +84,13 @@ impl CollatzProver {
         let mut trace = TraceTable::new(4, 128 * sequence_length);
         trace.fill(
             |state| {
+                // reg_0 stores the collatz sequence
                 state[0] = BaseElement::new(sequence[0]);
+                // reg_1 stores the first remainder that defines the next sequence element
                 state[1] = BaseElement::new(decomposition_values[0][0].1);
+                // reg_2 stores the previous value divided by 2
                 state[2] = BaseElement::new(decomposition_values[0][0].0);
+                // reg_3 stores the remainder of the last division
                 state[3] = BaseElement::new(decomposition_values[0][0].1);
             },
             |i, state| {
@@ -99,7 +101,6 @@ impl CollatzProver {
             },
         );
 
-        // print_trace(&trace, 1, 0, 0..4);
         trace
     }
 }

@@ -55,22 +55,34 @@ impl Air for CollatzAir {
 
         assert_eq!(TRACE_WIDTH, trace_info.width());
 
-        // initially we only include the default divisor
+        // vector to save divisors used by the air
         let mut divisors = vec![];
 
+        // the default divisor (X^n-1)/(X-last_step)
         // period 1, offset 0, 1 final exemption
         let divisor_default = (vec![(1, 0, 1)], vec![]);
         divisors.push(divisor_default);
 
         // We add the custom divisors
 
+        // period 128 and offset 127 with one final ExampleOptions
+        // checks transitions k*128+127 execpt the last one
         let divisor1 = (vec![(128, 127, 1)], vec![]);
         divisors.push(divisor1);
 
-        let divisor2 = (vec![(1, 0, 0)], vec![(128, 127)]);
+        // all steps that are multiples of 128
+        let divisor2 = (vec![(128, 0, 0)], vec![]);
         divisors.push(divisor2);
 
-        let main_constraint_divisors: Vec<usize> = Vec::from([0, 2, 2, 2, 1, 1, 1]);
+        // check everything exept steps k*128+127
+        let divisor3 = (vec![(1, 0, 0)], vec![(128, 127)]);
+        divisors.push(divisor3);
+
+        // we assigne each constraint with one of the divisors.
+        // We should use ordering with which we define the constraints
+        let main_constraint_divisors: Vec<usize> = Vec::from([0, 3, 3, 3, 1, 2, 2]);
+
+        // we mutate the divisors which by default contain only the default divisor
         CollatzAir {
             context: AirContext::new(trace_info, degrees, 2, options).set_custom_divisors(
                 &divisors,
@@ -105,8 +117,9 @@ impl Air for CollatzAir {
         let three = E::from(3u128);
 
         // Constraints:
-        // 1. last column should contain bits (everywhere)
-        // 2. first and second column remains the same (except on 127 mod 128)
+        // 0. last column should contain bits (everywhere exept the last step)
+        // 1,2. first column (collatz sequence) and second column (claimed remainder)
+        //      remain the same except on 127 mod 128
         // 3. next bit decomposition is ok (except on 127 mod 128)
         // 4. next element in sequence is correct (on 127 mod 128)
         // 5. least significant bit correct (on 127 mod 128)
@@ -123,14 +136,15 @@ impl Air for CollatzAir {
         result[3] = current[2] - (next[2] * two + next[3]);
 
         // next element in sequence is correct (on 127 mod 128)
+        // We should exclude the last step since it cycles
         result[4] = (one - current[1]) * (two * next[0] - current[0])
             + current[1] * (next[0] - (three * current[0] + one));
 
-        // first decomposition is correct (on 127 mod 128)
-        result[5] = next[0] - (next[2] * two + next[3]);
+        // first decomposition is correct (on 0 mod 128)
+        result[5] = current[0] - (current[2] * two + current[3]);
 
-        // 6. copy of lsb is correct (on 127 mod 128)
-        result[6] = next[1] - next[3];
+        // 6. copy of lsb is correct (on 0 mod 128)
+        result[6] = current[1] - current[3];
 
         //
     }

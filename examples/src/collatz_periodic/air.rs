@@ -84,7 +84,8 @@ impl Air for CollatzAir {
         let three = E::from(3u128);
 
         // check conditions on 127 mod 128 or not
-        let flag = periodic_values[0];
+        let flag_0 = periodic_values[0];
+        let flag_1 = periodic_values[1];
 
         // Constraints:
         // 1. last column should contain bits (everywhere)
@@ -98,22 +99,22 @@ impl Air for CollatzAir {
         result[0] = current[3] * (current[3] - one);
 
         // first and second column remains the same (except on 127 mod 128)
-        result[1] = (one - flag) * (next[0] - current[0]);
-        result[2] = (one - flag) * (next[1] - current[1]);
+        result[1] = (one - flag_0) * (next[0] - current[0]);
+        result[2] = (one - flag_0) * (next[1] - current[1]);
 
         // next bit decomposition is ok (except on 127 mod 128)
-        result[3] = (one - flag) * (current[2] - (next[2] * two + next[3]));
+        result[3] = (one - flag_0) * (current[2] - (next[2] * two + next[3]));
 
         // next element in sequence is correct (on 127 mod 128)
-        result[4] = flag
+        result[4] = flag_0
             * ((one - current[1]) * (two * next[0] - current[0])
                 + current[1] * (next[0] - (three * current[0] + one)));
 
-        // first decomposition is correct (on 127 mod 128)
-        result[5] = flag * (next[0] - (next[2] * two + next[3]));
+        // first decomposition is correct (on 0 mod 128)
+        result[5] = flag_1 * (current[0] - (current[2] * two + current[3]));
 
-        // 6. copy of lsb is correct (on 127 mod 128)
-        result[6] = flag * (next[1] - next[3]);
+        // 6. copy of lsb is correct (on 0 mod 128)
+        result[6] = flag_1 * (current[1] - current[3]);
 
         //
     }
@@ -128,7 +129,7 @@ impl Air for CollatzAir {
 
     fn get_periodic_column_values(&self) -> Vec<Vec<Self::BaseField>> {
         let mut pv = Vec::new();
-        let period = (0..128)
+        let period_0 = (0..128)
             .map(|x| {
                 if x == 127 {
                     BaseElement::ONE
@@ -137,7 +138,17 @@ impl Air for CollatzAir {
                 }
             })
             .collect::<Vec<_>>();
-        pv.push(period);
+        pv.push(period_0);
+        let period_1 = (0..128)
+            .map(|x| {
+                if x == 0 {
+                    BaseElement::ONE
+                } else {
+                    BaseElement::ZERO
+                }
+            })
+            .collect::<Vec<_>>();
+        pv.push(period_1);
         pv
     }
 }
