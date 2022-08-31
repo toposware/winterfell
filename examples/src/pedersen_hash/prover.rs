@@ -17,11 +17,10 @@ use crate::utils::print_trace_63;
 // PEDERSEN HASH PROVER
 // ================================================================================================
 const N_CHUNKS: usize = 8;
-pub const BITS_PER_CHUNK: usize = 15;
+pub const BITS_PER_CHUNK: usize = 63;
 const N_BITS: usize = N_CHUNKS*BITS_PER_CHUNK;
-pub const CYCLE_LENGTH: usize = BITS_PER_CHUNK.next_power_of_two();
-pub const TRACE_LENGTH: usize = (N_BITS as u32).next_power_of_two() as usize;
-pub const N_CYCLES: usize = TRACE_LENGTH/CYCLE_LENGTH;
+pub const CYCLE_LENGTH: usize = 64;
+pub const TRACE_LENGTH: usize = CYCLE_LENGTH*(N_CHUNKS.next_power_of_two());
 pub const TRACE_WIDTH: usize = AFFINE_POINT_WIDTH + 1 + POINT_COORDINATE_WIDTH;
 
 // Constants for reading from the state
@@ -29,19 +28,18 @@ const CURVE_POINT: Range<usize> = 0..AFFINE_POINT_WIDTH;
 const PREFIX: usize = AFFINE_POINT_WIDTH;
 const SLOPE: Range<usize> = AFFINE_POINT_WIDTH + 1 .. AFFINE_POINT_WIDTH + POINT_COORDINATE_WIDTH + 1;
 
-const EXAMPLE: [[u64; BITS_PER_CHUNK]; N_CHUNKS] =
-    [
-        [1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0],
-        [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0],
-        [0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0],
-        [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0],
-        [0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0],
-        [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0],
-        [0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 0],
-        [0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0],
-    ];
+const EXAMPLE: [u64; N_CHUNKS] = [
+    2u64.pow(63) - 1,
+    2u64.pow(63) - 2,
+    2u64.pow(63) - 3,
+    2u64.pow(63) - 4,
+    2u64.pow(63) - 5,
+    2u64.pow(63) - 6,
+    2u64.pow(63) - 1000,
+    2u64.pow(63) - 8
+];
 
-const _TRIVIAL_EXAMPLE: [[u64; BITS_PER_CHUNK]; N_CHUNKS] = [[0u64; BITS_PER_CHUNK]; N_CHUNKS];
+// const _TRIVIAL_EXAMPLE: [[u64; BITS_PER_CHUNK]; N_CHUNKS] = [[0u64; BITS_PER_CHUNK]; N_CHUNKS];
 
 pub struct PedersenHashProver {
     options: ProofOptions,
@@ -58,12 +56,12 @@ impl PedersenHashProver {
     //
     pub fn build_trace(&self) -> TraceTable<BaseElement> {
         // Some arbitrary binary decompositions of field elements
-        let bits  = EXAMPLE;
+        let inputs = EXAMPLE;
 
         let mut trace = TraceTable::new(TRACE_WIDTH, TRACE_LENGTH);
         let initial_pedersen_point = get_intial_constant_point();
         let pedersen_constant_points = get_constant_points();
-        update_with_subset_sum(&mut trace, bits, initial_pedersen_point, pedersen_constant_points);
+        update_with_subset_sum(&mut trace, inputs, initial_pedersen_point, pedersen_constant_points);
         print_trace_63(&trace, 1, 0, 11..13);
         trace
     }
@@ -71,7 +69,7 @@ impl PedersenHashProver {
 
 impl Prover for PedersenHashProver {
     type BaseField = BaseElement;
-    type Air = PedersenHashAir<TRACE_LENGTH, 1>;
+    type Air = PedersenHashAir<TRACE_LENGTH, CYCLE_LENGTH, 1>;
     type Trace = TraceTable<BaseElement>;
 
     fn get_pub_inputs(&self, trace: &Self::Trace) -> PublicInputs {
@@ -120,16 +118,15 @@ fn get_prefixes(bits: &[[u64; BITS_PER_CHUNK]; N_CHUNKS]) -> Vec<Vec<BaseElement
 
 fn update_with_subset_sum(
     trace: &mut TraceTable<BaseElement>,
-    bits: [[u64; BITS_PER_CHUNK]; N_CHUNKS],
+    inputs: [u64; N_CHUNKS],
     initial_constant_point: [BaseElement; AFFINE_POINT_WIDTH], 
     constant_points: [[BaseElement; AFFINE_POINT_WIDTH]; TRACE_LENGTH])
 {
-    let prefixes = get_prefixes(&bits);
     
     let mut state = [BaseElement::ZERO; TRACE_WIDTH];
     state[CURVE_POINT].copy_from_slice(&initial_constant_point);
 
-    for i in 0..N_CYCLES {
+    for i in 0..N_CHUNKS {
 
         // update the first row for this chunk
         let current_row_index = i*CYCLE_LENGTH;
@@ -140,17 +137,18 @@ fn update_with_subset_sum(
             &point,
             &constant_points[current_row_index]
         );
-        state[PREFIX] = prefixes[i][0];
+        
+        let mut prefix = inputs[i];
+        state[PREFIX] = BaseElement::from(prefix);
         trace.update_row(i*CYCLE_LENGTH, &state);
 
         for (current, next) in (0..CYCLE_LENGTH-1).zip(1..CYCLE_LENGTH) {
             let current_row_index = i*CYCLE_LENGTH + current;
             let next_row_index = i*CYCLE_LENGTH + next;
 
-            state[PREFIX] = prefixes[i][next];
+            state[PREFIX] = BaseElement::from(prefix >> 1);
 
-            // bits are in backward order
-            if bits[i][BITS_PER_CHUNK - 1 - current] == 1u64 {
+            if prefix%2 == 1 {
                 // retrieve the slope of the current row
                 let slope = &mut [BaseElement::ZERO; POINT_COORDINATE_WIDTH];
                 slope.copy_from_slice(&state[SLOPE]);
@@ -163,7 +161,9 @@ fn update_with_subset_sum(
                 &point,
                 &constant_points[next_row_index]
             );
+            
             trace.update_row(next_row_index, &state);
+            prefix >>= 1;
         }
     }
 }
