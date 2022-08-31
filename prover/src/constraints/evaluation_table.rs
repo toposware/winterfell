@@ -8,7 +8,6 @@ use super::{CompositionPoly, ConstraintDivisor, ProverError, StarkDomain};
 use math::get_power_series_with_offset;
 use math::{batch_inversion, fft, FieldElement, StarkField};
 use utils::{
-    batch_iter_mut,
     collections::{BTreeMap, Vec},
     iter_mut, uninit_vector,
 };
@@ -185,22 +184,23 @@ impl<E: FieldElement> ConstraintEvaluationTable<E> {
         let mut combined_poly = E::zeroed_vector(self.num_rows());
 
         // evaluate all divisors in the evaluation domain
-        let divisors_evaluations =
-            get_divisor_evaluations::<E::BaseField>(&self.divisors, self.num_rows(), domain_offset);
+        let divisors_evaluations = get_divisor_evaluations::<E::BaseField>(
+            &self.divisors(),
+            self.num_rows(),
+            domain_offset,
+        );
 
         // iterate over all columns of the constraint evaluation table, divide each column
         // by the evaluations of its corresponding divisor, and add all resulting evaluations
         // together into a single vector
-        for (i, (column, divisor)) in self
-            .evaluations
-            .into_iter()
-            .zip(self.divisors.iter())
-            .enumerate()
-        {
+        #[cfg(debug_assertions)]
+        let divisors = self.divisors().to_owned();
+
+        for (i, column) in self.evaluations.into_iter().enumerate() {
             // in debug mode, make sure post-division degree of each column matches the expected
             // degree
-            // #[cfg(debug_assertions)]
-            // validate_column_degree(&column, divisor, domain_offset, column.len() - 1)?;
+            #[cfg(debug_assertions)]
+            validate_column_degree(&column, &divisors[i], domain_offset, column.len() - 1)?;
 
             acc_column(column, &divisors_evaluations[i], &mut combined_poly);
         }
@@ -393,134 +393,83 @@ fn acc_column<E: FieldElement>(
 }
 
 /// Takes a list of divisors and evaluates all the product terms over the domain
-fn get_divisor_product_evaluations<B: StarkField>(
+fn get_divisor_numerator_evaluations<B: StarkField>(
     divisors: &[ConstraintDivisor<B>],
     domain_size: usize,
     domain_offset: B,
 ) -> (
-    BTreeMap<(usize, usize), std::vec::Vec<B>>,
+    BTreeMap<usize, std::vec::Vec<B>>,
     BTreeMap<(usize, usize), std::vec::Vec<B>>,
 ) {
-    // A map to save the evaluations of divisor denominator (exemption) products
-    let mut evaluations_map = BTreeMap::new();
+    // A map to save the various exponentiations to not repeat them in denominator evaluations
+    let mut exponentiations_map = BTreeMap::new();
+
     // A map to save the inverse evaluations of divisor numerator products
     let mut inverse_evaluations_map = BTreeMap::new();
 
-    // we record the total number of elements to be inverted for faster
-    // vector initialization
-    let mut numerator_vals_size = 0;
-
-    // vector of keys for product evaluations
-    let mut keys = vec![];
-
-    // collect all keys from divisor products
-    for divisor in divisors {
-        // we flag products to be inverted (numerator) with "true"
-        for product in divisor.numerator() {
-            keys.push((
-                product.degree(),
-                product.coset_dlog(),
-                product.coset_elem(),
-                true,
-            ));
-            numerator_vals_size += domain_size / product.degree();
-        }
-        for product in divisor.denominator() {
-            keys.push((
-                product.degree(),
-                product.coset_dlog(),
-                product.coset_elem(),
-                false,
-            ));
-        }
-    }
-    // We sort products to save exponentiations
-    keys.sort_by(|a, b| (a.0, a.1, a.3).cmp(&(b.0, b.1, b.3)));
-    keys.dedup();
-
+    // domain generator
     let g_domain = B::get_root_of_unity(domain_size.trailing_zeros());
-    // set initial values
 
-    // product degree
-    let mut degree = 1;
+    // get the number of elements to be inverted
+    let num_values = divisors
+        .iter()
+        .map(|divisor| {
+            divisor
+                .numerator()
+                .iter()
+                .fold(0, |acc, n| acc + (domain_size / n.degree()))
+        })
+        .fold(0, |acc, x| acc + x);
+    // a vector to save numerator_values
 
-    // subgroup generator for the product term
-    let mut g = g_domain;
+    let mut numerator_vals = unsafe { uninit_vector(num_values) };
 
-    // domain offset element
-    let mut h = domain_offset;
-
-    // number of values to be computed
-    let mut n = domain_size as usize;
-
-    // this vector caches exponentiations
-    // let mut exponentiations = unsafe { uninit_vector(domain_size) };
-    // let mut exponentiations = unsafe { uninit_vector(domain_size) };
-
-    // we initialize a vector to record values to be inverted.
-    // we also recall the last index we accessed
-    let mut numerator_vals = unsafe { uninit_vector(numerator_vals_size) };
     let mut last_idx = 0;
 
-    let mut exponentiations = unsafe { uninit_vector(domain_size) };
-    for (i, key) in keys.iter().enumerate() {
-        {
-            // compute new powers for shifted products
-            if key.0 != degree || i == 0 {
-                let degree_difference = key.0 / degree;
-                degree = key.0;
-                // subgroup generator for the product term
-                g = g.exp((degree_difference as u64).into());
-                // domain offset element
-                h = h.exp((degree_difference as u64).into());
-                // number of evaluations needed for the product term
-                n = domain_size / key.0 as usize;
-                exponentiations[..n].copy_from_slice(&get_power_series_with_offset(g, h, n));
-            }
-            // numerator
-            if key.3 {
-                batch_iter_mut!(
-                    &mut numerator_vals[last_idx..(last_idx + n)],
-                    128,
-                    |batch: &mut [B], batch_offset: usize| {
-                        let coset = key.2;
-                        for (i, evaluation) in batch.iter_mut().enumerate() {
-                            *evaluation = exponentiations[batch_offset + i] - coset;
-                        }
-                    }
-                );
-                last_idx += n;
-            } else {
-                let mut evaluations = unsafe { uninit_vector(n) };
-                batch_iter_mut!(
-                    &mut evaluations,
-                    128,
-                    |batch: &mut [B], batch_offset: usize| {
-                        let coset = key.2;
-                        for (i, evaluation) in batch.iter_mut().enumerate() {
-                            *evaluation = exponentiations[batch_offset + i] - coset;
-                        }
-                    }
-                );
-                evaluations_map.insert((key.0, key.1), evaluations);
-            }
+    for divisor in divisors {
+        for product in divisor.numerator().iter() {
+            // for each product of different degree in the numerator
+            // compute X^d over the domain if not already computed
+            let exponentiations =
+                exponentiations_map
+                    .entry(product.degree())
+                    .or_insert_with(|| {
+                        let g = g_domain.exp((product.degree() as u64).into());
+                        let h = domain_offset.exp((product.degree() as u64).into());
+
+                        get_power_series_with_offset(g, h, domain_size / product.degree())
+                    });
+            // compute all numerator values by shifting the X^d values
+            iter_mut!(
+                numerator_vals[last_idx..(last_idx + domain_size / product.degree())],
+                1024
+            )
+            .enumerate()
+            .for_each(|(i, result)| {
+                *result = exponentiations[i] - product.coset_elem();
+            });
+            last_idx += domain_size / product.degree();
         }
     }
 
     // batch inverse all numerator values
     let inverse_numerator_vals = batch_inversion(&numerator_vals);
 
+    // record the inverse values in a BTreeMap
     last_idx = 0;
 
-    for key in keys.iter().filter(|x| x.3) {
-        inverse_evaluations_map.insert(
-            (key.0, key.1),
-            inverse_numerator_vals[last_idx..(last_idx + domain_size / key.0)].to_vec(),
-        );
-        last_idx += domain_size / key.0;
+    for divisor in divisors {
+        for product in divisor.numerator() {
+            inverse_evaluations_map.insert(
+                (product.degree(), product.coset_dlog()),
+                inverse_numerator_vals[last_idx..(last_idx + domain_size / product.degree())]
+                    .to_owned(),
+            );
+            last_idx += domain_size / product.degree();
+        }
     }
 
-    (evaluations_map, inverse_evaluations_map)
+    (exponentiations_map, inverse_evaluations_map)
 }
 
 /// Takes a list of divisors and evaluates all the product terms over the domain
@@ -529,10 +478,9 @@ fn get_divisor_evaluations<B: StarkField>(
     domain_size: usize,
     domain_offset: B,
 ) -> Vec<Vec<B>> {
-    // First, we evaluate X^k evaluations for all terms appearing at products
-
-    let (evaluations_map, inverse_evaluations_map) =
-        get_divisor_product_evaluations::<B>(divisors, domain_size, domain_offset);
+    // get the inverse values
+    let (mut exponentiations_map, inverse_evaluations_map) =
+        get_divisor_numerator_evaluations::<B>(divisors, domain_size, domain_offset);
 
     // compute divisor evaluations using the saved values of the dictionaries
     let mut divisors_evaluations = Vec::with_capacity(divisors.len());
@@ -557,16 +505,24 @@ fn get_divisor_evaluations<B: StarkField>(
             divisor.numerator()[0].degree(),
             divisor.numerator()[0].coset_dlog(),
         );
+
+        let g_domain = B::get_root_of_unity(domain_size.trailing_zeros());
         let zs = inverse_evaluations_map.get(&key).unwrap();
         iter_mut!(results, 1024)
             .enumerate()
             .for_each(|(i, result)| {
                 *result = zs[i % zs.len()];
             });
-        if !divisor.denominator().is_empty() {
-            for product in divisor.denominator() {
-                let key = (product.degree(), product.coset_dlog());
-                let zs = evaluations_map.get(&key).unwrap();
+        for (j, product) in divisor.numerator().iter().enumerate() {
+            let key = (product.degree(), product.coset_dlog());
+            let zs = inverse_evaluations_map.get(&key).unwrap();
+            if j == 0 {
+                iter_mut!(results, 1024)
+                    .enumerate()
+                    .for_each(|(i, result)| {
+                        *result = zs[i % zs.len()];
+                    });
+            } else {
                 iter_mut!(results, 1024)
                     .enumerate()
                     .for_each(|(i, result)| {
@@ -574,14 +530,23 @@ fn get_divisor_evaluations<B: StarkField>(
                     });
             }
         }
-        for product in divisor.numerator().iter().skip(1) {
-            let key = (product.degree(), product.coset_dlog());
-            let zs = inverse_evaluations_map.get(&key).unwrap();
-            iter_mut!(results, 1024)
-                .enumerate()
-                .for_each(|(i, result)| {
-                    *result *= zs[i % zs.len()];
-                });
+        if !divisor.denominator().is_empty() {
+            for product in divisor.denominator() {
+                let zs = exponentiations_map
+                    .entry(product.degree())
+                    .or_insert_with(|| {
+                        let g = g_domain.exp((product.degree() as u64).into());
+                        let h = domain_offset.exp((product.degree() as u64).into());
+
+                        get_power_series_with_offset(g, h, domain_size / product.degree())
+                    });
+
+                iter_mut!(results, 1024)
+                    .enumerate()
+                    .for_each(|(i, result)| {
+                        *result *= zs[i % zs.len()] - product.coset_elem();
+                    });
+            }
         }
         divisors_evaluations.push(results);
     }
