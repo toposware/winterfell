@@ -13,6 +13,7 @@ use air::{
     TransitionConstraints,
 };
 use math::FieldElement;
+use utils::collections::BTreeMap;
 use utils::iter_mut;
 
 #[cfg(feature = "concurrent")]
@@ -157,6 +158,21 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         // LDE domain
         let lde_shift = domain.ce_to_lde_blowup().trailing_zeros();
 
+        // we create two maps: one for storing the adjustments x^i for all needed i
+        // and a second to keep values to update when we make a step
+        let mut exp_map = BTreeMap::new();
+        let mut exp_map_step = BTreeMap::new();
+
+        for constraint in self.transition_constraints.main_constraints().iter() {
+            // we use these values to update exp_map in each step
+            exp_map_step
+                .entry(constraint.degree_adjustment())
+                .or_insert_with(|| g.exp((constraint.degree_adjustment() as u64).into()));
+            exp_map
+                .entry(constraint.degree_adjustment())
+                .or_insert_with(|| x.exp((constraint.degree_adjustment() as u64).into()));
+        }
+
         for i in 0..fragment.num_rows() {
             let step = i + fragment.offset();
 
@@ -168,8 +184,13 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
 
             // evaluate transition constraints and save the merged result the first slot of the
             // evaluations buffer
-            evaluations[0] =
-                self.evaluate_main_transition(&main_frame, x, step, &mut t_evaluations);
+            evaluations[0] = self.evaluate_main_transition(
+                &main_frame,
+                x,
+                step,
+                &mut exp_map,
+                &mut t_evaluations,
+            );
 
             // when in debug mode, save transition constraint evaluations
             #[cfg(debug_assertions)]
@@ -186,6 +207,9 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
 
             // update x to the next value
             x *= g;
+            for (k, v) in exp_map.iter_mut() {
+                *v *= *exp_map_step.get(k).unwrap();
+            }
         }
     }
 
@@ -214,6 +238,25 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         // LDE domain
         let lde_shift = domain.ce_to_lde_blowup().trailing_zeros();
 
+        // we create two maps: one for storing the adjustments x^i for all needed i
+        // and a second to keep values to update when we make a step
+        let mut exp_map = BTreeMap::new();
+        let mut exp_map_step = BTreeMap::new();
+        for constraint in self
+            .transition_constraints
+            .main_constraints()
+            .iter()
+            .chain(self.transition_constraints.aux_constraints().iter())
+        {
+            // we use these values to update exp_map in each step
+            exp_map_step
+                .entry(constraint.degree_adjustment())
+                .or_insert_with(|| g.exp((constraint.degree_adjustment() as u64).into()));
+            exp_map
+                .entry(constraint.degree_adjustment())
+                .or_insert_with(|| x.exp((constraint.degree_adjustment() as u64).into()));
+        }
+
         for i in 0..fragment.num_rows() {
             let step = i + fragment.offset();
 
@@ -224,10 +267,21 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
             // evaluate transition constraints and save the merged result the first slot of the
             // evaluations buffer; we evaluate and compose constraints in the same function, we
             // can just add up the results of evaluating main and auxiliary constraints.
-            evaluations[0] =
-                self.evaluate_main_transition(&main_frame, x, step, &mut tm_evaluations);
-            evaluations[0] +=
-                self.evaluate_aux_transition(&main_frame, &aux_frame, x, step, &mut ta_evaluations);
+            evaluations[0] = self.evaluate_main_transition(
+                &main_frame,
+                x,
+                step,
+                &mut exp_map,
+                &mut tm_evaluations,
+            );
+            evaluations[0] += self.evaluate_aux_transition(
+                &main_frame,
+                &aux_frame,
+                x,
+                step,
+                &mut exp_map,
+                &mut ta_evaluations,
+            );
 
             // when in debug mode, save transition constraint evaluations
             #[cfg(debug_assertions)]
@@ -250,6 +304,9 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
 
             // update x to the next value
             x *= g;
+            for (k, v) in exp_map.iter_mut() {
+                *v *= *exp_map_step.get(k).unwrap();
+            }
         }
     }
 
@@ -267,6 +324,7 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         main_frame: &EvaluationFrame<E::BaseField>,
         x: E::BaseField,
         step: usize,
+        exp_map: &mut BTreeMap::<u32, E::BaseField>,
         evaluations: &mut [E::BaseField],
     ) -> E {
         // TODO: use a more efficient way to zero out memory
@@ -282,7 +340,7 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         // merge transition constraint evaluations into a single value and return it;
         // we can do this here because all transition constraints have the same divisor.
         self.transition_constraints.main_constraints().iter().fold(E::ZERO, |result, group| {
-            result + group.merge_evaluations(evaluations, x)
+            result + group.merge_evaluations(evaluations, x, exp_map)
         })
     }
 
@@ -298,6 +356,7 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         aux_frame: &EvaluationFrame<E>,
         x: E::BaseField,
         step: usize,
+        exp_map: &mut BTreeMap::<u32, E::BaseField>,
         evaluations: &mut [E],
     ) -> E {
         // TODO: use a more efficient way to zero out memory
@@ -319,7 +378,7 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         // merge transition constraint evaluations into a single value and return it;
         // we can do this here because all transition constraints have the same divisor.
         self.transition_constraints.aux_constraints().iter().fold(E::ZERO, |result, group| {
-            result + group.merge_evaluations::<E::BaseField, E>(evaluations, x)
+            result + group.merge_evaluations::<E::BaseField, E>(evaluations, x, exp_map)
         })
     }
 
