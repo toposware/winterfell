@@ -4,7 +4,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-use std::time::Instant;
+use utils::collections::BTreeMap;
 use super::{
     super::TraceLde, evaluation_table::EvaluationTableFragment, BoundaryConstraints,
     ConstraintEvaluationTable, PeriodicValueTable, StarkDomain,
@@ -162,6 +162,18 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         // LDE domain
         let lde_shift = domain.ce_to_lde_blowup().trailing_zeros();
 
+        let mut exp_map = BTreeMap::new();
+        let mut exp_map_step = BTreeMap::new();
+        for constraint in self.transition_constraints.main_constraints().iter() {
+            exp_map_step.entry(constraint.degree_adjustment()).or_insert_with(|| {
+                g.exp((constraint.degree_adjustment() as u64).into())
+            });
+            exp_map.entry(constraint.degree_adjustment()).or_insert_with(|| {
+                x.exp((constraint.degree_adjustment() as u64).into())
+            });
+        }
+        
+
         for i in 0..fragment.num_rows() {
             let step = i + fragment.offset();
 
@@ -176,7 +188,11 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
             // divisors used
             
             let num_divisors = self.transition_constraints.divisors().len();
-            self.evaluate_main_transition(&main_frame, x, step, &mut t_evaluations, &mut evaluations[..num_divisors]);
+
+            evaluations[..num_divisors].fill(E::ZERO);
+
+            self.evaluate_main_transition(&main_frame, x, step, &mut exp_map, &mut t_evaluations, &mut evaluations[..num_divisors]);
+
             // when in debug mode, save transition constraint evaluations
             #[cfg(debug_assertions)]
             fragment.update_transition_evaluations(step, &t_evaluations, &[]);
@@ -192,6 +208,9 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
 
             // update x to the next value
             x *= g;
+            for (k, v) in exp_map.iter_mut() {
+                *v *= *exp_map_step.get(k).unwrap();
+            }
         }
     }
 
@@ -220,6 +239,17 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         // LDE domain
         let lde_shift = domain.ce_to_lde_blowup().trailing_zeros();
 
+        let mut exp_map = BTreeMap::new();
+        let mut exp_map_step = BTreeMap::new();
+        for constraint in self.transition_constraints.main_constraints().iter().chain(self.transition_constraints.aux_constraints().iter()) {
+            exp_map_step.entry(constraint.degree_adjustment()).or_insert_with(|| {
+                g.exp((constraint.degree_adjustment() as u64).into())
+            });
+            exp_map.entry(constraint.degree_adjustment()).or_insert_with(|| {
+                x.exp((constraint.degree_adjustment() as u64).into())
+            });
+        }
+
         for i in 0..fragment.num_rows() {
             let step = i + fragment.offset();
 
@@ -234,9 +264,12 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
 
             let num_divisors = self.transition_constraints.divisors().len();
 
-            self.evaluate_main_transition(&main_frame, x, step, &mut tm_evaluations, &mut evaluations[..num_divisors]);
 
-            self.evaluate_aux_transition(&main_frame, &aux_frame, x, step, &mut ta_evaluations, &mut evaluations[..num_divisors]);
+            evaluations[..num_divisors].fill(E::ZERO);
+
+            self.evaluate_main_transition(&main_frame, x, step, &mut exp_map, &mut tm_evaluations, &mut evaluations[..num_divisors]);
+
+            self.evaluate_aux_transition(&main_frame, &aux_frame, x, step, &mut exp_map, &mut ta_evaluations, &mut evaluations[..num_divisors]);
 
             // TODO [divisors]: restore assertion
             // when in debug mode, save transition constraint evaluations
@@ -245,7 +278,6 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
 
             // evaluate boundary constraints; the results go into remaining slots of the
             // evaluations buffer
-            // TODO [divisors]: fix aux segments
             let main_state = main_frame.current();
             let aux_state = aux_frame.current();
             self.boundary_constraints.evaluate_all(
@@ -261,6 +293,9 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
 
             // update x to the next value
             x *= g;
+            for (k, v) in exp_map.iter_mut() {
+                *v *= *exp_map_step.get(k).unwrap();
+            }
         }
     }
 
@@ -278,12 +313,13 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         main_frame: &EvaluationFrame<E::BaseField>,
         x: E::BaseField,
         step: usize,
+        exp_map: &mut BTreeMap::<u32, E::BaseField>,
         t_evaluations: &mut [E::BaseField],
         evaluations: &mut [E],
     ) {
         // TODO: use a more efficient way to zero out memory
+        
         t_evaluations.fill(E::BaseField::ZERO);
-        evaluations.fill(E::ZERO);
 
         // get periodic values at the evaluation step
         let periodic_values = self.periodic_values.get_row(step);
@@ -295,8 +331,9 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         // merge transition constraint evaluations into a single value and return it;
         // we can do this here because all transition constraints have the same divisor.
         
+
         for group in self.transition_constraints.main_constraints().iter() { 
-            evaluations[group.divisor_index()] += group.merge_evaluations(t_evaluations, x)
+            evaluations[group.divisor_index()] += group.merge_evaluations(t_evaluations, x, exp_map)
         }
     }
 
@@ -312,6 +349,7 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
         aux_frame: &EvaluationFrame<E>,
         x: E::BaseField,
         step: usize,
+        exp_map: &mut BTreeMap::<u32, E::BaseField>,
         ta_evaluations: &mut [E],
         evaluations: &mut [E],
     ) {
@@ -331,8 +369,8 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
             ta_evaluations,
         );
 
-        for group in self.transition_constraints.main_constraints().iter() { 
-            evaluations[group.divisor_index()] += group.merge_evaluations::<E::BaseField, E>(ta_evaluations, x)
+        for group in self.transition_constraints.aux_constraints().iter() { 
+            evaluations[group.divisor_index()] += group.merge_evaluations::<E::BaseField, E>(ta_evaluations, x, exp_map)
         }
     }
 

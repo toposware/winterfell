@@ -4,7 +4,8 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-use super::{AirContext, BTreeMap, ConstraintDivisor, ExtensionOf, FieldElement, Vec};
+use super::{AirContext, ConstraintDivisor, ExtensionOf, FieldElement, Vec};
+use utils::collections::BTreeMap;
 
 mod frame;
 pub use frame::EvaluationFrame;
@@ -183,11 +184,12 @@ impl<E: FieldElement> TransitionConstraints<E> {
     {
         // TODO [divisors]: optimize for verifier as well
 
+        let mut exp_map = BTreeMap::<u32, F>::new();
         // merge constraint evaluations for the main trace segment
         let mut result = self.main_constraints().iter().fold(E::ZERO, |acc, group| {
             let divisor_index = group.divisor_index();
             let z = E::from(self.divisors()[divisor_index].evaluate_at(x));
-            acc + group.merge_evaluations::<F, F>(main_evaluations, x) / z
+            acc + group.merge_evaluations::<F, F>(main_evaluations, x, &mut exp_map) / z
         });
 
         // merge constraint evaluations for auxiliary trace segments (if any)
@@ -195,7 +197,7 @@ impl<E: FieldElement> TransitionConstraints<E> {
             result += self.aux_constraints().iter().fold(E::ZERO, |acc, group| {
                 let divisor_index = group.divisor_index();
                 let z = E::from(self.divisors()[divisor_index].evaluate_at(x));
-                acc + group.merge_evaluations::<F, E>(aux_evaluations, x) / z
+                acc + group.merge_evaluations::<F, E>(aux_evaluations, x, &mut exp_map) / z
             });
         }
 
@@ -260,6 +262,11 @@ impl<E: FieldElement> TransitionConstraintGroup<E> {
         &self.degree
     }
 
+    /// Returns degree descriptors for all constraints in this group.
+    pub fn degree_adjustment(&self) -> u32 {
+        self.degree_adjustment
+    }
+
     /// Returns divisor index of the group.
     pub fn divisor_index(&self) -> usize {
         self.divisor_index
@@ -296,21 +303,28 @@ impl<E: FieldElement> TransitionConstraintGroup<E> {
     /// them by the divisor later on. The degree of the divisor for transition constraints is
     /// always $n - 1$. Thus, once we divide out the divisor, the evaluations will represent a
     /// polynomial of degree $D$.
-    pub fn merge_evaluations<B, F>(&self, evaluations: &[F], x: B) -> E
+    pub fn merge_evaluations<B, F>(
+        &self,
+        evaluations: &[F],
+        x: B,
+        exp_map: &mut BTreeMap<u32, B>,
+    ) -> E
     where
         B: FieldElement,
         F: FieldElement<BaseField = B::BaseField> + ExtensionOf<B>,
         E: FieldElement<BaseField = B::BaseField> + ExtensionOf<B> + ExtensionOf<F>,
     {
         // compute degree adjustment factor for this group
-        let xp = x.exp(self.degree_adjustment.into());
+        let xp = exp_map
+            .entry(self.degree_adjustment)
+            .or_insert_with(|| x.exp(self.degree_adjustment.into()));
 
         // compute linear combination of evaluations as D(x) * (cc_0 + cc_1 * x^p), where D(x)
         // is an evaluation of a particular constraint, and x^p is the degree adjustment factor
         let mut result = E::ZERO;
         for (&constraint_idx, coefficients) in self.indexes.iter().zip(self.coefficients.iter()) {
             let evaluation = evaluations[constraint_idx];
-            result += (coefficients.0 + coefficients.1.mul_base(xp)).mul_base(evaluation);
+            result += (coefficients.0 + coefficients.1.mul_base(*xp)).mul_base(evaluation);
         }
         result
     }

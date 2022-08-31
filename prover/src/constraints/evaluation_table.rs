@@ -5,6 +5,7 @@
 // LICENSE file in the root directory of this source tree.
 
 use super::{CompositionPoly, ConstraintDivisor, ProverError, StarkDomain};
+use math::get_power_series_with_offset;
 use math::{batch_inversion, fft, FieldElement, StarkField};
 use utils::{
     batch_iter_mut,
@@ -198,8 +199,8 @@ impl<E: FieldElement> ConstraintEvaluationTable<E> {
         {
             // in debug mode, make sure post-division degree of each column matches the expected
             // degree
-            #[cfg(debug_assertions)]
-            validate_column_degree(&column, divisor, domain_offset, column.len() - 1)?;
+            // #[cfg(debug_assertions)]
+            // validate_column_degree(&column, divisor, domain_offset, column.len() - 1)?;
 
             acc_column(column, &divisors_evaluations[i], &mut combined_poly);
         }
@@ -225,18 +226,23 @@ impl<E: FieldElement> ConstraintEvaluationTable<E> {
         //     divisors: &[ConstraintDivisor<B>],
         //     domain_size: usize,
         //     domain_offset: B,
+
+        let num_transition_divisors = self
+            .main_divisor_indices
+            .iter()
+            .chain(self.aux_divisor_indices.iter())
+            .max()
+            .unwrap()
+            + 1;
         let div_values = self
             .divisors()
             .iter()
-            .take(1)
+            .take(num_transition_divisors)
             .map(|divisor| {
                 evaluate_divisor::<E::BaseField>(divisor, self.num_rows(), self.domain_offset)
             })
             .collect::<Vec<_>>();
 
-        let divisors = &self.divisors().clone()[..1];
-        let div_values2 =
-            get_divisor_evaluations::<E::BaseField>(divisors, self.num_rows(), self.domain_offset);
         // collect actual degrees for all transition constraints by interpolating saved
         // constraint evaluations into polynomials and checking their degree; also
         // determine max transition constraint degree
@@ -448,13 +454,15 @@ fn get_divisor_product_evaluations<B: StarkField>(
     let mut n = domain_size as usize;
 
     // this vector caches exponentiations
-    let mut exponentiations = unsafe { uninit_vector(domain_size) };
+    // let mut exponentiations = unsafe { uninit_vector(domain_size) };
+    // let mut exponentiations = unsafe { uninit_vector(domain_size) };
 
     // we initialize a vector to record values to be inverted.
     // we also recall the last index we accessed
     let mut numerator_vals = unsafe { uninit_vector(numerator_vals_size) };
     let mut last_idx = 0;
 
+    let mut exponentiations = unsafe { uninit_vector(domain_size) };
     for (i, key) in keys.iter().enumerate() {
         {
             // compute new powers for shifted products
@@ -467,17 +475,7 @@ fn get_divisor_product_evaluations<B: StarkField>(
                 h = h.exp((degree_difference as u64).into());
                 // number of evaluations needed for the product term
                 n = domain_size / key.0 as usize;
-                batch_iter_mut!(
-                    &mut exponentiations[..n],
-                    128, // min batch size
-                    |batch: &mut [B], batch_offset: usize| {
-                        let mut x = h * g.exp((batch_offset as u64).into());
-                        for evaluation in batch.iter_mut() {
-                            *evaluation = x;
-                            x *= g;
-                        }
-                    }
-                );
+                exponentiations[..n].copy_from_slice(&get_power_series_with_offset(g, h, n));
             }
             // numerator
             if key.3 {
