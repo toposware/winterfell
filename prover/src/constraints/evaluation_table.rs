@@ -483,7 +483,7 @@ fn get_divisor_evaluations<B: StarkField>(
         get_divisor_numerator_evaluations::<B>(divisors, domain_size, domain_offset);
 
     // compute divisor evaluations using the saved values of the dictionaries
-    let mut divisors_evaluations = Vec::with_capacity(divisors.len());
+    let mut divisors_evaluations = Vec::with_capacity(divisors.len() * domain_size);
     for divisor in divisors.iter() {
         // find the product of the divisor with the lowest degree  defining the
         // number of evaluations needed
