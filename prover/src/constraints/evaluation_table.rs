@@ -444,9 +444,9 @@ fn get_divisor_numerator_evaluations<B: StarkField>(
                 numerator_vals[last_idx..(last_idx + domain_size / product.degree())],
                 1024
             )
-            .enumerate()
-            .for_each(|(i, result)| {
-                *result = exponentiations[i] - product.coset_elem();
+            .zip(exponentiations)
+            .for_each(|(result, exp)| {
+                *result = *exp - product.coset_elem();
             });
             last_idx += domain_size / product.degree();
         }
