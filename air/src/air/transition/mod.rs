@@ -170,16 +170,19 @@ impl<E: FieldElement> TransitionConstraints<E> {
         F: FieldElement<BaseField = E::BaseField>,
         E: ExtensionOf<F>,
     {
-        let mut exp_map = BTreeMap::<u32, F>::new();
         // merge constraint evaluations for the main trace segment
         let mut result = self.main_constraints().iter().fold(E::ZERO, |acc, group| {
-            acc + group.merge_evaluations::<F, F>(main_evaluations, x, &mut exp_map)
+            acc + group
+                .merge_evaluations::<F, F>(main_evaluations, x.exp(group.degree_adjustment.into()))
         });
 
         // merge constraint evaluations for auxiliary trace segments (if any)
         if self.num_aux_constraints() > 0 {
             result += self.aux_constraints().iter().fold(E::ZERO, |acc, group| {
-                acc + group.merge_evaluations::<F, E>(aux_evaluations, x, &mut exp_map)
+                acc + group.merge_evaluations::<F, E>(
+                    aux_evaluations,
+                    x.exp(group.degree_adjustment.into()),
+                )
             });
         }
 
@@ -278,28 +281,18 @@ impl<E: FieldElement> TransitionConstraintGroup<E> {
     /// them by the divisor later on. The degree of the divisor for transition constraints is
     /// always $n - 1$. Thus, once we divide out the divisor, the evaluations will represent a
     /// polynomial of degree $D$.
-    pub fn merge_evaluations<B, F>(
-        &self,
-        evaluations: &[F],
-        x: B,
-        exp_map: &mut BTreeMap<u32, B>,
-    ) -> E
+    pub fn merge_evaluations<B, F>(&self, evaluations: &[F], xp: B) -> E
     where
         B: FieldElement,
         F: FieldElement<BaseField = B::BaseField> + ExtensionOf<B>,
         E: FieldElement<BaseField = B::BaseField> + ExtensionOf<B> + ExtensionOf<F>,
     {
-        // compute degree adjustment factor for this group
-        let xp = exp_map
-            .entry(self.degree_adjustment)
-            .or_insert_with(|| x.exp(self.degree_adjustment.into()));
-
         // compute linear combination of evaluations as D(x) * (cc_0 + cc_1 * x^p), where D(x)
         // is an evaluation of a particular constraint, and x^p is the degree adjustment factor
         let mut result = E::ZERO;
         for (&constraint_idx, coefficients) in self.indexes.iter().zip(self.coefficients.iter()) {
             let evaluation = evaluations[constraint_idx];
-            result += (coefficients.0 + coefficients.1.mul_base(*xp)).mul_base(evaluation);
+            result += (coefficients.0 + coefficients.1.mul_base(xp)).mul_base(evaluation);
         }
         result
     }

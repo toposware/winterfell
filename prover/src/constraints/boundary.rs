@@ -82,6 +82,11 @@ impl<E: FieldElement> BoundaryConstraints<E> {
         self.0.iter().map(|g| g.divisor.clone()).collect()
     }
 
+    /// Returns a vector of all constraint degree adjustments.
+    pub fn degree_adjustments(&self) -> Vec<u32> {
+        self.0.iter().map(|g| g.degree_adjustment).collect()
+    }
+
     // EVALUATORS
     // --------------------------------------------------------------------------------------------
 
@@ -96,18 +101,19 @@ impl<E: FieldElement> BoundaryConstraints<E> {
         main_state: &[E::BaseField],
         x: E::BaseField,
         step: usize,
+        exp_map: &BTreeMap<u32, (E::BaseField, E::BaseField)>,
         result: &mut [E],
     ) {
-        // compute the adjustment degree outside of the group so that we can re-use
+        // fetch the adjustment degree outside of the group so that we can re-use
         // it for groups which have the same adjustment degree
         let mut degree_adjustment = self.0[0].degree_adjustment;
-        let mut xp: E::BaseField = x.exp(degree_adjustment.into());
+        let mut xp: E::BaseField = exp_map.get(&degree_adjustment).unwrap().0;
 
         for (group, result) in self.0.iter().zip(result.iter_mut()) {
-            // recompute adjustment degree only when it has changed
+            // fetch adjustment degree only when it has changed
             if group.degree_adjustment != degree_adjustment {
                 degree_adjustment = group.degree_adjustment;
-                xp = x.exp(degree_adjustment.into());
+                xp = exp_map.get(&degree_adjustment).unwrap().0;
             }
             // evaluate the group and save the result
             *result = group.evaluate_main(main_state, step, x, xp);
@@ -126,18 +132,19 @@ impl<E: FieldElement> BoundaryConstraints<E> {
         aux_state: &[E],
         x: E::BaseField,
         step: usize,
+        exp_map: &BTreeMap<u32, (E::BaseField, E::BaseField)>,
         result: &mut [E],
     ) {
-        // compute the adjustment degree outside of the group so that we can re-use
+        // fetch the adjustment degree outside of the group so that we can re-use
         // it for groups which have the same adjustment degree
         let mut degree_adjustment = self.0[0].degree_adjustment;
-        let mut xp: E::BaseField = x.exp(degree_adjustment.into());
+        let mut xp: E::BaseField = exp_map.get(&degree_adjustment).unwrap().0;
 
         for (group, result) in self.0.iter().zip(result.iter_mut()) {
-            // recompute adjustment degree only when it has changed
+            // fetch adjustment degree only when it has changed
             if group.degree_adjustment != degree_adjustment {
                 degree_adjustment = group.degree_adjustment;
-                xp = x.exp(degree_adjustment.into());
+                xp = exp_map.get(&degree_adjustment).unwrap().0;
             }
             // evaluate the group and save the result
             *result = group.evaluate_all(main_state, aux_state, step, x, xp);
