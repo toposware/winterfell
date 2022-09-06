@@ -5,10 +5,11 @@
 // LICENSE file in the root directory of this source tree.
 
 use super::{
-    BaseElement, ExtensionOf, FieldElement, ProofOptions, AUX_WIDTH, MEMORY_COLUMNS,
-    NB_MEMORY_COLUMN_PAIRS, NB_OFFSET_COLUMNS, OFFSET_COLUMNS, SORTED_MEMORY_COLUMNS,
-    SORTED_OFFSET_COLUMNS, TRACE_WIDTH,
+    BaseElement, ExtensionOf, FieldElement, ProofOptions, ALPHA, ARK, AUX_WIDTH, INV_ALPHA,
+    INV_MDS, MDS, MEMORY_COLUMNS, NB_MEMORY_COLUMN_PAIRS, NB_OFFSET_COLUMNS, NUM_ROUNDS,
+    OFFSET_COLUMNS, SORTED_MEMORY_COLUMNS, SORTED_OFFSET_COLUMNS, STATE_WIDTH, TRACE_WIDTH,
 };
+
 use crate::utils::{are_equal, is_binary};
 use winterfell::{
     Air, AirContext, Assertion, AuxTraceRandElements, ByteWriter, EvaluationFrame, Serializable,
@@ -92,6 +93,11 @@ impl Air for CairoAir {
         // Read-only constraints
         for _ in 0..NB_MEMORY_COLUMN_PAIRS {
             main_degrees.push(TransitionConstraintDegree::new(2));
+        }
+
+        // Rescue constraints
+        for _ in 0..(STATE_WIDTH * NUM_ROUNDS) {
+            main_degrees.push(TransitionConstraintDegree::new(7));
         }
 
         let mut aux_degrees = vec![];
@@ -241,13 +247,46 @@ impl Air for CairoAir {
         result[29] = f_12 * (current[24] - (current[19] + instruction_size));
         result[30] = f_14 * (current[22] - current[32]);
 
-        enforce_contiguity_constraints(result, 31, current, next);
+        // Sorted column constraints
+        let mut constraints_offset = 31;
+        enforce_contiguity_constraints(result, constraints_offset, current, next);
+        constraints_offset += NB_OFFSET_COLUMNS + NB_MEMORY_COLUMN_PAIRS;
+        enforce_read_only_constraints(result, constraints_offset, current, next);
 
-        enforce_read_only_constraints(
+        // Rescue constraints
+        constraints_offset += NB_MEMORY_COLUMN_PAIRS;
+        let mut current_state = [E::ZERO; STATE_WIDTH];
+        let mut next_state = [E::ZERO; STATE_WIDTH];
+        for i in 0..STATE_WIDTH {
+            current_state[i] = current[51 + 2 * i];
+            next_state[i] = current[98 + i];
+            println!("{}\n", next_state[i]);
+        }
+        for round in 0..(NUM_ROUNDS - 1) {
+            enforce_round(
+                result,
+                constraints_offset,
+                &current_state,
+                &next_state,
+                round,
+            );
+
+            current_state = next_state;
+            for i in 0..STATE_WIDTH {
+                next_state[i] = current[98 + (round + 1) * STATE_WIDTH + i];
+            }
+            constraints_offset += STATE_WIDTH;
+        }
+        for i in 0..STATE_WIDTH {
+            next_state[i] = current[75 + 2 * i];
+            println!("{}\n", next_state[i]);
+        }
+        enforce_round(
             result,
-            31 + NB_OFFSET_COLUMNS + NB_MEMORY_COLUMN_PAIRS,
-            current,
-            next,
+            constraints_offset,
+            &current_state,
+            &next_state,
+            NUM_ROUNDS - 1,
         );
     }
 
@@ -458,4 +497,92 @@ fn enforce_memory_aux_constraints<F, E>(
         * (z - (a2 + alpha * main_next[SORTED_MEMORY_COLUMNS[0].1].into()))
         - aux_current[aux_mem_offset + (NB_MEMORY_COLUMN_PAIRS - 1)]
             * (z - (a + alpha * main_next[MEMORY_COLUMNS[0].1].into()));
+}
+
+// RESCUE HELPER FUNCTIONS
+// ------------------------------------------------------------------------------------------------
+fn enforce_round<E: FieldElement + From<BaseElement>>(
+    result: &mut [E],
+    result_offset: usize,
+    current_state: &[E],
+    next_state: &[E],
+    round: usize,
+) {
+    // compute the state that should result from applying the first half of Rescue round
+    // to the current state of the computation
+    let mut step1 = [E::ZERO; STATE_WIDTH];
+    let ark = ARK[round];
+    step1.copy_from_slice(current_state);
+    apply_sbox(&mut step1);
+    apply_mds(&mut step1);
+    for i in 0..STATE_WIDTH {
+        step1[i] += ark[i].into();
+    }
+
+    // compute the state that should result from applying the inverse for the second
+    // half for Rescue round to the next step of the computation
+    let mut step2 = [E::ZERO; STATE_WIDTH];
+    step2.copy_from_slice(next_state);
+    for i in 0..STATE_WIDTH {
+        step2[i] -= ark[STATE_WIDTH + i].into();
+    }
+    apply_inv_mds(&mut step2);
+    apply_sbox(&mut step2);
+
+    // make sure that the results are equal
+    println!("Round {}:\n", round);
+    for i in 0..STATE_WIDTH {
+        result[result_offset + i] = step2[i] - step1[i];
+        println!("step1_{}: {}\nstep2_{}: {}\n", i, step1[i], i, step2[i]);
+    }
+}
+
+#[inline(always)]
+#[allow(clippy::needless_range_loop)]
+fn apply_sbox<E: FieldElement>(state: &mut [E]) {
+    for i in 0..STATE_WIDTH {
+        state[i] = state[i].exp(ALPHA.into());
+    }
+}
+
+#[inline(always)]
+#[allow(clippy::needless_range_loop)]
+fn apply_inv_sbox(state: &mut [BaseElement]) {
+    for i in 0..STATE_WIDTH {
+        state[i] = state[i].exp(INV_ALPHA);
+    }
+}
+
+#[inline(always)]
+#[allow(clippy::needless_range_loop)]
+fn apply_mds<E: FieldElement + From<BaseElement>>(state: &mut [E]) {
+    let mut result = [E::ZERO; STATE_WIDTH];
+    let mut temp = [E::ZERO; STATE_WIDTH];
+    for i in 0..STATE_WIDTH {
+        for j in 0..STATE_WIDTH {
+            temp[j] = E::from(MDS[i * STATE_WIDTH + j]) * state[j];
+        }
+
+        for j in 0..STATE_WIDTH {
+            result[i] += temp[j];
+        }
+    }
+    state.copy_from_slice(&result);
+}
+
+#[inline(always)]
+#[allow(clippy::needless_range_loop)]
+fn apply_inv_mds<E: FieldElement + From<BaseElement>>(state: &mut [E]) {
+    let mut result = [E::ZERO; STATE_WIDTH];
+    let mut temp = [E::ZERO; STATE_WIDTH];
+    for i in 0..STATE_WIDTH {
+        for j in 0..STATE_WIDTH {
+            temp[j] = E::from(INV_MDS[i * STATE_WIDTH + j]) * state[j];
+        }
+
+        for j in 0..STATE_WIDTH {
+            result[i] += temp[j];
+        }
+    }
+    state.copy_from_slice(&result);
 }
