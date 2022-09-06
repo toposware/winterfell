@@ -9,7 +9,10 @@ use winterfell::{
     EvaluationFrame, Matrix, Trace, TraceInfo, TraceLayout,
 };
 // I think we shouldn't have to use it here. It should be passed with a parameter.
-use super::{AUX_WIDTH, TRACE_WIDTH};
+use super::{
+    AUX_WIDTH, MEMORY_COLUMNS, NB_MEMORY_COLUMN_PAIRS, NB_OFFSET_COLUMNS, OFFSET_COLUMNS,
+    SORTED_MEMORY_COLUMNS, SORTED_OFFSET_COLUMNS, TRACE_WIDTH,
+};
 
 // RAP TRACE TABLE
 // ================================================================================================
@@ -210,88 +213,127 @@ impl<B: StarkField> Trace for RapTraceTable<B> {
         let mut aux_columns = vec![vec![E::ZERO; self.length()]; self.aux_trace_width()];
 
         // First initialize the P0.
-        aux_columns[0][0] = (rand_elements[0] - current_row[16].into())
-            / (rand_elements[0] - current_row[34].into());
+        /*aux_columns[0][0] = (rand_elements[0] - current_row[16].into())
+        / (rand_elements[0] - current_row[34].into());*/
 
-        // Necessary variables: into() fails otherwise. Any better way to do this?
-        let mut a: E = current_row[19].into();
-        let mut a2: E = current_row[40].into();
-        aux_columns[4][0] = (rand_elements[1] - (a + rand_elements[2] * current_row[20].into()))
-            / (rand_elements[1] - (a2 + rand_elements[2] * current_row[41].into()));
-        //println!("{}", aux_columns[0][0]);
+        initialize_offset_aux(&mut aux_columns, 0, &mut current_row, rand_elements[0]);
 
-        // Complete the first row.
-        aux_columns[1][0] = aux_columns[0][0] * (rand_elements[0] - current_row[17].into())
-            / (rand_elements[0] - current_row[35].into());
-        aux_columns[2][0] = aux_columns[1][0] * (rand_elements[0] - current_row[18].into())
-            / (rand_elements[0] - current_row[36].into());
-        aux_columns[3][0] = aux_columns[2][0] * (rand_elements[0] - current_row[33].into())
-            / (rand_elements[0] - current_row[37].into());
-
-        a = current_row[21].into();
-        a2 = current_row[42].into();
-        aux_columns[5][0] = aux_columns[4][0]
-            * (rand_elements[1] - (a + rand_elements[2] * current_row[22].into()))
-            / (rand_elements[1] - (a2 + rand_elements[2] * current_row[43].into()));
-        a = current_row[23].into();
-        a2 = current_row[44].into();
-        aux_columns[6][0] = aux_columns[5][0]
-            * (rand_elements[1] - (a + rand_elements[2] * current_row[24].into()))
-            / (rand_elements[1] - (a2 + rand_elements[2] * current_row[45].into()));
-        a = current_row[25].into();
-        a2 = current_row[46].into();
-        aux_columns[7][0] = aux_columns[6][0]
-            * (rand_elements[1] - (a + rand_elements[2] * current_row[26].into()))
-            / (rand_elements[1] - (a2 + rand_elements[2] * current_row[47].into()));
-        a = current_row[38].into();
-        a2 = current_row[48].into();
-        aux_columns[8][0] = aux_columns[7][0]
-            * (rand_elements[1] - (a + rand_elements[2] * current_row[39].into()))
-            / (rand_elements[1] - (a2 + rand_elements[2] * current_row[49].into()));
+        initialize_memory_aux(
+            &mut aux_columns,
+            4,
+            &mut current_row,
+            rand_elements[1],
+            rand_elements[2],
+        );
 
         // Fill the rest of the rows. The last main trace row is filled with garbage, so we don't need to care about it.
         for index in 1..(self.length() - 1) {
             self.read_row_into(index, &mut current_row);
-            aux_columns[0][index] = aux_columns[3][index - 1]
-                * (rand_elements[0] - current_row[16].into())
-                / (rand_elements[0] - current_row[34].into());
-            aux_columns[1][index] = aux_columns[0][index]
-                * (rand_elements[0] - current_row[17].into())
-                / (rand_elements[0] - current_row[35].into());
-            aux_columns[2][index] = aux_columns[1][index]
-                * (rand_elements[0] - current_row[18].into())
-                / (rand_elements[0] - current_row[36].into());
-            aux_columns[3][index] = aux_columns[2][index]
-                * (rand_elements[0] - current_row[33].into())
-                / (rand_elements[0] - current_row[37].into());
 
-            a = current_row[19].into();
-            a2 = current_row[40].into();
-            aux_columns[4][index] = aux_columns[8][index - 1]
-                * (rand_elements[1] - (a + rand_elements[2] * current_row[20].into()))
-                / (rand_elements[1] - (a2 + rand_elements[2] * current_row[41].into()));
-            a = current_row[21].into();
-            a2 = current_row[42].into();
-            aux_columns[5][index] = aux_columns[4][index]
-                * (rand_elements[1] - (a + rand_elements[2] * current_row[22].into()))
-                / (rand_elements[1] - (a2 + rand_elements[2] * current_row[43].into()));
-            a = current_row[23].into();
-            a2 = current_row[44].into();
-            aux_columns[6][index] = aux_columns[5][index]
-                * (rand_elements[1] - (a + rand_elements[2] * current_row[24].into()))
-                / (rand_elements[1] - (a2 + rand_elements[2] * current_row[45].into()));
-            a = current_row[25].into();
-            a2 = current_row[46].into();
-            aux_columns[7][index] = aux_columns[6][index]
-                * (rand_elements[1] - (a + rand_elements[2] * current_row[26].into()))
-                / (rand_elements[1] - (a2 + rand_elements[2] * current_row[47].into()));
-            a = current_row[38].into();
-            a2 = current_row[48].into();
-            aux_columns[8][index] = aux_columns[7][index]
-                * (rand_elements[1] - (a + rand_elements[2] * current_row[39].into()))
-                / (rand_elements[1] - (a2 + rand_elements[2] * current_row[49].into()));
+            fill_offset_aux(
+                index,
+                &mut aux_columns,
+                0,
+                &mut current_row,
+                rand_elements[0],
+            );
+
+            fill_memory_aux(
+                index,
+                &mut aux_columns,
+                4,
+                &mut current_row,
+                rand_elements[1],
+                rand_elements[2],
+            );
         }
 
         Some(Matrix::new(aux_columns))
+    }
+}
+
+// HELPER FILLERS
+// ------------------------------------------------------------------------------------------------
+
+/// Compute aux column values (paper page 55).
+fn initialize_offset_aux<E: FieldElement>(
+    aux_columns: &mut Vec<Vec<E>>,
+    aux_off_offset: usize,
+    first_row: &mut Vec<E::BaseField>,
+    z: E,
+) {
+    aux_columns[aux_off_offset][0] = (z - first_row[OFFSET_COLUMNS[0]].into())
+        / (z - first_row[SORTED_OFFSET_COLUMNS[0]].into());
+
+    for i in 1..NB_OFFSET_COLUMNS {
+        aux_columns[aux_off_offset + i][0] = aux_columns[aux_off_offset + i - 1][0]
+            * (z - first_row[OFFSET_COLUMNS[i]].into())
+            / (z - first_row[SORTED_OFFSET_COLUMNS[i]].into());
+    }
+}
+
+fn fill_offset_aux<E: FieldElement>(
+    index: usize,
+    aux_columns: &mut Vec<Vec<E>>,
+    aux_off_offset: usize,
+    current_row: &mut Vec<E::BaseField>,
+    z: E,
+) {
+    aux_columns[aux_off_offset][index] = aux_columns[aux_off_offset + (NB_OFFSET_COLUMNS - 1)]
+        [index - 1]
+        * (z - current_row[OFFSET_COLUMNS[0]].into())
+        / (z - current_row[SORTED_OFFSET_COLUMNS[0]].into());
+
+    for i in 1..NB_OFFSET_COLUMNS {
+        aux_columns[aux_off_offset + i][index] = aux_columns[aux_off_offset + i - 1][index]
+            * (z - current_row[OFFSET_COLUMNS[i]].into())
+            / (z - current_row[SORTED_OFFSET_COLUMNS[i]].into());
+    }
+}
+
+fn initialize_memory_aux<E: FieldElement>(
+    aux_columns: &mut Vec<Vec<E>>,
+    aux_mem_offset: usize,
+    first_row: &mut Vec<E::BaseField>,
+    z: E,
+    alpha: E,
+) {
+    // Necessary variables: into() fails otherwise. Any better way to do this?
+    let mut a: E = first_row[MEMORY_COLUMNS[0].0].into();
+    let mut a2: E = first_row[SORTED_MEMORY_COLUMNS[0].0].into();
+    aux_columns[aux_mem_offset][0] = (z - (a + alpha * first_row[MEMORY_COLUMNS[0].1].into()))
+        / (z - (a2 + alpha * first_row[SORTED_MEMORY_COLUMNS[0].1].into()));
+
+    for i in 1..NB_MEMORY_COLUMN_PAIRS {
+        a = first_row[MEMORY_COLUMNS[i].0].into();
+        a2 = first_row[SORTED_MEMORY_COLUMNS[i].0].into();
+        aux_columns[aux_mem_offset + i][0] = aux_columns[aux_mem_offset + i - 1][0]
+            * (z - (a + alpha * first_row[MEMORY_COLUMNS[i].1].into()))
+            / (z - (a2 + alpha * first_row[SORTED_MEMORY_COLUMNS[i].1].into()));
+    }
+}
+
+fn fill_memory_aux<E: FieldElement>(
+    index: usize,
+    aux_columns: &mut Vec<Vec<E>>,
+    aux_mem_offset: usize,
+    current_row: &mut Vec<E::BaseField>,
+    z: E,
+    alpha: E,
+) {
+    // Necessary variables: into() fails otherwise. Any better way to do this?
+    let mut a: E = current_row[MEMORY_COLUMNS[0].0].into();
+    let mut a2: E = current_row[SORTED_MEMORY_COLUMNS[0].0].into();
+    aux_columns[aux_mem_offset][index] = aux_columns[aux_mem_offset + (NB_MEMORY_COLUMN_PAIRS - 1)]
+        [index - 1]
+        * (z - (a + alpha * current_row[MEMORY_COLUMNS[0].1].into()))
+        / (z - (a2 + alpha * current_row[SORTED_MEMORY_COLUMNS[0].1].into()));
+
+    for i in 1..NB_MEMORY_COLUMN_PAIRS {
+        a = current_row[MEMORY_COLUMNS[i].0].into();
+        a2 = current_row[SORTED_MEMORY_COLUMNS[i].0].into();
+        aux_columns[aux_mem_offset + i][index] = aux_columns[aux_mem_offset + i - 1][index]
+            * (z - (a + alpha * current_row[MEMORY_COLUMNS[i].1].into()))
+            / (z - (a2 + alpha * current_row[SORTED_MEMORY_COLUMNS[i].1].into()));
     }
 }

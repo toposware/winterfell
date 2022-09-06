@@ -21,6 +21,7 @@ pub struct CairoProver {
     options: ProofOptions,
     bytecode: Vec<BaseElement>,
     register_values: Vec<BaseElement>,
+    rescue_pointer_values: Vec<BaseElement>,
 }
 
 impl CairoProver {
@@ -28,11 +29,13 @@ impl CairoProver {
         options: ProofOptions,
         bytecode: Vec<BaseElement>,
         register_values: Vec<BaseElement>,
+        rescue_pointer_values: Vec<BaseElement>,
     ) -> Self {
         Self {
             options,
             bytecode,
             register_values,
+            rescue_pointer_values,
         }
     }
 
@@ -94,6 +97,7 @@ impl Prover for CairoProver {
         PublicInputs {
             bytecode: self.bytecode.clone(),
             register_values: self.register_values.clone(),
+            rescue_pointer_values: self.rescue_pointer_values.clone(),
         }
     }
 

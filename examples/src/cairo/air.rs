@@ -4,7 +4,11 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-use super::{BaseElement, ExtensionOf, FieldElement, ProofOptions, AUX_WIDTH, TRACE_WIDTH};
+use super::{
+    BaseElement, ExtensionOf, FieldElement, ProofOptions, AUX_WIDTH, MEMORY_COLUMNS,
+    NB_MEMORY_COLUMN_PAIRS, NB_OFFSET_COLUMNS, OFFSET_COLUMNS, SORTED_MEMORY_COLUMNS,
+    SORTED_OFFSET_COLUMNS, TRACE_WIDTH,
+};
 use crate::utils::{are_equal, is_binary};
 use winterfell::{
     Air, AirContext, Assertion, AuxTraceRandElements, ByteWriter, EvaluationFrame, Serializable,
@@ -18,12 +22,15 @@ pub struct PublicInputs {
     pub bytecode: Vec<BaseElement>,
     // pc_0, pc_final, ap_0, ap_final
     pub register_values: Vec<BaseElement>,
+    // rescue_begin, rescue_stop
+    pub rescue_pointer_values: Vec<BaseElement>,
 }
 
 impl Serializable for PublicInputs {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         target.write(&self.bytecode[..]);
         target.write(&self.register_values[..]);
+        target.write(&self.rescue_pointer_values[..]);
     }
 }
 
@@ -39,7 +46,7 @@ impl Air for CairoAir {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     fn new(trace_info: TraceInfo, public_inputs: PublicInputs, options: ProofOptions) -> Self {
-        let main_degrees = vec![
+        let mut main_degrees = vec![
             // CPU constraints
             TransitionConstraintDegree::new(1),
             TransitionConstraintDegree::new(2),
@@ -72,43 +79,39 @@ impl Air for CairoAir {
             TransitionConstraintDegree::new(2),
             TransitionConstraintDegree::new(2),
             TransitionConstraintDegree::new(2),
-            // Offset range checks
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            // Memory accesses contiguity and read-only
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
         ];
-        let aux_degrees = vec![
-            // Offset permutation constraints
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            // Memory permutation constraints
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-        ];
+
+        // Contiguity constraints
+        for _ in 0..NB_OFFSET_COLUMNS {
+            main_degrees.push(TransitionConstraintDegree::new(2));
+        }
+        for _ in 0..NB_MEMORY_COLUMN_PAIRS {
+            main_degrees.push(TransitionConstraintDegree::new(2));
+        }
+
+        // Read-only constraints
+        for _ in 0..NB_MEMORY_COLUMN_PAIRS {
+            main_degrees.push(TransitionConstraintDegree::new(2));
+        }
+
+        let mut aux_degrees = vec![];
+
+        // Offset permutation constraints
+        for _ in 0..NB_OFFSET_COLUMNS {
+            aux_degrees.push(TransitionConstraintDegree::new(2));
+        }
+        // Memory permuation constraints
+        for _ in 0..NB_MEMORY_COLUMN_PAIRS {
+            aux_degrees.push(TransitionConstraintDegree::new(2));
+        }
+
         assert_eq!(TRACE_WIDTH + AUX_WIDTH, trace_info.width());
         CairoAir {
             context: AirContext::new_multi_segment(
                 trace_info,
                 main_degrees,
                 aux_degrees,
-                5,
+                7,
                 2,
                 options,
             )
@@ -238,24 +241,14 @@ impl Air for CairoAir {
         result[29] = f_12 * (current[24] - (current[19] + instruction_size));
         result[30] = f_14 * (current[22] - current[32]);
 
-        // Offset range checks
-        result[31] = (current[35] - current[34]) * (current[35] - current[34] - one);
-        result[32] = (current[36] - current[35]) * (current[36] - current[35] - one);
-        result[33] = (current[37] - current[36]) * (current[37] - current[36] - one);
-        result[34] = (next[34] - current[37]) * (next[34] - current[37] - one);
+        enforce_contiguity_constraints(result, 31, current, next);
 
-        // Memory accesses contiguity and read-only
-        result[35] = (current[42] - current[40]) * (current[42] - current[40] - one);
-        result[36] = (current[44] - current[42]) * (current[44] - current[42] - one);
-        result[37] = (current[46] - current[44]) * (current[46] - current[44] - one);
-        result[38] = (current[48] - current[46]) * (current[48] - current[46] - one);
-        result[39] = (next[40] - current[48]) * (next[40] - current[48] - one);
-
-        result[40] = (current[43] - current[41]) * (current[42] - current[40] - one);
-        result[41] = (current[45] - current[43]) * (current[44] - current[42] - one);
-        result[42] = (current[47] - current[45]) * (current[46] - current[44] - one);
-        result[43] = (current[49] - current[47]) * (current[48] - current[46] - one);
-        result[44] = (next[41] - current[49]) * (next[40] - current[48] - one);
+        enforce_read_only_constraints(
+            result,
+            31 + NB_OFFSET_COLUMNS + NB_MEMORY_COLUMN_PAIRS,
+            current,
+            next,
+        );
     }
 
     fn evaluate_aux_transition<F, E>(
@@ -285,47 +278,28 @@ impl Air for CairoAir {
         // S_00, S_10, S_20, S_30, S_01, ...
 
         // Offset permutation arguments
-        result[0] = aux_current[1] * (random_elements[0] - main_current[35].into())
-            - aux_current[0] * (random_elements[0] - main_current[17].into());
-        result[1] = aux_current[2] * (random_elements[0] - main_current[36].into())
-            - aux_current[1] * (random_elements[0] - main_current[18].into());
-        result[2] = aux_current[3] * (random_elements[0] - main_current[37].into())
-            - aux_current[2] * (random_elements[0] - main_current[33].into());
-        result[3] = aux_next[0] * (random_elements[0] - main_next[34].into())
-            - aux_current[3] * (random_elements[0] - main_next[16].into());
+        enforce_offset_aux_constraints(
+            result,
+            0,
+            0,
+            main_current,
+            main_next,
+            aux_current,
+            aux_next,
+            random_elements[0],
+        );
 
-        // Memory permutation arguments
-        // Necessary variables: into() fails otherwise. Any better way to do this?
-        let mut a: E = main_current[21].into();
-        let mut a2: E = main_current[42].into();
-        result[4] = aux_current[5]
-            * (random_elements[1] - (a2 + random_elements[2] * main_current[43].into()))
-            - aux_current[4]
-                * (random_elements[1] - (a + random_elements[2] * main_current[22].into()));
-        a = main_current[23].into();
-        a2 = main_current[44].into();
-        result[5] = aux_current[6]
-            * (random_elements[1] - (a2 + random_elements[2] * main_current[45].into()))
-            - aux_current[5]
-                * (random_elements[1] - (a + random_elements[2] * main_current[24].into()));
-        a = main_current[25].into();
-        a2 = main_current[46].into();
-        result[6] = aux_current[7]
-            * (random_elements[1] - (a2 + random_elements[2] * main_current[47].into()))
-            - aux_current[6]
-                * (random_elements[1] - (a + random_elements[2] * main_current[26].into()));
-        a = main_current[38].into();
-        a2 = main_current[48].into();
-        result[7] = aux_current[8]
-            * (random_elements[1] - (a2 + random_elements[2] * main_current[49].into()))
-            - aux_current[7]
-                * (random_elements[1] - (a + random_elements[2] * main_current[39].into()));
-        a = main_next[19].into();
-        a2 = main_next[40].into();
-        result[8] = aux_next[4]
-            * (random_elements[1] - (a2 + random_elements[2] * main_next[41].into()))
-            - aux_current[8]
-                * (random_elements[1] - (a + random_elements[2] * main_next[20].into()));
+        enforce_memory_aux_constraints(
+            result,
+            4,
+            4,
+            main_current,
+            main_next,
+            aux_current,
+            aux_next,
+            random_elements[1],
+            random_elements[2],
+        )
     }
 
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
@@ -337,6 +311,12 @@ impl Air for CairoAir {
             Assertion::single(27, 0, self.public_inputs.register_values[2]),
             Assertion::single(28, 0, self.public_inputs.register_values[2]),
             Assertion::single(27, last_step, self.public_inputs.register_values[3]),
+            Assertion::single(50, 0, self.public_inputs.rescue_pointer_values[0]),
+            Assertion::single(
+                96,
+                last_step,
+                self.public_inputs.rescue_pointer_values[1] - Self::BaseField::ONE,
+            ),
         ]
     }
 
@@ -357,8 +337,125 @@ impl Air for CairoAir {
         }
 
         vec![
-            Assertion::single(3, self.trace_length() - 2, E::ONE),
-            Assertion::single(8, self.trace_length() - 2, final_value),
+            Assertion::single(NB_OFFSET_COLUMNS - 1, self.trace_length() - 2, E::ONE),
+            Assertion::single(AUX_WIDTH - 1, self.trace_length() - 2, final_value),
         ]
     }
+}
+
+// HELPER EVALUATORS
+// ------------------------------------------------------------------------------------------------
+
+/// Enforces contiguity constraints in sorted columns.
+fn enforce_contiguity_constraints<E: FieldElement>(
+    result: &mut [E],
+    result_offset: usize,
+    current: &[E],
+    next: &[E],
+) {
+    let one = E::ONE;
+    // Contiguity in sorted offset columns.
+    for i in 0..(NB_OFFSET_COLUMNS - 1) {
+        result[result_offset + i] = (current[SORTED_OFFSET_COLUMNS[i + 1]]
+            - current[SORTED_OFFSET_COLUMNS[i]])
+            * (current[SORTED_OFFSET_COLUMNS[i + 1]] - current[SORTED_OFFSET_COLUMNS[i]] - one);
+    }
+    result[result_offset + (NB_OFFSET_COLUMNS - 1)] = (next[SORTED_OFFSET_COLUMNS[0]]
+        - current[SORTED_OFFSET_COLUMNS[NB_OFFSET_COLUMNS - 1]])
+        * (next[SORTED_OFFSET_COLUMNS[0]]
+            - current[SORTED_OFFSET_COLUMNS[NB_OFFSET_COLUMNS - 1]]
+            - one);
+    // Contiguity in sorted memory addresses.
+    for i in 0..(NB_MEMORY_COLUMN_PAIRS - 1) {
+        result[result_offset + NB_OFFSET_COLUMNS + i] = (current[SORTED_MEMORY_COLUMNS[i + 1].0]
+            - current[SORTED_MEMORY_COLUMNS[i].0])
+            * (current[SORTED_MEMORY_COLUMNS[i + 1].0] - current[SORTED_MEMORY_COLUMNS[i].0] - one);
+    }
+    result[result_offset + NB_OFFSET_COLUMNS + (NB_MEMORY_COLUMN_PAIRS - 1)] = (next
+        [SORTED_MEMORY_COLUMNS[0].0]
+        - current[SORTED_MEMORY_COLUMNS[NB_MEMORY_COLUMN_PAIRS - 1].0])
+        * (next[SORTED_MEMORY_COLUMNS[0].0]
+            - current[SORTED_MEMORY_COLUMNS[NB_MEMORY_COLUMN_PAIRS - 1].0]
+            - one);
+}
+
+/// Enforces read_only constraints in sorted memory columns.
+fn enforce_read_only_constraints<E: FieldElement>(
+    result: &mut [E],
+    result_offset: usize,
+    current: &[E],
+    next: &[E],
+) {
+    let one = E::ONE;
+    for i in 0..(NB_MEMORY_COLUMN_PAIRS - 1) {
+        result[result_offset + i] = (current[SORTED_MEMORY_COLUMNS[i + 1].1]
+            - current[SORTED_MEMORY_COLUMNS[i].1])
+            * (current[SORTED_MEMORY_COLUMNS[i + 1].0] - current[SORTED_MEMORY_COLUMNS[i].0] - one);
+    }
+    result[result_offset + (NB_MEMORY_COLUMN_PAIRS - 1)] = (next[SORTED_MEMORY_COLUMNS[0].1]
+        - current[SORTED_MEMORY_COLUMNS[NB_MEMORY_COLUMN_PAIRS - 1].1])
+        * (next[SORTED_MEMORY_COLUMNS[0].0]
+            - current[SORTED_MEMORY_COLUMNS[NB_MEMORY_COLUMN_PAIRS - 1].0]
+            - one);
+}
+
+/// Enforces the permutation argument between offset columns and sorted columns (paper page 60).
+fn enforce_offset_aux_constraints<F, E>(
+    result: &mut [E],
+    result_offset: usize,
+    aux_off_offset: usize,
+    main_current: &[F],
+    main_next: &[F],
+    aux_current: &[E],
+    aux_next: &[E],
+    z: E,
+) where
+    F: FieldElement,
+    E: FieldElement + ExtensionOf<F>,
+{
+    for i in 0..(NB_OFFSET_COLUMNS - 1) {
+        result[result_offset + i] = aux_current[aux_off_offset + i + 1]
+            * (z - main_current[SORTED_OFFSET_COLUMNS[i + 1]].into())
+            - aux_current[aux_off_offset + i] * (z - main_current[OFFSET_COLUMNS[i + 1]].into());
+    }
+
+    result[result_offset + (NB_OFFSET_COLUMNS - 1)] = aux_next[aux_off_offset]
+        * (z - main_next[SORTED_OFFSET_COLUMNS[0]].into())
+        - aux_current[aux_off_offset + (NB_OFFSET_COLUMNS - 1)]
+            * (z - main_next[OFFSET_COLUMNS[0]].into());
+}
+
+/// Enforces the permutation argument between memory columns and sorted columns (paper page 60).
+fn enforce_memory_aux_constraints<F, E>(
+    result: &mut [E],
+    result_offset: usize,
+    aux_mem_offset: usize,
+    main_current: &[F],
+    main_next: &[F],
+    aux_current: &[E],
+    aux_next: &[E],
+    z: E,
+    alpha: E,
+) where
+    F: FieldElement,
+    E: FieldElement + ExtensionOf<F>,
+{
+    // Necessary variables: into() fails otherwise. Any better way to do this?
+    let mut a: E;
+    let mut a2: E;
+    for i in 0..(NB_MEMORY_COLUMN_PAIRS - 1) {
+        a = main_current[MEMORY_COLUMNS[i + 1].0].into();
+        a2 = main_current[SORTED_MEMORY_COLUMNS[i + 1].0].into();
+        result[result_offset + i] = aux_current[aux_mem_offset + i + 1]
+            * (z - (a2 + alpha * main_current[SORTED_MEMORY_COLUMNS[i + 1].1].into()))
+            - aux_current[aux_mem_offset + i]
+                * (z - (a + alpha * main_current[MEMORY_COLUMNS[i + 1].1].into()))
+    }
+
+    a = main_next[MEMORY_COLUMNS[0].0].into();
+    a2 = main_next[SORTED_MEMORY_COLUMNS[0].0].into();
+    result[result_offset + (NB_MEMORY_COLUMN_PAIRS - 1)] = aux_next[aux_mem_offset]
+        * (z - (a2 + alpha * main_next[SORTED_MEMORY_COLUMNS[0].1].into()))
+        - aux_current[aux_mem_offset + (NB_MEMORY_COLUMN_PAIRS - 1)]
+            * (z - (a + alpha * main_next[MEMORY_COLUMNS[0].1].into()));
 }
