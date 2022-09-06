@@ -444,9 +444,9 @@ fn get_divisor_numerator_evaluations<B: StarkField>(
                 numerator_vals[last_idx..(last_idx + domain_size / product.degree())],
                 1024
             )
-            .enumerate()
-            .for_each(|(i, result)| {
-                *result = exponentiations[i] - product.coset_elem();
+            .zip(exponentiations)
+            .for_each(|(result, exp)| {
+                *result = *exp - product.coset_elem();
             });
             last_idx += domain_size / product.degree();
         }
@@ -513,22 +513,14 @@ fn get_divisor_evaluations<B: StarkField>(
             .for_each(|(i, result)| {
                 *result = zs[i % zs.len()];
             });
-        for (j, product) in divisor.numerator().iter().enumerate() {
+        for product in divisor.numerator().iter().skip(1) {
             let key = (product.degree(), product.coset_dlog());
             let zs = inverse_evaluations_map.get(&key).unwrap();
-            if j == 0 {
-                iter_mut!(results, 1024)
-                    .enumerate()
-                    .for_each(|(i, result)| {
-                        *result = zs[i % zs.len()];
-                    });
-            } else {
-                iter_mut!(results, 1024)
-                    .enumerate()
-                    .for_each(|(i, result)| {
-                        *result *= zs[i % zs.len()];
-                    });
-            }
+            iter_mut!(results, 1024)
+                .enumerate()
+                .for_each(|(i, result)| {
+                    *result *= zs[i % zs.len()];
+                });
         }
         if !divisor.denominator().is_empty() {
             for product in divisor.denominator() {

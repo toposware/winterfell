@@ -14,6 +14,8 @@ pub mod fibonacci;
 pub mod lamport;
 #[cfg(feature = "std")]
 pub mod merkle;
+pub mod range_divisors;
+pub mod range_periodic;
 pub mod rescue;
 #[cfg(feature = "std")]
 pub mod rescue_raps;
@@ -151,6 +153,16 @@ pub enum ExampleType {
         /// Number of steps in the VDF function; must be one less than a power of two
         #[structopt(short = "n", default_value = "1048575")]
         num_steps: usize,
+    },
+    RangeDivisors {
+        /// Rangechecks to test custom divisors
+        #[structopt(short = "n", default_value = "1024")]
+        sequence_length: usize,
+    },
+    RangePeriodic {
+        /// Rangechecks to test custom divisors
+        #[structopt(short = "n", default_value = "1024")]
+        sequence_length: usize,
     },
     /// Compute a hash chain using Rescue hash function
     RescueF62 {
