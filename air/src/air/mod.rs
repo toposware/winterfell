@@ -437,6 +437,14 @@ pub trait Air: Send + Sync {
         self.context().virtual_trace_domain_generator
     }
 
+    fn get_main_transition_degrees(&self) -> Vec<TransitionConstraintDegree> {
+        self.context().main_transition_constraint_degrees.clone()
+    }
+
+    fn get_aux_transition_degrees(&self) -> Vec<TransitionConstraintDegree> {
+        self.context().aux_transition_constraint_degrees.clone()
+    }
+
     /// Returns constraint evaluation domain blowup factor for the computation described by this
     /// AIR.
     ///

@@ -6,23 +6,29 @@
 use winterfell::{FieldExtension, HashFunction, ProofOptions};
 
 #[test]
-fn pedersen_cpu_test_basic_proof_verification() {
-    let pedersen_hash = Box::new(super::PedersenHashExample::new(build_options(false)));
-    crate::tests::test_basic_proof_verification(pedersen_hash);
+fn subset_sum_test_basic_proof_verification() {
+    let subset_sum = Box::new(super::SubsetSumExample::new(build_options(false)));
+    crate::tests::test_basic_proof_verification(subset_sum);
 }
 
 #[test]
-fn pedersen_cpu_test_basic_proof_verification_extension() {
-    let pedersen_hash = Box::new(super::PedersenHashExample::new(build_options(true)));
-    crate::tests::test_basic_proof_verification(pedersen_hash);
+fn subset_sum_test_basic_proof_verification_extension() {
+    let subset_sum = Box::new(super::SubsetSumExample::new(build_options(true)));
+    crate::tests::test_basic_proof_verification(subset_sum);
+}
+
+#[test]
+fn mux_basic_proof_verification() {
+    let mux = Box::new(super::MuxExample::new(build_options(false)));
+    crate::tests::test_basic_proof_verification(mux);
 }
 
 // Test commented: currently cairo does not admit any inputs
 // #[test]
 
-// fn pedersen_hash_test_basic_proof_verification_fail() {
-//     let pedersen_hash = Box::new(super::PedersenHashExample::new(build_options(false)));
-//     crate::tests::test_basic_proof_verification_fail(pedersen_hash);
+// fn subset_sum_test_basic_proof_verification_fail() {
+//     let subset_sum = Box::new(super::SubsetSumExample::new(build_options(false)));
+//     crate::tests::test_basic_proof_verification_fail(subset_sum);
 // }
 
 fn build_options(use_extension_field: bool) -> ProofOptions {

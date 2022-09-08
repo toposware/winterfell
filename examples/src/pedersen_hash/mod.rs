@@ -2,7 +2,6 @@
 //
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
-
 use crate::{Example, ExampleOptions};
 use winterfell::{
     math::{
@@ -21,7 +20,7 @@ use log::debug;
 #[cfg(feature = "std")]
 use std::time::Instant;
 #[cfg(feature = "std")]
-use winterfell::{math::log2, Trace, TraceTable};
+use winterfell::{Air, math::log2, Trace, TraceTable};
 
 use super::utils::{
     ecc::{self, AFFINE_POINT_WIDTH, POINT_COORDINATE_WIDTH},
@@ -34,13 +33,15 @@ pub(crate) use hash::{
 };
 
 mod air;
-use air::{PedersenHashAir, PublicInputs};
+use air::{MuxAir, SubsetSumAir, ZeroAir, PublicInputs, MuxPublicInputs};
 
 mod prover;
-use prover::PedersenHashProver;
+use prover::{SubsetSumProver, MuxProver};
 
 #[cfg(test)]
 mod tests;
+
+type Type<T> = T;
 
 // CONSTANTS
 // ================================================================================================
@@ -52,22 +53,22 @@ pub fn get_example(options: ExampleOptions, _sequence_length: usize) -> Box<dyn 
 
     let num_queries = options.num_queries.unwrap_or(8);
     let blowup_factor = options.blowup_factor.unwrap_or(2);
-    Box::new(PedersenHashExample::new(
+    Box::new(SubsetSumExample::new(
         options.to_proof_options(num_queries, blowup_factor),
     ))
 }
 
-pub struct PedersenHashExample {
+pub struct SubsetSumExample {
     options: ProofOptions,
 }
 
-impl PedersenHashExample {
-    pub fn new(options: ProofOptions) -> PedersenHashExample {
+impl SubsetSumExample {
+    pub fn new(options: ProofOptions) -> SubsetSumExample {
         // assert!(
         //     sequence_length.is_power_of_two(),
         //     "sequence length must be a power of 2"
         // );
-        PedersenHashExample {
+        SubsetSumExample {
             options,
         }
     }
@@ -76,7 +77,7 @@ impl PedersenHashExample {
 // EXAMPLE IMPLEMENTATION
 // ================================================================================================
 
-impl Example for PedersenHashExample {
+impl Example for SubsetSumExample {
     fn prove(&self) -> StarkProof {
         debug!(
             "Generating proof for computing CairoCpu step up to 16th term\n\
@@ -84,7 +85,7 @@ impl Example for PedersenHashExample {
         );
 
         // create a prover
-        let prover = PedersenHashProver::new(self.options.clone());
+        let prover = SubsetSumProver::new(self.options.clone());
 
         // generate execution trace
         let now = Instant::now();
@@ -104,10 +105,74 @@ impl Example for PedersenHashExample {
     }
 
     fn verify(&self, proof: StarkProof) -> Result<(), VerifierError> {
-        winterfell::verify::<<PedersenHashProver as Prover>::Air>(proof, PublicInputs{})
+        winterfell::verify::<<SubsetSumProver as Prover>::Air>(proof, PublicInputs{})
     }
 
     fn verify_with_wrong_inputs(&self, proof: StarkProof) -> Result<(), VerifierError> {
-        winterfell::verify::<<PedersenHashProver as Prover>::Air>(proof, PublicInputs{})
+        winterfell::verify::<<SubsetSumProver as Prover>::Air>(proof, PublicInputs{})
     }
 }
+
+// MUX
+pub struct MuxExample {
+    options: ProofOptions,
+}
+
+impl MuxExample {
+    pub fn new(options: ProofOptions) -> MuxExample {
+        // assert!(
+        //     sequence_length.is_power_of_two(),
+        //     "sequence length must be a power of 2"
+        // );
+        MuxExample {
+            options,
+        }
+    }
+}
+
+// EXAMPLE IMPLEMENTATION
+// ================================================================================================
+
+impl Example for MuxExample {
+    fn prove(&self) -> StarkProof {
+        debug!(
+            "Generating proof for computing CairoCpu step up to 16th term\n\
+            ---------------------"
+        );
+
+        // create a prover
+        let prover = MuxProver::new(self.options.clone());
+
+        // generate execution trace
+        let now = Instant::now();
+        let trace = prover.build_trace();
+
+        let trace_width = trace.width();
+        let trace_length = trace.length();
+        debug!(
+            "Generated execution trace of {} registers and 2^{} steps in {} ms",
+            trace_width,
+            log2(trace_length),
+            now.elapsed().as_millis()
+        );
+
+        // generate the proof
+        prover.prove(trace).unwrap()
+    }
+
+    fn verify(&self, proof: StarkProof) -> Result<(), VerifierError> {
+        winterfell::verify::<<MuxProver as Prover>::Air>(proof, MuxPublicInputs{
+            input_left:Type::<<SubsetSumAir<4,4> as Air>::PublicInputs>{},
+            input_right: Type::<<ZeroAir as Air>::PublicInputs>{}
+        })
+    }
+
+    fn verify_with_wrong_inputs(&self, proof: StarkProof) -> Result<(), VerifierError> {
+        winterfell::verify::<<MuxProver as Prover>::Air>(proof, MuxPublicInputs{
+            input_left:Type::<<SubsetSumAir<4,4> as Air>::PublicInputs>{},
+            input_right: Type::<<ZeroAir as Air>::PublicInputs>{}
+        })
+    }
+}
+
+

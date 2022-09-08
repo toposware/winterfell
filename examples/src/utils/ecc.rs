@@ -118,31 +118,38 @@ pub(crate) fn enforce_point_addition_affine<E: FieldElement + From<BaseElement>>
 
     let x1 = &lhs[0..POINT_COORDINATE_WIDTH];
     let x2 = &rhs[0..POINT_COORDINATE_WIDTH];
+    let x3 = &point[0..POINT_COORDINATE_WIDTH];
 
     let y1 = &lhs[POINT_COORDINATE_WIDTH..AFFINE_POINT_WIDTH];
     let y2 = &rhs[POINT_COORDINATE_WIDTH..AFFINE_POINT_WIDTH];
+    let y3 = &point[POINT_COORDINATE_WIDTH..AFFINE_POINT_WIDTH];
+
+    
 
     let mut slope_witness = sub_fp6(&x2, &x1);
     slope_witness = mul_fp6(slope, &slope_witness);
     slope_witness = sub_fp6(
         &slope_witness, 
-        &sub_fp6(y2, y1));
-    let slope_witness = slope_witness.iter().zip(repeat(flag))
-        .map(
-            |(&slope_witness, flag)| flag*slope_witness
-        ).collect::<Vec<_>>();
+        &mul_fp_fp6(flag, &sub_fp6(y2, y1))
+    );
     result[0..POINT_COORDINATE_WIDTH].copy_from_slice(&slope_witness);
 
-    target.copy_from_slice(lhs);
-    compute_add_affine_with_slope(&mut target, rhs, slope);
+    // x coordinate
+    let mut addition_witness = mul_fp6(slope, slope);
+    let mut addition_witness_2 = add_fp6(x1, x2);
+    let mut addition_witness_2 = add_fp6(&addition_witness_2, x3);
+    addition_witness_2 = mul_fp_fp6(flag, &addition_witness_2);
+    addition_witness = sub_fp6(&addition_witness, &addition_witness_2);
+    result[POINT_COORDINATE_WIDTH..2*POINT_COORDINATE_WIDTH].copy_from_slice(&addition_witness);
 
-    // Make sure that the results are equal
-    for i in 0..AFFINE_POINT_WIDTH {
-        result.agg_constraint(
-            i + POINT_COORDINATE_WIDTH, 
-            flag, 
-            are_equal(target[i], point[i]));
-    }
+    // y coordinate
+    addition_witness = add_fp6(y1, y3);
+    addition_witness = mul_fp_fp6(flag, &addition_witness);
+    addition_witness_2 = sub_fp6(x1, x3);
+    addition_witness_2 = mul_fp6(slope, &addition_witness_2);
+    addition_witness = sub_fp6(&addition_witness, &addition_witness_2);
+    result[2*POINT_COORDINATE_WIDTH..3*POINT_COORDINATE_WIDTH].copy_from_slice(&addition_witness);
+
 }
 
 #[cfg(test)]
@@ -837,5 +844,18 @@ pub(crate) fn neg_fp6<E: FieldElement + From<BaseElement>>(a: &[E]) -> [E; POINT
         a[3].neg(),
         a[4].neg(),
         a[5].neg(),
+    ]
+}
+
+#[inline(always)]
+#[allow(unused)]
+pub(crate) fn mul_fp_fp6<E: FieldElement + From<BaseElement>>(a: E, b: &[E]) -> [E; POINT_COORDINATE_WIDTH] {
+    [
+        b[0]*a,
+        b[1]*a,
+        b[2]*a,
+        b[3]*a,
+        b[4]*a,
+        b[5]*a,
     ]
 }
