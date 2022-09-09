@@ -4,6 +4,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
+use crate::air::ContextDivisor;
 use crate::air::Assertion;
 use core::fmt::{Display, Formatter};
 use math::{log2, FieldElement, StarkField};
@@ -111,15 +112,12 @@ impl<B: StarkField> ConstraintDivisor<B> {
     /// The second vector determines (complex) exemption points. Its element
     /// is of the form (period, offset) and exempts all elements in steps
     /// $offset, offset + period, offset + 2period,\ldots$ from being asserted.
-    pub fn from_transition(
-        trace_length: usize,
-        divisor: &(Vec<(usize, usize, usize)>, Vec<(usize, usize)>),
-    ) -> Self {
+    pub fn from_transition(trace_length: usize, divisor: &ContextDivisor) -> Self {
         // TODO [divisors]: add assertions:
 
         // Build numerator product terms
         let numerator: Vec<ConstraintDivisorProduct<B>> = divisor
-            .0
+            .numerator()
             .iter()
             .map(|(period, offset, _)| {
                 ConstraintDivisorProduct::new(trace_length, *period, *offset)
@@ -129,10 +127,11 @@ impl<B: StarkField> ConstraintDivisor<B> {
         // Build denominator product terms. Here we exclude points defined in the
         // second element of divisor as well as any last step exemptions defined in
         // the first term.
-        let denominator_size = divisor.0.iter().fold(0, |acc, n| acc + n.2) + divisor.1.len();
+        let denominator_size =
+            divisor.numerator().iter().fold(0, |acc, n| acc + n.2) + divisor.denominator().len();
         let mut denominator: Vec<ConstraintDivisorProduct<B>> =
             Vec::with_capacity(denominator_size);
-        for (period, offset, num_exemptions) in divisor.0.iter() {
+        for (period, offset, num_exemptions) in divisor.numerator().iter() {
             let exemptions = (1..=*num_exemptions)
                 .map(|step| {
                     ConstraintDivisorProduct::new(
@@ -146,7 +145,7 @@ impl<B: StarkField> ConstraintDivisor<B> {
         }
 
         let complex_exemptions: Vec<ConstraintDivisorProduct<B>> = divisor
-            .1
+            .denominator()
             .iter()
             .map(|(period, offset)| ConstraintDivisorProduct::new(trace_length, *period, *offset))
             .collect();

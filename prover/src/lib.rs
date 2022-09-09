@@ -46,7 +46,7 @@ extern crate alloc;
 
 pub use air::{
     proof::StarkProof, Air, AirContext, Assertion, AuxTraceRandElements, BoundaryConstraint,
-    BoundaryConstraintGroup, ConstraintCompositionCoefficients, ConstraintDivisor,
+    BoundaryConstraintGroup, ConstraintCompositionCoefficients, ConstraintDivisor, ContextDivisor,
     DeepCompositionCoefficients, EvaluationFrame, FieldExtension, HashFunction, ProofOptions,
     TraceInfo, TraceLayout, TransitionConstraintDegree, TransitionConstraintGroup,
 };

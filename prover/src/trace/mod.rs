@@ -195,8 +195,8 @@ pub trait Trace: Sized {
                 // only check the transition if the divisor dictates to do so
                 let divisor_idx = air.context().main_transition_constraint_divisors()[i];
                 if contains(
-                    &air.context().divisors()[divisor_idx].0,
-                    &air.context().divisors()[divisor_idx].1,
+                    &air.context().divisors()[divisor_idx].numerator(),
+                    &air.context().divisors()[divisor_idx].denominator(),
                     step,
                     air.context().trace_len(),
                 ) {

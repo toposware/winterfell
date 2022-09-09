@@ -6,8 +6,8 @@
 
 use winterfell::{
     math::{fields::f128::BaseElement, FieldElement},
-    Air, AirContext, Assertion, ByteWriter, EvaluationFrame, ProofOptions, Serializable, TraceInfo,
-    TransitionConstraintDegree,
+    Air, AirContext, Assertion, ByteWriter, ContextDivisor, EvaluationFrame, ProofOptions,
+    Serializable, TraceInfo, TransitionConstraintDegree,
 };
 
 // COLLATZ AIR
@@ -60,22 +60,22 @@ impl Air for CollatzAir {
 
         // the default divisor (X^n-1)/(X-last_step)
         // period 1, offset 0, 1 final exemption
-        let divisor_default = (vec![(1, 0, 1)], vec![]);
+        let divisor_default = ContextDivisor::default();
         divisors.push(divisor_default);
 
         // We add the custom divisors
 
         // period 128 and offset 127 with one final ExampleOptions
         // checks transitions k*128+127 execpt the last one
-        let divisor1 = (vec![(128, 127, 1)], vec![]);
+        let divisor1 = ContextDivisor::new(vec![(128, 127, 1)], vec![]);
         divisors.push(divisor1);
 
         // all steps that are multiples of 128
-        let divisor2 = (vec![(128, 0, 0)], vec![]);
+        let divisor2 = ContextDivisor::new(vec![(128, 0, 0)], vec![]);
         divisors.push(divisor2);
 
         // check everything exept steps k*128+127
-        let divisor3 = (vec![(1, 0, 0)], vec![(128, 127)]);
+        let divisor3 = ContextDivisor::new(vec![(1, 0, 0)], vec![(128, 127)]);
         divisors.push(divisor3);
 
         // we assigne each constraint with one of the divisors.

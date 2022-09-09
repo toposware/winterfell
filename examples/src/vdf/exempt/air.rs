@@ -5,8 +5,8 @@
 
 use super::{BaseElement, FieldElement, ProofOptions, ALPHA, FORTY_TWO};
 use winterfell::{
-    Air, AirContext, Assertion, ByteWriter, EvaluationFrame, Serializable, TraceInfo,
-    TransitionConstraintDegree,
+    Air, AirContext, Assertion, ByteWriter, ContextDivisor, EvaluationFrame, Serializable,
+    TraceInfo, TransitionConstraintDegree,
 };
 
 // PUBLIC INPUTS
@@ -43,7 +43,7 @@ impl Air for VdfAir {
         // make sure the last two rows are excluded from transition constraints as we populate
         // values in the last row with garbage
 
-        let default_divisor = (vec![(1, 0, 2)], vec![]);
+        let default_divisor = ContextDivisor::new(vec![(1, 0, 2)], vec![]);
 
         let divisors = vec![default_divisor];
         let main_constraint_divisors: Vec<usize> = vec![0];

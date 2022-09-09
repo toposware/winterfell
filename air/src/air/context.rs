@@ -4,7 +4,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-use crate::{air::TransitionConstraintDegree, ProofOptions, TraceInfo};
+use crate::{air::TransitionConstraintDegree, ContextDivisor, ProofOptions, TraceInfo};
 use math::{log2, StarkField};
 use utils::collections::Vec;
 
@@ -29,7 +29,7 @@ pub struct AirContext<B: StarkField> {
     pub(super) lde_domain_generator: B,
 
     // The vector of available divisors for the given AIR.
-    pub(super) divisors: Vec<(Vec<(usize, usize, usize)>, Vec<(usize, usize)>)>,
+    pub(super) divisors: Vec<ContextDivisor>,
 }
 
 impl<B: StarkField> AirContext<B> {
@@ -154,6 +154,7 @@ impl<B: StarkField> AirContext<B> {
         let trace_length = trace_info.length();
         let lde_domain_size = trace_length * options.blowup_factor();
 
+        let default_divisor = ContextDivisor::default();
         // The default AIR uses the standard divisor (all transitions in trace except the last one).
         // Mutate divisors, main_transition_constraints and aux_transition_constraints to modify this behavior
         AirContext {
@@ -168,7 +169,7 @@ impl<B: StarkField> AirContext<B> {
             ce_blowup_factor,
             trace_domain_generator: B::get_root_of_unity(log2(trace_length)),
             lde_domain_generator: B::get_root_of_unity(log2(lde_domain_size)),
-            divisors: vec![(vec![(1, 0, 1)], vec![])],
+            divisors: vec![default_divisor],
         }
     }
 
@@ -250,7 +251,7 @@ impl<B: StarkField> AirContext<B> {
     }
 
     /// Returns a reference to the available divisors used by the AIR
-    pub fn divisors(&self) -> &[(Vec<(usize, usize, usize)>, Vec<(usize, usize)>)] {
+    pub fn divisors(&self) -> &[ContextDivisor] {
         &self.divisors
     }
     // DATA MUTATORS
@@ -271,7 +272,7 @@ impl<B: StarkField> AirContext<B> {
     ///   composition polynomial.
     pub fn set_custom_divisors(
         mut self,
-        divisors: &[(Vec<(usize, usize, usize)>, Vec<(usize, usize)>)],
+        divisors: &[ContextDivisor],
         main_constraint_divisors: &[usize],
         aux_constraint_divisors: &[usize],
     ) -> Self {

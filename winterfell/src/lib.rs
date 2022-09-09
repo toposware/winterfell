@@ -529,9 +529,9 @@
 pub use prover::{
     crypto, iterators, math, Air, AirContext, Assertion, AuxTraceRandElements, BoundaryConstraint,
     BoundaryConstraintGroup, ByteReader, ByteWriter, ConstraintCompositionCoefficients,
-    ConstraintDivisor, DeepCompositionCoefficients, Deserializable, DeserializationError,
-    EvaluationFrame, FieldExtension, HashFunction, Matrix, ProofOptions, Prover, ProverError,
-    Serializable, SliceReader, StarkProof, Trace, TraceInfo, TraceLayout, TraceTable,
-    TraceTableFragment, TransitionConstraintDegree, TransitionConstraintGroup,
+    ConstraintDivisor, ContextDivisor, DeepCompositionCoefficients, Deserializable,
+    DeserializationError, EvaluationFrame, FieldExtension, HashFunction, Matrix, ProofOptions,
+    Prover, ProverError, Serializable, SliceReader, StarkProof, Trace, TraceInfo, TraceLayout,
+    TraceTable, TraceTableFragment, TransitionConstraintDegree, TransitionConstraintGroup,
 };
 pub use verifier::{verify, VerifierError};

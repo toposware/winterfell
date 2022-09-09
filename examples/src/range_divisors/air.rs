@@ -6,15 +6,15 @@
 
 use winterfell::{
     math::{fields::f128::BaseElement, FieldElement},
-    Air, AirContext, Assertion, ByteWriter, EvaluationFrame, ProofOptions, Serializable, TraceInfo,
-    TransitionConstraintDegree,
+    Air, AirContext, Assertion, ByteWriter, ContextDivisor, EvaluationFrame, ProofOptions,
+    Serializable, TraceInfo, TransitionConstraintDegree,
 };
 
 // COLLATZ AIR
 // ================================================================================================
 
 pub(crate) const TRACE_WIDTH: usize = 3;
-pub(crate) const PERIOD: usize = 512;
+pub(crate) const PERIOD: usize = 8;
 
 pub struct PublicInputs {
     pub input_value: BaseElement,
@@ -64,19 +64,19 @@ impl Air for RangeAir {
         // divisors for first column
         for i in 0..PERIOD {
             // period PERIOD, offset i, no exemptions
-            let divisor = (vec![(PERIOD, i, 0)], vec![]);
+            let divisor = ContextDivisor::new(vec![(PERIOD, i, 0)], vec![]);
             divisors.push(divisor);
         }
 
         // divisors for second column
-        let divisor2 = (vec![(512, 512 - 42, 0)], vec![]);
-        let divisor2complement = (vec![(1, 0, 0)], vec![(512, 512 - 42)]);
+        let divisor2 = ContextDivisor::new(vec![(512, 512 - 42, 0)], vec![]);
+        let divisor2complement = ContextDivisor::new(vec![(1, 0, 0)], vec![(512, 512 - 42)]);
         divisors.push(divisor2);
         divisors.push(divisor2complement);
 
         // divisors for third column
-        let divisor3 = (vec![(1024, 41, 0)], vec![]);
-        let divisor3complement = (vec![(1, 0, 1)], vec![(1024, 41)]);
+        let divisor3 = ContextDivisor::new(vec![(1024, 41, 0)], vec![]);
+        let divisor3complement = ContextDivisor::new(vec![(1, 0, 1)], vec![(1024, 41)]);
         divisors.push(divisor3);
         divisors.push(divisor3complement);
 

@@ -18,6 +18,9 @@ pub use trace_info::{TraceInfo, TraceLayout};
 mod context;
 pub use context::AirContext;
 
+mod context_divisor;
+pub use context_divisor::ContextDivisor;
+
 mod assertions;
 pub use assertions::Assertion;
 

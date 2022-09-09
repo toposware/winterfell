@@ -185,7 +185,7 @@ impl<E: FieldElement> ConstraintEvaluationTable<E> {
 
         // evaluate all divisors in the evaluation domain
         let divisors_evaluations = get_divisor_evaluations::<E::BaseField>(
-            &self.divisors(),
+            self.divisors(),
             self.num_rows(),
             domain_offset,
         );
