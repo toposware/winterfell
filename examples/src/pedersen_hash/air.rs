@@ -4,136 +4,26 @@
 // LICENSE file in the root directory of this source tree.
 
 use super::{
-    BaseElement, FieldElement, ProofOptions, prover::{TRACE_WIDTH, PREFIX, CURVE_POINT, SLOPE},
-    hash::{get_intial_constant_point, get_constant_points}, ecc::GENERATOR};
-use crate::{utils::ecc::{enforce_point_addition_affine, AFFINE_POINT_WIDTH, POINT_COORDINATE_WIDTH}, pedersen_hash::prover::{MUX_TRACE_LENGTH}};
-use cheetah::group::ff::Field;
+    BaseElement, FieldElement, ProofOptions, subsetsumair::PublicInputs};
+use crate::{pedersen_hash::prover::{MUX_TRACE_WIDTH, MUX_TRACE_LENGTH}};
 use winterfell::{
     Air, AirContext, Assertion, ByteWriter, EvaluationFrame, Serializable, TraceInfo, TransitionConstraintDegree
 };
-
-use std::{cmp::min, result};
-
-pub struct PublicInputs {
-}
-
-impl Serializable for PublicInputs {
-    fn write_into<W: ByteWriter>(&self, target: &mut W) {
-    }
-}
 
 pub trait ComposableAir: Air {
     const NUM_READ_CELLS_CURRENT: usize;
     const NUM_READ_CELLS_NEXT: usize;
 }
-
-pub struct SubsetSumAir<const CYCLE_LENGTH: usize, const CONSTANTS_CYCLE_LENGTH: usize> {
-    context: AirContext<<SubsetSumAir<CYCLE_LENGTH, CONSTANTS_CYCLE_LENGTH> as Air>::BaseField>,
-}
-
-impl<const CYCLE_LENGTH: usize, const CONSTANTS_CYCLE_LENGTH: usize>
-SubsetSumAir<CYCLE_LENGTH, CONSTANTS_CYCLE_LENGTH> {
-    const INITAL_CONSTANT_POINT: [BaseElement; AFFINE_POINT_WIDTH] = get_intial_constant_point();
-}
-
-impl<const TRACE_LENGTH: usize, const CONSTANTS_CYCLE_LENGTH: usize>
-ComposableAir for SubsetSumAir<TRACE_LENGTH, CONSTANTS_CYCLE_LENGTH> {
-    const NUM_READ_CELLS_CURRENT: usize = TRACE_WIDTH;
-    const NUM_READ_CELLS_NEXT: usize = TRACE_WIDTH;
-}
-
-impl<const TRACE_LENGTH: usize, const CONSTANTS_CYCLE_LENGTH: usize>
-Air for SubsetSumAir<TRACE_LENGTH, CONSTANTS_CYCLE_LENGTH> {
-    type BaseField = BaseElement;
-    type PublicInputs = PublicInputs;
-
-    fn new(trace_info: TraceInfo, _pub_inputs: Self::PublicInputs, options: ProofOptions) -> Self {
-        // This checks could be performed at compile time
-        assert!(TRACE_LENGTH.is_power_of_two() && CONSTANTS_CYCLE_LENGTH.is_power_of_two());
-
-        assert!(TRACE_LENGTH >= CONSTANTS_CYCLE_LENGTH);
-        let mut degrees = vec![TransitionConstraintDegree::new(2)];
-        degrees.append(&mut vec![TransitionConstraintDegree::new(2); 6]);
-        degrees.append(&mut vec![TransitionConstraintDegree::new(2); 12]); // TODO: Check
-
-        let context =
-        // Why does Air context require at least 1 assertion?
-        AirContext::new(
-            trace_info, 
-            degrees,
-            12,
-            options);
-        SubsetSumAir {
-            context,
-        }
-    }
-    fn context(&self) -> &AirContext<Self::BaseField> {
-        &self.context
-    }
-
-    fn evaluate_transition<E: FieldElement + From<Self::BaseField>>(
-        &self,
-        frame: &EvaluationFrame<E>,
-        periodic_values: &[E],
-        result: &mut [E],
-    ) {
-        let current = frame.current();
-        let next = frame.next();
-
-        let bit = current[PREFIX] - (E::ONE + E::ONE)*next[PREFIX];
-        let lhs = &current[CURVE_POINT];
-        let rhs = &periodic_values[..AFFINE_POINT_WIDTH];
-        let slope = &current[SLOPE];
-        let point = &next[CURVE_POINT];
-
-        // constraint pedersen/hash0/ec_subset_sum/booleanity_test 
-        result[0] = bit*(bit - E::ONE);
-
-        // result[0..POINT_COORDINATE_WIDTH] corresponds to constraint pedersen/hash0/ec_subset_sum/add_points/slope
-        // result[POINT_COORDINATE_WIDTH .. 2*POINT_COORDINATE_WIDTH] corresponds to pedersen/hash0/ec_subset_sum/add_points/x
-        // result[2*POINT_COORDINATE_WIDTH .. 3*POINT_COORDINATE_WIDTH] corresponds to pedersen/hash0/ec_subset_sum/add_points/y
-        // TODO: constraints pedersen/hash0/ec_subset_sum/copy_point/x and pedersen/hash0/ec_subset_sum/copy_point/y are missing. 
-        enforce_point_addition_affine(
-            &mut result[1..],
-            lhs,
-            rhs,
-            slope,
-            point,
-            bit);
-
-        // Constraints pedersen/hash0/ec_subset_sum/bit_unpacking/ require virtual columns
-
-    }
-
-    fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
-        let mut initial_point_assertions = Vec::new();
-        for i in 0..AFFINE_POINT_WIDTH{
-            initial_point_assertions.push(Assertion::single(i + 1, 0, Self::INITAL_CONSTANT_POINT[i]));
-        }
-        initial_point_assertions
-    }
-
-    fn get_periodic_column_values(&self) -> Vec<Vec<Self::BaseField>> {
-        let mut periodic_columns = vec![Vec::new(); AFFINE_POINT_WIDTH];
-        for point in get_constant_points::<CONSTANTS_CYCLE_LENGTH>().into_iter() {
-            for (i, column) in periodic_columns.iter_mut().enumerate() {
-                column.push(point[i]);
-            }
-        }
-        periodic_columns
-    }
-}
-
-pub struct ZeroAir {
+pub struct ZeroAir<const N: usize> {
     context: AirContext<BaseElement>
 }
 
-impl ComposableAir for ZeroAir {
+impl<const N: usize> ComposableAir for ZeroAir<N> {
     const NUM_READ_CELLS_CURRENT: usize = 1;
     const NUM_READ_CELLS_NEXT: usize = 0;
 }
 
-impl Air for ZeroAir {
+impl<const N: usize> Air for ZeroAir<N> {
     type BaseField = BaseElement;
     type PublicInputs = PublicInputs;
     // CONSTRUCTOR
@@ -160,10 +50,12 @@ impl Air for ZeroAir {
     fn evaluate_transition<E: FieldElement + From<Self::BaseField>>(
         &self,
         frame: &EvaluationFrame<E>,
-        periodic_values: &[E],
+        _periodic_values: &[E],
         result: &mut [E],
     ) {
-        result[0] = frame.current()[0];
+        let mut n = N;
+        n += 1;
+        result[0] = frame.current()[N];
     }
 
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
@@ -230,7 +122,7 @@ where
             options
         );
         let width_left = <A as ComposableAir>::NUM_READ_CELLS_CURRENT;
-        let width_right = <B as ComposableAir>::NUM_READ_CELLS_CURRENT;
+        let width_right = 0; // TODO: For now the second Air shares all the trace with the first Air
         let num_transition_constraints_left = air_left.get_main_transition_degrees().len();
         let num_transition_constraints_right = air_right.get_main_transition_degrees().len();
         let num_periodic_values_left = air_left.get_periodic_column_values().len(); // TODO: this seems to be wasting computation of periodic cols 
@@ -258,33 +150,24 @@ where
         periodic_values: &[E],
         result: &mut [E],
     )    {
-        // Evalaute the left Air RATIO-1 times over frame chunks of size self.width_left
-        evaluate_over_frame_chunks(
+        // Evaluate the left air over the current row chunks
+        evaluate_over_row_chunks(
             &mut |frame, periodic_values, result| {
-                self.air_left.evaluate_transition(frame, periodic_values, result);
+                self.air_left.evaluate_transition(frame, periodic_values, result)
             },
             &mut result[0..(RATIO - 1)*self.num_transition_constraints_left],
-            frame,
+            &frame.current(),
             &periodic_values[0..(RATIO - 1)*self.num_periodic_values_left],
             self.width_left,
-            RATIO,     
             self.num_periodic_values_left,
-            self.num_transition_constraints_left        
+            self.num_transition_constraints_left
         );
 
-        // Evaluate the right Air, which checks constraints over the last subframe
+        // Evaluate the right Air, which checks constraints over the frame
         // of the left Air.
-        let frame = EvaluationFrame::<E>::from_rows(
-            frame.next()[
-                (RATIO/2 - 2)*self.width_left..(RATIO/2 - 2)*self.width_left + self.width_right
-            ].to_vec(),
-            frame.next()[
-                (RATIO/2 - 1)*self.width_left..(RATIO/2 - 1)*self.width_left + self.width_right
-            ].to_vec()
-        );
         let periodic_values_right = &periodic_values[
-            RATIO*self.num_periodic_values_left
-            ..RATIO*self.num_periodic_values_left + self.num_periodic_values_right
+            (RATIO - 1)*self.num_periodic_values_left
+            ..(RATIO - 1)*self.num_periodic_values_left + self.num_periodic_values_right
         ];
         self.air_right.evaluate_transition(
             &frame, 
@@ -296,7 +179,7 @@ where
     }
 
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
-        vec![Assertion::single(0, MUX_TRACE_LENGTH-1, Self::BaseField::ZERO)]
+        vec![Assertion::single(0, MUX_TRACE_LENGTH-1, Self::BaseField::ONE)]
     }
 
     fn get_periodic_column_values(&self) -> Vec<Vec<Self::BaseField>> {
@@ -320,6 +203,85 @@ pub fn split_columns<E: FieldElement>(columns: &Vec<Vec<E>>, chunk_size: usize) 
     }
     result
 }
+
+fn evaluate_over_row_chunks<E, F>( 
+    predicate: &mut F,
+    result: &mut [E],
+    row: &[E],
+    raw_periodic_values: &[E],
+    chunk_size: usize,
+    num_periodic_values: usize,
+    predicate_size: usize
+) where
+E: FieldElement,
+F: FnMut(&EvaluationFrame<E>, &[E], &mut [E])
+{
+    for (((current, next), periodic_values), mut result) in 
+    row.chunks(chunk_size)
+    .zip(row.chunks(chunk_size).skip(1))
+    .zip(raw_periodic_values.chunks(num_periodic_values))
+    .zip(result.chunks_mut(predicate_size))
+    {
+        let frame = EvaluationFrame::<E>::from_rows(
+            current.to_vec(),
+            next.to_vec()
+        );
+        predicate(
+            &frame, 
+            &periodic_values, 
+            &mut result
+        );
+    }
+}
+
+fn evaluate_over_frame_chunks<E,F>(
+    predicate: &mut F,
+    result: &mut [E],
+    frame: &EvaluationFrame<E>,
+    raw_periodic_values: &[E],
+    chunk_size: usize,
+    num_chunks: usize,
+    num_periodic_values: usize,
+    predicate_size: usize,
+) where
+E: FieldElement,
+F: FnMut(&EvaluationFrame<E>, &[E], &mut [E])
+{
+    // Evaluate current row
+    evaluate_over_row_chunks(
+        predicate,
+        &mut result[0..(num_chunks/2-1)*predicate_size],
+        frame.current(),
+        &raw_periodic_values[0..num_chunks/2*num_periodic_values],
+        chunk_size,
+        num_periodic_values,
+        predicate_size
+    );
+
+    // Evaluate the middle sub-frame
+    let middle_frame = EvaluationFrame::<E>::from_rows(
+        frame.current()[(num_chunks/2 - 1)*chunk_size..num_chunks/2*chunk_size].to_vec(),
+        frame.next()[0..chunk_size].to_vec()
+    );
+    predicate(
+        &middle_frame, 
+        &raw_periodic_values[(num_chunks/2 - 1)*num_periodic_values..num_chunks/2*num_periodic_values], 
+        &mut result[(num_chunks/2 - 1)*predicate_size..num_chunks/2*predicate_size]
+    );
+
+    // Evalaute the next row
+    evaluate_over_row_chunks(
+        predicate,
+        &mut result[num_chunks/2*predicate_size..(num_chunks - 1)*predicate_size],
+        frame.next(),
+        &raw_periodic_values[num_chunks/2*num_periodic_values..(num_chunks - 1)*num_periodic_values],
+        chunk_size,
+        num_periodic_values,
+        predicate_size
+    );
+}
+
+// TESTS
 
 #[test]
 fn test_split_columns() {
@@ -371,36 +333,6 @@ fn test_split_columns_small() {
         vec![BaseElement::ONE; 2],
     ];
     assert_eq!(test, expected);
-}
-
-fn evaluate_over_row_chunks<E, F>( 
-    predicate: &mut F,
-    result: &mut [E],
-    row: &[E],
-    raw_periodic_values: &[E],
-    chunk_size: usize,
-    num_periodic_values: usize,
-    predicate_size: usize
-) where
-E: FieldElement,
-F: FnMut(&EvaluationFrame<E>, &[E], &mut [E])
-{
-    for (((current, next), periodic_values), mut result) in 
-    row.chunks(chunk_size)
-    .zip(row.chunks(chunk_size).skip(1))
-    .zip(raw_periodic_values.chunks(num_periodic_values))
-    .zip(result.chunks_mut(predicate_size))
-    {
-        let frame = EvaluationFrame::<E>::from_rows(
-            current.to_vec(),
-            next.to_vec()
-        );
-        predicate(
-            &frame, 
-            &periodic_values, 
-            &mut result
-        );
-    }
 }
 
 #[test]
@@ -485,53 +417,6 @@ fn test_evaluate_over_row_chunks_with_error() {
 
     evaluate_over_row_chunks(&mut predicate, result, row, raw_periodic_values, chunk_size, num_periodic_values, predicate_size);
     assert!(result[3] != BaseElement::ZERO);
-}
-
-fn evaluate_over_frame_chunks<E,F>(
-    predicate: &mut F,
-    result: &mut [E],
-    frame: &EvaluationFrame<E>,
-    raw_periodic_values: &[E],
-    chunk_size: usize,
-    num_chunks: usize,
-    num_periodic_values: usize,
-    predicate_size: usize,
-) where
-E: FieldElement,
-F: FnMut(&EvaluationFrame<E>, &[E], &mut [E])
-{
-    // Evaluate current row
-    evaluate_over_row_chunks(
-        predicate,
-        &mut result[0..(num_chunks/2-1)*predicate_size],
-        frame.current(),
-        &raw_periodic_values[0..num_chunks/2*num_periodic_values],
-        chunk_size,
-        num_periodic_values,
-        predicate_size
-    );
-
-    // Evaluate the middle sub-frame
-    let middle_frame = EvaluationFrame::<E>::from_rows(
-        frame.current()[(num_chunks/2 - 1)*chunk_size..num_chunks/2*chunk_size].to_vec(),
-        frame.next()[0..chunk_size].to_vec()
-    );
-    predicate(
-        &middle_frame, 
-        &raw_periodic_values[(num_chunks/2 - 1)*num_periodic_values..num_chunks/2*num_periodic_values], 
-        &mut result[(num_chunks/2 - 1)*predicate_size..num_chunks/2*predicate_size]
-    );
-
-    // Evalaute the next row
-    evaluate_over_row_chunks(
-        predicate,
-        &mut result[num_chunks/2*predicate_size..(num_chunks - 1)*predicate_size],
-        frame.next(),
-        &raw_periodic_values[num_chunks/2*num_periodic_values..(num_chunks - 1)*num_periodic_values],
-        chunk_size,
-        num_periodic_values,
-        predicate_size
-    );
 }
 
 #[test]

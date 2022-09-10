@@ -25,5 +25,6 @@ pub fn get_constant_points<const N_POINTS: usize>() -> [ECPoint; N_POINTS] {
         rhs.copy_from_slice(&points[i-1][0..AFFINE_POINT_WIDTH]);
         compute_add_affine(&mut points[i], &rhs);
     }
+    points.reverse();
     points
 }

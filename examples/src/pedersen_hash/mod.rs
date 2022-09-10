@@ -33,10 +33,13 @@ pub(crate) use hash::{
 };
 
 mod air;
-use air::{MuxAir, SubsetSumAir, ZeroAir, PublicInputs, MuxPublicInputs};
+use air::{MuxAir, ZeroAir, MuxPublicInputs};
+
+mod subsetsumair;
+use subsetsumair::{SubsetSumAir, PublicInputs};
 
 mod prover;
-use prover::{SubsetSumProver, MuxProver};
+use prover::{SubsetSumProver, MuxProver, NUM_CONSTANTS, MUX_LAST_ROW_INDEX};
 
 #[cfg(test)]
 mod tests;
@@ -162,15 +165,15 @@ impl Example for MuxExample {
 
     fn verify(&self, proof: StarkProof) -> Result<(), VerifierError> {
         winterfell::verify::<<MuxProver as Prover>::Air>(proof, MuxPublicInputs{
-            input_left:Type::<<SubsetSumAir<4,4> as Air>::PublicInputs>{},
-            input_right: Type::<<ZeroAir as Air>::PublicInputs>{}
+            input_left:Type::<<SubsetSumAir<NUM_CONSTANTS> as Air>::PublicInputs>{},
+            input_right: Type::<<ZeroAir<MUX_LAST_ROW_INDEX> as Air>::PublicInputs>{}
         })
     }
 
     fn verify_with_wrong_inputs(&self, proof: StarkProof) -> Result<(), VerifierError> {
         winterfell::verify::<<MuxProver as Prover>::Air>(proof, MuxPublicInputs{
-            input_left:Type::<<SubsetSumAir<4,4> as Air>::PublicInputs>{},
-            input_right: Type::<<ZeroAir as Air>::PublicInputs>{}
+            input_left:Type::<<SubsetSumAir<NUM_CONSTANTS> as Air>::PublicInputs>{},
+            input_right: Type::<<ZeroAir<MUX_LAST_ROW_INDEX> as Air>::PublicInputs>{}
         })
     }
 }

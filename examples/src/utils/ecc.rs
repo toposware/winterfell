@@ -137,7 +137,7 @@ pub(crate) fn enforce_point_addition_affine<E: FieldElement + From<BaseElement>>
     // x coordinate
     let mut addition_witness = mul_fp6(slope, slope);
     let mut addition_witness_2 = add_fp6(x1, x2);
-    let mut addition_witness_2 = add_fp6(&addition_witness_2, x3);
+    addition_witness_2 = add_fp6(&addition_witness_2, x3);
     addition_witness_2 = mul_fp_fp6(flag, &addition_witness_2);
     addition_witness = sub_fp6(&addition_witness, &addition_witness_2);
     result[POINT_COORDINATE_WIDTH..2*POINT_COORDINATE_WIDTH].copy_from_slice(&addition_witness);
