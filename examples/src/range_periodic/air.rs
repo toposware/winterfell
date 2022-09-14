@@ -14,7 +14,7 @@ use winterfell::{
 // ================================================================================================
 
 pub(crate) const TRACE_WIDTH: usize = 3;
-pub(crate) const PERIOD: usize = 512;
+pub(crate) const PERIOD: usize = 128;
 
 pub struct PublicInputs {
     pub input_value: BaseElement,

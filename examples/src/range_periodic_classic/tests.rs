@@ -18,18 +18,18 @@ pub fn build_proof_options(use_extension_field: bool) -> winterfell::ProofOption
 
 #[test]
 fn range_divisors_test_basic_proof_verification() {
-    let range = Box::new(super::RangeExample::new(64, build_proof_options(false)));
+    let range = Box::new(super::RangeExample::new(4, build_proof_options(false)));
     crate::tests::test_basic_proof_verification(range);
 }
 
 #[test]
 fn range_divisors_test_basic_proof_verification_extension() {
-    let collatz = Box::new(super::RangeExample::new(64, build_proof_options(true)));
-    crate::tests::test_basic_proof_verification(collatz);
+    let range = Box::new(super::RangeExample::new(4, build_proof_options(true)));
+    crate::tests::test_basic_proof_verification(range);
 }
 
 #[test]
 fn collatz_divisors_test_basic_proof_verification_fail() {
-    let collatz = Box::new(super::RangeExample::new(64, build_proof_options(false)));
-    crate::tests::test_basic_proof_verification_fail(collatz);
+    let range = Box::new(super::RangeExample::new(4, build_proof_options(false)));
+    crate::tests::test_basic_proof_verification_fail(range);
 }
