@@ -304,6 +304,20 @@ pub trait Air: Send + Sync {
         Vec::new()
     }
 
+    /// Returns values for sparse (many zeros) periodic columns used in the computation.
+    ///
+    /// These values will correspond to custom divisors and will be used to compute
+    /// column values at specific states of the computation
+    /// and passed in to the [evaluate_transition()](Air::evaluate_transition) method as
+    /// `periodic_values` parameter.
+    ///
+    /// The default implementation of this method returns an empty vector. Each such polynomial
+    /// is described by its period and a set of offsets inside each period where the constraint should
+    /// hold.
+    fn get_custom_divisors(&self) -> Vec<(usize, Vec<usize>)> {
+        Vec::new()
+    }
+
     /// Returns polynomial for all periodic columns.
     ///
     /// These polynomials are interpolated from the values returned from the

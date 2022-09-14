@@ -7,11 +7,15 @@
 use structopt::StructOpt;
 use winterfell::{FieldExtension, HashFunction, ProofOptions, StarkProof, VerifierError};
 
+pub mod collatz_periodic;
+pub mod collatz_periodic_classic;
 pub mod fibonacci;
 #[cfg(feature = "std")]
 pub mod lamport;
 #[cfg(feature = "std")]
 pub mod merkle;
+pub mod range_periodic;
+pub mod range_periodic_classic;
 pub mod rescue;
 #[cfg(feature = "std")]
 pub mod rescue_raps;
@@ -96,6 +100,24 @@ impl ExampleOptions {
 #[derive(StructOpt, Debug)]
 //#[structopt(about = "available examples")]
 pub enum ExampleType {
+    /// Compute a Collatz sequence using custom divisors
+    CollatzPeriodic {
+        /// Input of Collatz sequence
+        #[structopt(short = "x", default_value = "42")]
+        input_value: usize,
+        /// Length of Collatz sequence; must be a power of two
+        #[structopt(short = "n", default_value = "4096")]
+        sequence_length: usize,
+    },
+    /// Compute a Collatz sequence using periodic columns
+    CollatzPeriodicClassic {
+        /// Input of Collatz sequence
+        #[structopt(short = "x", default_value = "42")]
+        input_value: usize,
+        /// Length of Collatz sequence; must be a power of two
+        #[structopt(short = "n", default_value = "4096")]
+        sequence_length: usize,
+    },
     /// Compute a Fibonacci sequence using trace table with 2 registers
     Fib {
         /// Length of Fibonacci sequence; must be a power of two
@@ -131,6 +153,16 @@ pub enum ExampleType {
         /// Number of steps in the VDF function; must be one less than a power of two
         #[structopt(short = "n", default_value = "1048575")]
         num_steps: usize,
+    },
+    RangePeriodic {
+        /// Rangechecks to test custom divisors
+        #[structopt(short = "n", default_value = "4")]
+        sequence_length: usize,
+    },
+    RangePeriodicClassic {
+        /// Rangechecks to test custom divisors
+        #[structopt(short = "n", default_value = "4")]
+        sequence_length: usize,
     },
     /// Compute a hash chain using Rescue hash function
     RescueF62 {

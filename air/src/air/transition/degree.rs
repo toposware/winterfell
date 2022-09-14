@@ -11,14 +11,21 @@ use core::cmp;
 /// Degree descriptor of a transition constraint.
 ///
 /// Describes constraint degree as a combination of multiplications of periodic and trace
-/// columns. For example, degree of a constraint which requires multiplication of two trace
+/// columns.
+///
+/// Normal periodic columns should have cycles: [(period, 1)]. A custom divisor periodic column
+/// with period p that checks k different offsets is described as [(period, k)].
+///
+/// For example, degree of a constraint which requires multiplication of two trace
 /// columns can be described as: `base: 2, cycles: []`. A constraint which requires
 /// multiplication of 3 trace columns and a periodic column with a period of 32 steps can be
-/// described as: `base: 3, cycles: [32]`.
+/// described as: `base: 3, cycles: [32]`. A constraint which requires multiplication of 3
+/// trace columns and a custom divisor with period 32 that enforces constraints on offsets
+/// 2,5,6, is described as `base: 3, cycles: [32,3].
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TransitionConstraintDegree {
     base: usize,
-    cycles: Vec<usize>,
+    cycles: Vec<(usize, usize)>,
 }
 
 impl TransitionConstraintDegree {
@@ -75,6 +82,53 @@ impl TransitionConstraintDegree {
         }
         TransitionConstraintDegree {
             base: base_degree,
+            cycles: cycles.iter().map(|x| (*x, 1)).collect(),
+        }
+    }
+
+    /// Creates a new transition degree descriptor for constraints which involve multiplication
+    /// of trace columns, periodic columns and custom divisor columns.
+    ///
+    /// For example, if a constraint involves multiplication of two trace columns, one
+    /// periodic column with a period length of 32 steps and a custom divisor of period 32 that
+    /// enforces a constraint at k offsets, `base_degree` should be set to 2,
+    /// and `cycles` should be set to `vec![(32,1), (32,k)]`.
+    ///
+    /// # Panics
+    /// Panics if:
+    /// * `base_degree` is zero.
+    /// * Any of the values in the `cycles.0` vector is smaller than two or is not powers of two.
+    /// * Any of the values in the `cycles.1` vector is not smaller than `cycles.0`.
+    pub fn with_complex_cycles(base_degree: usize, cycles: Vec<(usize, usize)>) -> Self {
+        assert!(
+            base_degree > 0,
+            "transition constraint degree must be at least one, but was zero"
+        );
+        for (i, &cycle) in cycles.iter().enumerate() {
+            assert!(
+                cycle.0 >= MIN_CYCLE_LENGTH,
+                "cycle length must be at least {}, but was {} for cycle {}",
+                MIN_CYCLE_LENGTH,
+                cycle.0,
+                i
+            );
+            assert!(
+                cycle.0.is_power_of_two(),
+                "cycle length must be a power of two, but was {} for cycle {}",
+                cycle.0,
+                i
+            );
+            assert!(
+                cycle.1 < cycle.0,
+                "number of offsets must be less than cycle length but cycle length was {} and 
+                number of offsets was {} for cycle {}",
+                cycle.0,
+                cycle.1,
+                i
+            );
+        }
+        TransitionConstraintDegree {
+            base: base_degree,
             cycles,
         }
     }
@@ -101,8 +155,8 @@ impl TransitionConstraintDegree {
     /// $$
     pub fn get_evaluation_degree(&self, trace_length: usize) -> usize {
         let mut result = self.base * (trace_length - 1);
-        for cycle_length in self.cycles.iter() {
-            result += (trace_length / cycle_length) * (cycle_length - 1);
+        for (cycle_length, number_of_offsets) in self.cycles.iter() {
+            result += (trace_length / cycle_length) * (cycle_length - number_of_offsets);
         }
         result
     }

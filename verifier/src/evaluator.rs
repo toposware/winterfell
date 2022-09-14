@@ -7,6 +7,15 @@
 use air::{Air, AuxTraceRandElements, ConstraintCompositionCoefficients, EvaluationFrame};
 use math::{polynom, FieldElement};
 use utils::collections::Vec;
+use utils::collections::{BTreeMap, BTreeSet};
+
+// CONSANTS
+// ================================================================================================
+
+// Defines the cost of an inversion in terms of multiplications.
+const INVERSION_COST: usize = 50;
+
+// ================================================================================================
 
 // CONSTRAINT EVALUATION
 // ================================================================================================
@@ -36,8 +45,74 @@ pub fn evaluate_constraints<A: Air, E: FieldElement<BaseField = A::BaseField>>(
         })
         .collect::<Vec<_>>();
 
+    // dictionary to chache exponentiations for x
+    let mut xps: BTreeMap<usize, E> = BTreeMap::new();
+    // dictionary to cache exponentiations for offsets
+    let mut gxps: BTreeMap<usize, E::BaseField> = BTreeMap::new();
+    let custom_divisor_values = air
+        .get_custom_divisors()
+        .iter()
+        .map(|(period, offsets)| {
+            // We can evaluate the divisor in two ways:
+            //      1. compute X^n-1 / \Prod X^k - offset.
+            //         This involves offsets.len() multiplication and one iversion per point
+            //      2. compute \Prod X^k - c_offset where c_offset are elements not
+            //         included in the offset
+            //         This involves period - offsets.len() multiplication
+            if offsets.len() + INVERSION_COST < period - offsets.len() {
+                // compute X^n - 1
+                let xp: E = *xps
+                    .entry(air.trace_length())
+                    .or_insert_with(|| x.exp(((air.trace_length()) as u64).into()));
+                let numerator = xp - E::ONE;
+
+                // compute \Prod X^{n/p - g^offset}
+                let mut denominator = E::ONE;
+                for offset in offsets {
+                    let g_offset_dlog = air.trace_length() / period * offset;
+                    let g_offset = *gxps.entry(g_offset_dlog).or_insert_with(|| {
+                        air.trace_domain_generator()
+                            .exp((g_offset_dlog as u64).into())
+                    });
+                    let xp = *xps
+                        .entry(air.trace_length() / period)
+                        .or_insert_with(|| x.exp(((air.trace_length() / period) as u64).into()));
+                    denominator *= xp - g_offset.into();
+                }
+                numerator / denominator
+            } else {
+                // compute the complementary offsets {0..period} \ offsets
+                let mut c_offsets = BTreeSet::new();
+                for i in 0..*period {
+                    c_offsets.insert(i);
+                }
+                for offset in offsets {
+                    c_offsets.remove(offset);
+                }
+
+                let mut evaluation = E::ONE;
+                for offset in c_offsets {
+                    let g_offset_dlog = air.trace_length() / period * offset;
+                    let g_offset = *gxps.entry(g_offset_dlog).or_insert_with(|| {
+                        air.trace_domain_generator()
+                            .exp((g_offset_dlog as u64).into())
+                    });
+                    let xp = *xps
+                        .entry(air.trace_length() / period)
+                        .or_insert_with(|| x.exp(((air.trace_length() / period) as u64).into()));
+
+                    evaluation *= xp - g_offset.into();
+                }
+                evaluation
+            }
+        })
+        .collect::<Vec<_>>();
+
     // evaluate transition constraints for the main trace segment
     let mut t_evaluations1 = E::zeroed_vector(t_constraints.num_main_constraints());
+
+    let periodic_values = [periodic_values, custom_divisor_values].concat();
+
     air.evaluate_transition(main_trace_frame, &periodic_values, &mut t_evaluations1);
 
     // evaluate transition constraints for auxiliary trace segments (if any)

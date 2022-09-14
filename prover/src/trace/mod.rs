@@ -7,6 +7,7 @@
 use super::{matrix::MultiColumnIter, Matrix};
 use air::{Air, AuxTraceRandElements, EvaluationFrame, TraceInfo, TraceLayout};
 use math::{polynom, FieldElement, StarkField};
+use utils::collections::BTreeSet;
 
 mod trace_lde;
 pub use trace_lde::TraceLde;
@@ -166,6 +167,10 @@ pub trait Trace: Sized {
         let periodic_values_polys = air.get_periodic_column_polys();
         let mut periodic_values = vec![Self::BaseField::ZERO; periodic_values_polys.len()];
 
+        // collect the custom divisors
+        let custom_divisors = air.get_custom_divisors();
+        let mut custom_divisor_values = vec![Self::BaseField::ONE; custom_divisors.len()];
+
         // initialize buffers to hold evaluation frames and results of constraint evaluations
         let mut x = Self::BaseField::ONE;
         let mut main_frame = EvaluationFrame::new(self.main_trace_width());
@@ -178,6 +183,29 @@ pub trait Trace: Sized {
             vec![Self::BaseField::ZERO; air.context().num_main_transition_constraints()];
         let mut aux_evaluations = vec![E::ZERO; air.context().num_aux_transition_constraints()];
 
+        // compute the group elements needed for custom divisors if any
+        let mut divisor_offsets = Vec::with_capacity(custom_divisors.len());
+        for (period, offsets) in custom_divisors.iter() {
+            let num_cycles = air.trace_length() / period;
+
+            // we use multiplications in this case
+            let mut c_offsets = BTreeSet::new();
+            for i in 0..*period {
+                c_offsets.insert(i);
+            }
+            for offset in offsets {
+                c_offsets.remove(offset);
+            }
+            let g_offsets = c_offsets
+                .iter()
+                .map(|offset| {
+                    air.trace_domain_generator()
+                        .exp(((num_cycles * offset) as u64).into())
+                })
+                .collect::<Vec<_>>();
+            divisor_offsets.push(g_offsets);
+        }
+
         // we check transition constraints on all steps except the last k steps, where k is the
         // number of steps exempt from transition constraints (guaranteed to be at least 1)
         for step in 0..self.length() - air.context().num_transition_exemptions() {
@@ -187,6 +215,25 @@ pub trait Trace: Sized {
                 let x = x.exp((num_cycles as u32).into());
                 *v = polynom::eval(p, x);
             }
+            for ((i, custom_divisor), custom_divisor_value) in custom_divisors
+                .iter()
+                .enumerate()
+                .zip(custom_divisor_values.iter_mut())
+            {
+                // We compute the custom divisor value. Because we are in the trace domain
+                // we cannot compute X^n-1 / \Prod X^{n/p} - g^offset since it is zero
+                // everywhere. We compute Prod X^{n/p} - g^{c_offset} where c_offset
+                // is any element not included in offsets
+                let (period, _) = custom_divisor;
+
+                let mut evaluation = E::BaseField::ONE;
+                for g_offset in &divisor_offsets[i] {
+                    evaluation *= x.exp(((air.trace_length() / period) as u64).into()) - *g_offset;
+                }
+                *custom_divisor_value = evaluation;
+            }
+
+            let periodic_values = [periodic_values.clone(), custom_divisor_values.clone()].concat();
 
             // evaluate transition constraints for the main trace segment and make sure they all
             // evaluate to zeros

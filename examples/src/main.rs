@@ -10,7 +10,10 @@ use std::time::Instant;
 use structopt::StructOpt;
 use winterfell::StarkProof;
 
-use examples::{fibonacci, rescue::*, vdf, ExampleOptions, ExampleType};
+use examples::{
+    collatz_periodic, collatz_periodic_classic, fibonacci, range_periodic, range_periodic_classic,
+    rescue::*, vdf, ExampleOptions, ExampleType,
+};
 #[cfg(feature = "std")]
 use examples::{lamport, merkle, rescue_raps};
 
@@ -31,6 +34,14 @@ fn main() {
 
     // instantiate and prepare the example
     let example = match options.example {
+        ExampleType::CollatzPeriodic {
+            input_value,
+            sequence_length,
+        } => collatz_periodic::get_example(options, input_value, sequence_length),
+        ExampleType::CollatzPeriodicClassic {
+            input_value,
+            sequence_length,
+        } => collatz_periodic_classic::get_example(options, input_value, sequence_length),
         ExampleType::Fib { sequence_length } => {
             fibonacci::fib2::get_example(options, sequence_length)
         }
@@ -45,6 +56,12 @@ fn main() {
         }
         ExampleType::Vdf { num_steps } => vdf::regular::get_example(options, num_steps),
         ExampleType::VdfExempt { num_steps } => vdf::exempt::get_example(options, num_steps),
+        ExampleType::RangePeriodic { sequence_length } => {
+            range_periodic::get_example(options, sequence_length)
+        }
+        ExampleType::RangePeriodicClassic { sequence_length } => {
+            range_periodic_classic::get_example(options, sequence_length)
+        }
         ExampleType::RescueF62 { chain_length } => rescue_62::get_example(options, chain_length),
         ExampleType::RescueF128 { chain_length } => rescue_128::get_example(options, chain_length),
         #[cfg(feature = "std")]

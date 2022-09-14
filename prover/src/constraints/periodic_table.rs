@@ -5,11 +5,22 @@
 // LICENSE file in the root directory of this source tree.
 
 use air::Air;
-use math::{fft, StarkField};
+use math::{batch_inversion, fft, get_power_series_with_offset, StarkField};
 use utils::{
-    collections::{BTreeMap, Vec},
-    uninit_vector,
+    collections::{BTreeMap, BTreeSet, Vec},
+    iter_mut, uninit_vector,
 };
+
+#[cfg(feature = "concurrent")]
+use utils::iterators::*;
+
+// CONSANTS
+// ================================================================================================
+
+// Defines the cost of an inversion in terms of multiplications.
+const INVERSION_COST: usize = 50;
+
+// ================================================================================================
 
 pub struct PeriodicValueTable<B: StarkField> {
     values: Vec<B>,
@@ -74,6 +85,124 @@ impl<B: StarkField> PeriodicValueTable<B> {
             width: row_width,
         }
     }
+    // CONSTRUCTOR
+    // --------------------------------------------------------------------------------------------
+    /// Builds a table of custom divisor column values for the specified AIR. The table contains expanded
+    /// values of all custom divisors columns normalized to the same length. This enables simple lookup
+    /// into the able using step index of the constraint evaluation domain.
+    pub fn from_custom_divisors<A: Air<BaseField = B>>(air: &A) -> PeriodicValueTable<B> {
+        // get a list of polynomials describing periodic columns from AIR. if there are no
+        // periodic columns return an empty table
+        let polys = air.get_custom_divisors();
+        if polys.is_empty() {
+            return PeriodicValueTable {
+                values: Vec::new(),
+                length: 0,
+                width: 0,
+            };
+        }
+
+        // determine the size of the biggest polynomial in the set. unwrap is OK here
+        // because if we get here, there must be at least one polynomial in the set.
+        let max_poly_size = polys.iter().max_by_key(|p| p.0).unwrap().0;
+
+        // size of the evaluation table
+        let row_width = polys.len();
+        let column_length = max_poly_size * air.ce_blowup_factor();
+
+        // constraint evaluation domain
+        let domain_size = air.ce_domain_size();
+
+        // initialize a vector to store the values
+        let mut values = unsafe { uninit_vector(row_width * column_length) };
+
+        let mut exponentiations_map = BTreeMap::new();
+
+        // evaluate numerator X^n - 1
+        let numerator_evaluations = get_power_series_with_offset(
+            B::get_root_of_unity(domain_size.trailing_zeros())
+                .exp((air.trace_length() as u64).into()),
+            air.domain_offset().exp((air.trace_length() as u64).into()),
+            domain_size / air.trace_length(),
+        )
+        .iter()
+        .map(|x| *x - B::ONE)
+        .collect::<Vec<_>>();
+
+        let mut divisor_offsets = Vec::with_capacity(polys.len());
+        // compute offset points for each divisor
+        for (period, offsets) in polys.iter() {
+            // We either compute the given or the complementary offsets depending on how
+            // we evaluate the divisor
+            let num_cycles = air.trace_length() / period;
+            if offsets.len() + INVERSION_COST < period - offsets.len() {
+                // we use inversions in this case
+                let g_offsets = offsets
+                    .iter()
+                    .map(|offset| {
+                        air.trace_domain_generator()
+                            .exp(((num_cycles * offset) as u64).into())
+                    })
+                    .collect::<Vec<_>>();
+                divisor_offsets.push(g_offsets);
+            } else {
+                // we use multiplications in this case
+                let mut c_offsets = BTreeSet::new();
+                for i in 0..*period {
+                    c_offsets.insert(i);
+                }
+                for offset in offsets {
+                    c_offsets.remove(offset);
+                }
+                let g_offsets = c_offsets
+                    .iter()
+                    .map(|offset| {
+                        air.trace_domain_generator()
+                            .exp(((num_cycles * offset) as u64).into())
+                    })
+                    .collect::<Vec<_>>();
+                divisor_offsets.push(g_offsets);
+            }
+        }
+
+        // evaluate each divisor and save the result.
+        // evaluation is done either with multiplications or with inversions
+        for (j, (period, offsets)) in polys.iter().enumerate() {
+            // We can evaluate the divisor in two ways:
+            //      1. compute X^n-1 / \Prod X^k - offset.
+            //         This involves offsets.len() multiplication and one iversion per point
+            //      2. compute \Prod X^k - c_offset where c_offset are elements not
+            //         included in the offset
+            //         This involves period - offsets.len() multiplication
+            let divisor_evaluations = if offsets.len() + INVERSION_COST < period - offsets.len() {
+                Self::evaluate_custom_divisor_with_inversions(
+                    air,
+                    &numerator_evaluations,
+                    &mut exponentiations_map,
+                    period,
+                    &divisor_offsets[j],
+                )
+            } else {
+                Self::evaluate_custom_divisor_with_multiplications(
+                    air,
+                    &mut exponentiations_map,
+                    period,
+                    &divisor_offsets[j],
+                )
+            };
+
+            // record the results in the table
+            for i in 0..column_length {
+                values[i * row_width + j] = divisor_evaluations[i % divisor_evaluations.len()];
+            }
+        }
+
+        PeriodicValueTable {
+            values,
+            length: column_length,
+            width: row_width,
+        }
+    }
 
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
@@ -89,6 +218,105 @@ impl<B: StarkField> PeriodicValueTable<B> {
             let start = (ce_step % self.length) * self.width;
             &self.values[start..start + self.width]
         }
+    }
+
+    // HELPER FUNCTIONS
+
+    /// Evaluates a custom divisor described by a period $p$ and a set of offsets. The constraint
+    /// is forced to hold on steps $k\cdot p + i$ for each offset $i$.    
+    ///
+    /// The divisor is evaluated by evaluating $\frac{X^n-1}{\Prod X^{n/p}-g^i}$ where i are the
+    /// given offsets.
+    pub fn evaluate_custom_divisor_with_inversions<A: Air<BaseField = B>>(
+        air: &A,
+        numerator_evaluations: &[B],
+        exponentiations_map: &mut BTreeMap<usize, Vec<B>>,
+        period: &usize,
+        offsets: &[B],
+    ) -> Vec<B> {
+        // constraint evaluation domain
+        let domain_size = air.ce_domain_size();
+
+        let num_cycles = air.trace_length() / period;
+
+        // number of elements needed elements to evaluate denominator
+        let denominator_evals_size = domain_size / num_cycles;
+
+        // evaluate x^{trace_length/period} if not already evaluated
+        let exponentiations = exponentiations_map.entry(*period).or_insert_with(|| {
+            get_power_series_with_offset(
+                B::get_root_of_unity(domain_size.trailing_zeros()).exp((num_cycles as u64).into()),
+                air.domain_offset().exp((num_cycles as u64).into()),
+                denominator_evals_size,
+            )
+        });
+
+        //evaluate the denominator
+
+        // initialize values to ONE
+        let mut denominator_evaluations = vec![B::ONE; denominator_evals_size];
+
+        iter_mut!(denominator_evaluations, 128)
+            .enumerate()
+            .for_each(|(i, value)| {
+                for g_offset in offsets {
+                    *value *= exponentiations[i] - *g_offset;
+                }
+            });
+
+        // invert the numerator evaluations
+        let mut evaluations = batch_inversion(&denominator_evaluations);
+
+        // multiply the inverse values with the numerator to get the final divisor evaluation
+        iter_mut!(evaluations, 128)
+            .enumerate()
+            .for_each(|(i, evaluation)| {
+                *evaluation *= numerator_evaluations[i % numerator_evaluations.len()];
+            });
+        evaluations
+    }
+
+    /// Evaluates a custom divisor described by a period $p$ and a set of offsets. The constraint
+    /// is forced to hold on steps $k\cdot p + i$ for each offset $i$.
+    ///
+    /// The divisor is evaluated by evaluating $\Prod X^{n/p}-g^i$ where i are the
+    /// elements not included in the given offsets.
+    pub fn evaluate_custom_divisor_with_multiplications<A: Air<BaseField = B>>(
+        air: &A,
+        exponentiations_map: &mut BTreeMap<usize, Vec<B>>,
+        period: &usize,
+        offsets: &[B],
+    ) -> Vec<B> {
+        // constraint evaluation domain
+        let domain_size = air.ce_domain_size();
+
+        let num_cycles = air.trace_length() / period;
+
+        // number of elements needed elements to evaluate denominator
+        let denominator_evals_size = domain_size / num_cycles;
+
+        // evaluate x^{trace_length/period} if not already evaluated
+        let exponentiations = exponentiations_map.entry(*period).or_insert_with(|| {
+            get_power_series_with_offset(
+                B::get_root_of_unity(domain_size.trailing_zeros()).exp((num_cycles as u64).into()),
+                air.domain_offset().exp((num_cycles as u64).into()),
+                domain_size / num_cycles,
+            )
+        });
+
+        //evaluate the denominator
+
+        let mut denominator_evaluations = vec![B::ONE; denominator_evals_size];
+
+        iter_mut!(denominator_evaluations, 128)
+            .enumerate()
+            .for_each(|(i, value)| {
+                for g_offset in offsets {
+                    *value *= exponentiations[i] - *g_offset;
+                }
+            });
+
+        denominator_evaluations
     }
 }
 

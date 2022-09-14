@@ -34,6 +34,7 @@ pub struct ConstraintEvaluator<'a, A: Air, E: FieldElement<BaseField = A::BaseFi
     transition_constraints: TransitionConstraints<E>,
     aux_rand_elements: AuxTraceRandElements<E>,
     periodic_values: PeriodicValueTable<E::BaseField>,
+    custom_divisor_values: PeriodicValueTable<E::BaseField>,
 }
 
 impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<'a, A, E> {
@@ -53,6 +54,7 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
 
         // build periodic value table
         let periodic_values = PeriodicValueTable::new(air);
+        let custom_divisor_values = PeriodicValueTable::from_custom_divisors(air);
 
         // build boundary constraint groups; these will be used to evaluate and compose boundary
         // constraint evaluations.
@@ -65,6 +67,7 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
             transition_constraints,
             aux_rand_elements,
             periodic_values,
+            custom_divisor_values,
         }
     }
 
@@ -332,7 +335,9 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
 
         // get periodic values at the evaluation step
         let periodic_values = self.periodic_values.get_row(step);
+        let custom_divisor_values = self.custom_divisor_values.get_row(step);
 
+        let periodic_values = &[periodic_values, custom_divisor_values].concat();
         // evaluate transition constraints over the main segment of the execution trace and save
         // the results into evaluations buffer
         self.air.evaluate_transition(main_frame, periodic_values, evaluations);
@@ -364,7 +369,9 @@ impl<'a, A: Air, E: FieldElement<BaseField = A::BaseField>> ConstraintEvaluator<
 
         // get periodic values at the evaluation step
         let periodic_values = self.periodic_values.get_row(step);
+        let custom_divisor_values = self.custom_divisor_values.get_row(step);
 
+        let periodic_values = &[periodic_values, custom_divisor_values].concat();
         // evaluate transition constraints over auxiliary trace segments and save the results into
         // evaluations buffer
         self.air.evaluate_aux_transition(
