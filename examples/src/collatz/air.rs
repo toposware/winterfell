@@ -12,8 +12,9 @@ use winterfell::{
 // COLLATZ AIR
 // ================================================================================================
 
-// TODO 1.2 Choose the right TRACE_WITH
-pub(crate) const TRACE_WIDTH: usize = 2;
+// TODO 1.2 Choose the right TRACE_WIDTH
+//pub(crate) const TRACE_WIDTH: usize = 2;
+pub(crate) const TRACE_WIDTH: usize = 128;
 
 pub struct PublicInputs {
     pub input_value: BaseElement,
