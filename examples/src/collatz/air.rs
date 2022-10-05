@@ -6,8 +6,10 @@
 
 use winterfell::{
     math::{fields::f128::BaseElement, FieldElement},
-    Air, AirContext, Assertion, ByteWriter, EvaluationFrame, ProofOptions, Serializable, TraceInfo,
+    Air, AirContext, Assertion, ByteWriter, EvaluationFrame, ProofOptions, Serializable, TraceInfo, TransitionConstraintDegree,
 };
+
+use crate::utils::are_equal;
 
 // COLLATZ AIR
 // ================================================================================================
@@ -46,11 +48,14 @@ impl Air for CollatzAir {
     fn new(trace_info: TraceInfo, pub_inputs: PublicInputs, options: ProofOptions) -> Self {
         // TODO 4: You must specify the type and degree of the constraints
         // of your AIR program, based on what you did in TODO 3.
-        let degrees = vec![];
-        let num_assertions = 2; // to change
+        let degrees = vec![
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+        ];
+
         assert_eq!(TRACE_WIDTH, trace_info.width());
         CollatzAir {
-            context: AirContext::new(trace_info, degrees, num_assertions, options),
+            context: AirContext::new(trace_info, degrees, 2, options),
             input_value: pub_inputs.input_value,
             final_value: pub_inputs.final_value,
             sequence_length: pub_inputs.sequence_length,
@@ -79,7 +84,9 @@ impl Air for CollatzAir {
 
         // todo: update the result slice with constraints related to
         // the Collatz conjecture
-        unimplemented!();
+        result[0] = are_equal(current[0].div(BaseElement::new(2).into()).mul(current[1].neg().add(BaseElement::new(1).into())).add(current[1].mul(current[0].mul(BaseElement::new(3).into()).add(BaseElement::new(1).into()))), next[0]);
+        result[1] = are_equal(current[1].mul(current[1].sub(BaseElement::new(1).into())), BaseElement::new(0).into());
+        
     }
 
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
@@ -90,17 +97,12 @@ impl Air for CollatzAir {
         // to the next power of two, we instead want to enforce that the
         // last term is matching the provided final_input.
         // todo: return a vector of assertions for the first and last step of the program
-        unimplemented!();
+        let last_step = self.sequence_length-1;
+        vec![
+            Assertion::single(0, 0, self.input_value),
+            Assertion::single(0, last_step, self.final_value),
+        ]
+        //unimplemented!();
     }
 
-    // TODO 2.2 In the evaluate_constraints function you don't have access to the step,
-    // and hence is not clear how to know wether to enforce collatz or binary_decomp.
-    // The way we tell the AIR program what to do is using the peridoc_columns which is just a bunch of
-    // vectors whose length divide the trace legth (and hence powers of 2). Whenever the function
-    // evaluate_constrains is called for checking the constrains between rows i and i+1, the function
-    // receives as input a vector containing periodic_columns[1][i], ..., periodic_columns[n][i]. (Actually
-    // 'i' can be any point on the "extended domain").
-    fn get_periodic_column_values(&self) -> Vec<Vec<Self::BaseField>> {
-        unimplemented!();
-    }
 }

@@ -74,14 +74,28 @@ impl CollatzProver {
         trace.fill(
             |state| {
                 // todo: initialize the state at step 0
-                unimplemented!();
+                state[0] = BaseElement::new(input_value as u128);
+                if input_value % 2 == 0 {
+                    state[1] = BaseElement::new(0);
+                } else {
+                    state[1] = BaseElement::new(1);
+                }
             },
             |_, state| {
+                if state[1] == BaseElement::new(0) {
+                    state[0] /= BaseElement::new(2);
+                } else {
+                    state[0] = BaseElement::new(3) * state[0] + BaseElement::new(1);
+                    
+                }
+                state[1] = if state[0].to_repr() % 2 == 0 {
+                    BaseElement::new(0)
+                } else {
+                    BaseElement::new(1)
+                };
                 // todo: initialize the state at step i, given the current value (step i-1)
-                unimplemented!();
             },
         );
-
         trace
     }
 }
