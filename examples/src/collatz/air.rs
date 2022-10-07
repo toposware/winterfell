@@ -4,19 +4,21 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
+
 use winterfell::{
     math::{fields::f128::BaseElement, FieldElement},
     Air, AirContext, Assertion, ByteWriter, EvaluationFrame, ProofOptions, Serializable, TraceInfo, TransitionConstraintDegree,
 };
 
-use crate::utils::are_equal;
+use crate::utils::{are_equal, not, EvaluationResult};
 
+const CYCLE_LENGTH: usize = 2;
 // COLLATZ AIR
 // ================================================================================================
 
 // TODO 1.2 Choose the right TRACE_WIDTH
 //pub(crate) const TRACE_WIDTH: usize = 2;
-pub(crate) const TRACE_WIDTH: usize = 128;
+pub(crate) const TRACE_WIDTH: usize = 129;
 
 pub struct PublicInputs {
     pub input_value: BaseElement,
@@ -48,11 +50,13 @@ impl Air for CollatzAir {
     fn new(trace_info: TraceInfo, pub_inputs: PublicInputs, options: ProofOptions) -> Self {
         // TODO 4: You must specify the type and degree of the constraints
         // of your AIR program, based on what you did in TODO 3.
-        let degrees = vec![
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-        ];
+        let mut degrees = vec![];
 
+        // There are constraints for the 129 columns corresponding to the state value and the binary decomposition
+        for _ in 1..129 {
+            degrees.push(TransitionConstraintDegree::with_cycles(2, vec![CYCLE_LENGTH]));
+        }
+        
         assert_eq!(TRACE_WIDTH, trace_info.width());
         CollatzAir {
             context: AirContext::new(trace_info, degrees, 2, options),
@@ -82,11 +86,11 @@ impl Air for CollatzAir {
         // TODO 3: You must enforce some constraints on the trace, to
         // make sure we are indeed checking a proper Collatz sequence.
 
-        // todo: update the result slice with constraints related to
-        // the Collatz conjecture
-        result[0] = are_equal(current[0].div(BaseElement::new(2).into()).mul(current[1].neg().add(BaseElement::new(1).into())).add(current[1].mul(current[0].mul(BaseElement::new(3).into()).add(BaseElement::new(1).into()))), next[0]);
-        result[1] = are_equal(current[1].mul(current[1].sub(BaseElement::new(1).into())), BaseElement::new(0).into());
-        
+        let collatz_flag = periodic_values[0];
+        // If Collats step, check Collatz
+        apply_collatz(result, current, next, collatz_flag);
+        // Otherwise, check the binary decomposition
+        check_bin_decomp(result, current, next, not(collatz_flag));
     }
 
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
@@ -98,11 +102,48 @@ impl Air for CollatzAir {
         // last term is matching the provided final_input.
         // todo: return a vector of assertions for the first and last step of the program
         let last_step = self.sequence_length-1;
+        println!("sequence length {}", self.sequence_length);
+        
         vec![
             Assertion::single(0, 0, self.input_value),
             Assertion::single(0, last_step, self.final_value),
         ]
         //unimplemented!();
     }
+    // TODO 2.2 In the evaluate_constraints function you don't have access to the step,
+    // and hence is not clear how to know wether to enforce collatz or binary_decomp.
+    // The way we tell the AIR program what to do is using the peridoc_columns which is just a bunch of
+    // vectors whose length divide the trace legth (and hence powers of 2). Whenever the function
+    // evaluate_constrains is called for checking the constrains between rows i and i+1, the function
+    // receives as input a vector containing periodic_columns[1][i], ..., periodic_columns[n][i]. (Actually
+    // 'i' can be any point on the "extended domain").
+    fn get_periodic_column_values(&self) -> Vec<Vec<Self::BaseField>> {
+        vec![vec![BaseElement::ONE, BaseElement::ZERO]]
+        //unimplemented!();
+    }
+    
+}
 
+fn apply_collatz<E: FieldElement + From<BaseElement>>(result: &mut [E], current: &[E], next: &[E], flag: E) {
+    // The current state contains the current value as its first element, and the other columns are the binary representation. Check whether the next state's first element is the correct Collatz update.
+    result.agg_constraint(0, flag, are_equal(current[0].div(BaseElement::new(2).into()).mul(current[1].neg().add(BaseElement::new(1).into())).add(current[1].mul(current[0].mul(BaseElement::new(3).into()).add(BaseElement::new(1).into()))), next[0]));
+
+
+    // Checking that the decomposition columns contain binary elements only 
+    for i in 1..128 {
+        result.agg_constraint(i, flag, are_equal(current[i].mul(current[i].sub(BaseElement::ONE.into())), BaseElement::ZERO.into()));
+     }
+}
+
+fn check_bin_decomp<E: FieldElement + From<BaseElement>>(result: &mut [E], current: &[E], next: &[E], flag: E) {
+    // We need to check whether the decomposition is correct. For this, we compute the value based on the binary decomposition from the next state and compare it to the value stored in the current state
+    let mut initial = next[1];
+    for i in 1..128 {
+        initial += next[i+1].mul(BaseElement::new((1 as u128) << i).into());
+    }
+
+    // Check that the binary decomp in next state is correct
+    result.agg_constraint(0, flag, are_equal(initial, current[0]));
+    // assert that next first value = current first value
+    result.agg_constraint(1, flag, are_equal(current[0], next[0]));
 }

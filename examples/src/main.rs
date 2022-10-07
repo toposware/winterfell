@@ -13,6 +13,7 @@ use winterfell::StarkProof;
 use examples::{fibonacci, collatz, vdf, rescue::*, rescue_raps, ExampleOptions, ExampleType};
 #[cfg(feature = "std")]
 use examples::{lamport, merkle};
+use std::env;
 
 // EXAMPLE RUNNER
 // ================================================================================================
@@ -98,7 +99,7 @@ use examples::{lamport, merkle};
 
 fn main() {
     // configure logging
-    //env::set_var("RUST_BACKTRACE", "1");
+    env::set_var("RUST_BACKTRACE", "1");
     env_logger::Builder::new()
         .format(|buf, record| writeln!(buf, "{}", record.args()))
         .filter_level(log::LevelFilter::Debug)
