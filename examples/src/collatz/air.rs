@@ -53,12 +53,12 @@ impl Air for CollatzAir {
         let mut degrees = vec![];
 
         // There are constraints for the 129 columns corresponding to the state value and the binary decomposition
-        for _ in 1..129 {
+        for _ in 1..130 {
         //for _ in 1..258 {
         //for _ in 1..131 {
             degrees.push(TransitionConstraintDegree::with_cycles(2, vec![CYCLE_LENGTH]));
         }
-        degrees.push(TransitionConstraintDegree::with_cycles(1, vec![CYCLE_LENGTH]));
+        //degrees.push(TransitionConstraintDegree::with_cycles(1, vec![CYCLE_LENGTH]));
         degrees.push(TransitionConstraintDegree::with_cycles(1, vec![CYCLE_LENGTH]));
         
         assert_eq!(TRACE_WIDTH, trace_info.width());
@@ -144,9 +144,10 @@ fn apply_collatz<E: FieldElement + From<BaseElement>>(result: &mut [E], current:
 
 
     // Checking that the decomposition columns contain binary elements only 
-    for i in 1..128 {
+    for i in 1..129 {
         result.agg_constraint(i, flag, are_equal(current[i].mul(current[i].sub(BaseElement::ONE.into())), BaseElement::ZERO.into()));
      }
+    result.agg_constraint(129, flag, are_equal(current[129], next[129]));
     // for i in 1..129 {
     //     result.agg_constraint(i+128, flag, are_equal(next[0].mul(E::from(BaseElement::ONE).sub(current[1])).add(BaseElement::ONE.into()), next[i]));
     // }

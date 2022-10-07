@@ -83,11 +83,17 @@ impl CollatzProver {
 
                 // Initialize with input value and bit representation of the input value (first step = binary decomposition)
                 state[0] = BaseElement::new(input_value as u128);
-                for i in 1..128 {
-                    state[i] = BaseElement::ZERO;
+                //for i in 1..128 {
+                let guess = state[0].to_repr();
+                for i in 1..129 {
+                    state[i] = BaseElement::new(guess>>(i-1) & (1 as u128));
+                    //println!("state init n°{} {}", i, state[i]);
                 }
-
-                println!("init value {}", state[0]);
+                let mut rng = rand::thread_rng();
+                let init_random: u128 = rng.gen();
+                //state[129] = init_random.into();
+                state[129] = init_random.into();
+                println!("init state {}", state[0]);
             },
             |i, state| {
                 if i % 2 == 1 {
@@ -96,6 +102,10 @@ impl CollatzProver {
                     for j in 0..128 {
                         state[j+1] = BaseElement::new(guess>>j & (1 as u128));
                     }
+                    let mut rng = rand::thread_rng();
+                    let init_random: u128 = rng.gen();
+                    //state[129] = init_random.into();
+                    state[129] = init_random.into();
                 } else {
                     // Collatz step
                     if state[1] == BaseElement::ZERO {
@@ -109,10 +119,13 @@ impl CollatzProver {
                     //     state[j] = state[0] * (BaseElement::ONE - state[1]) + BaseElement::ONE;
                     // }
                     // state[1] = state[0] * (BaseElement::ONE - state[1]) + BaseElement::ONE;
-                    let mut rng = rand::thread_rng();
-                    let random_nb: u128 = rng.gen();
-                    for j in 1..130 {
-                        state[j] = random_nb.into();
+                    // let mut rng = rand::thread_rng();
+                    // let random_nb: u128 = rng.gen();
+                    // for j in 1..130 {
+                    //     state[j] = random_nb.into();
+                    // }
+                    for j in 1..129 {
+                        state[j] = state[129];
                     }
                 }
                 // todo: initialize the state at step i, given the current value (step i-1)
