@@ -18,7 +18,7 @@ const CYCLE_LENGTH: usize = 2;
 
 // TODO 1.2 Choose the right TRACE_WIDTH
 //pub(crate) const TRACE_WIDTH: usize = 2;
-pub(crate) const TRACE_WIDTH: usize = 129;
+pub(crate) const TRACE_WIDTH: usize = 130;
 
 pub struct PublicInputs {
     pub input_value: BaseElement,
@@ -54,8 +54,12 @@ impl Air for CollatzAir {
 
         // There are constraints for the 129 columns corresponding to the state value and the binary decomposition
         for _ in 1..129 {
+        //for _ in 1..258 {
+        //for _ in 1..131 {
             degrees.push(TransitionConstraintDegree::with_cycles(2, vec![CYCLE_LENGTH]));
         }
+        degrees.push(TransitionConstraintDegree::with_cycles(1, vec![CYCLE_LENGTH]));
+        degrees.push(TransitionConstraintDegree::with_cycles(1, vec![CYCLE_LENGTH]));
         
         assert_eq!(TRACE_WIDTH, trace_info.width());
         CollatzAir {
@@ -126,13 +130,26 @@ impl Air for CollatzAir {
 
 fn apply_collatz<E: FieldElement + From<BaseElement>>(result: &mut [E], current: &[E], next: &[E], flag: E) {
     // The current state contains the current value as its first element, and the other columns are the binary representation. Check whether the next state's first element is the correct Collatz update.
-    result.agg_constraint(0, flag, are_equal(current[0].div(BaseElement::new(2).into()).mul(current[1].neg().add(BaseElement::new(1).into())).add(current[1].mul(current[0].mul(BaseElement::new(3).into()).add(BaseElement::new(1).into()))), next[0]));
+    //result.agg_constraint(0, flag, are_equal(current[0].div(BaseElement::new(2).into()).mul(current[1].neg().add(BaseElement::new(1).into())).add(current[1].mul(current[0].mul(BaseElement::new(3).into()).add(BaseElement::new(1).into()))), next[0]));
+    let collatz1 = next[0].mul(BaseElement::new(2).into());
+    let collatz2 = E::from(BaseElement::new(3)).mul(current[0]).add(BaseElement::ONE.into());
+    let left1 = current[1].neg().add(BaseElement::ONE.into()).mul(collatz1);
+    let left2 = current[1].mul(collatz2);
+    let left = left1.add(left2);
+    let right1 = current[1].neg().add(BaseElement::ONE.into()).mul(current[0]);
+    let right2 = current[1].mul(next[0]);
+    let right = right1.add(right2);
+    
+    result.agg_constraint(0, flag, are_equal(left, right));
 
 
     // Checking that the decomposition columns contain binary elements only 
     for i in 1..128 {
         result.agg_constraint(i, flag, are_equal(current[i].mul(current[i].sub(BaseElement::ONE.into())), BaseElement::ZERO.into()));
      }
+    // for i in 1..129 {
+    //     result.agg_constraint(i+128, flag, are_equal(next[0].mul(E::from(BaseElement::ONE).sub(current[1])).add(BaseElement::ONE.into()), next[i]));
+    // }
 }
 
 fn check_bin_decomp<E: FieldElement + From<BaseElement>>(result: &mut [E], current: &[E], next: &[E], flag: E) {
@@ -146,4 +163,7 @@ fn check_bin_decomp<E: FieldElement + From<BaseElement>>(result: &mut [E], curre
     result.agg_constraint(0, flag, are_equal(initial, current[0]));
     // assert that next first value = current first value
     result.agg_constraint(1, flag, are_equal(current[0], next[0]));
+    for i in 1..129{
+        result.agg_constraint(i+1, flag, are_equal(current[i], current[129]));
+    }
 }

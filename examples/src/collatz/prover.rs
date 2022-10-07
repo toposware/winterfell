@@ -5,6 +5,9 @@
 
 use winterfell::math::FieldElement;
 
+
+use rand::Rng;
+
 use super::{
     compute_collatz_sequence, BaseElement, CollatzAir, ProofOptions, Prover, PublicInputs,
     StarkField, Trace, TraceTable, TRACE_WIDTH,
@@ -102,10 +105,15 @@ impl CollatzProver {
                     }
 
                     // If we set the intermediary values to 0 or keep them unchanged from the previous row, there is a high risk that there will be columns with only 0. So I added this as a way to prevent all-0 columns
-                    for j in 2..129 {
-                        state[j] = state[0] * (BaseElement::ONE - state[1]) + BaseElement::ONE;
+                    // for j in 2..129 {
+                    //     state[j] = state[0] * (BaseElement::ONE - state[1]) + BaseElement::ONE;
+                    // }
+                    // state[1] = state[0] * (BaseElement::ONE - state[1]) + BaseElement::ONE;
+                    let mut rng = rand::thread_rng();
+                    let random_nb: u128 = rng.gen();
+                    for j in 1..130 {
+                        state[j] = random_nb.into();
                     }
-                    state[1] = state[0] * (BaseElement::ONE - state[1]) + BaseElement::ONE;
                 }
                 // todo: initialize the state at step i, given the current value (step i-1)
             },

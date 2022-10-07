@@ -45,3 +45,6 @@ harness = false
 [[bench]]
 name = "rescue"
 harness = false
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+rand =  { version = "0.8" }
