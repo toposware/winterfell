@@ -269,6 +269,10 @@ where
     public_coin.reseed(H::hash_elements(&ood_constraint_evaluations));
 
     // finally, make sure the values are the same
+    println!(
+        "ood 1 {}, ood 2 {}",
+        ood_constraint_evaluation_1, ood_constraint_evaluation_2
+    );
     if ood_constraint_evaluation_1 != ood_constraint_evaluation_2 {
         return Err(VerifierError::InconsistentOodConstraintEvaluations);
     }

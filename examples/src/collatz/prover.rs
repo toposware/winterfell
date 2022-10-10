@@ -84,7 +84,8 @@ impl CollatzProver {
                 state[0] = BaseElement::new(input_value as u128);
                 //for i in 1..128 {
                 //let guess = state[0].to_repr();
-                for i in 1..130 {
+                //for i in 1..130 {
+                for i in 1..9 {
                     //state[i] = BaseElement::new(guess>>(i-1) & (1 as u128));
                     state[i] = BaseElement::ZERO;
                     //println!("state init n°{} {}", i, state[i]);
@@ -98,13 +99,14 @@ impl CollatzProver {
                 if i % 2 == 0 {
                     let guess = state[0].to_repr(); // get representation of the previous step as a u128
                                                     // fill the binary representation
-                    for j in 0..128 {
+                                                    //for j in 0..128 {
+                    for j in 0..7 {
                         state[j + 1] = BaseElement::new(guess >> j & (1 as u128));
                     }
                     let mut rng = rand::thread_rng();
                     let init_random: u128 = rng.gen();
                     //state[129] = init_random.into();
-                    state[129] = init_random.into();
+                    state[8] = init_random.into();
                 } else {
                     // Collatz step
                     if state[1] == BaseElement::ZERO {
@@ -123,15 +125,16 @@ impl CollatzProver {
                     // for j in 1..130 {
                     //     state[j] = random_nb.into();
                     // }
-                    for j in 1..129 {
-                        state[j] = state[129];
+                    //for j in 1..129 {
+                    for j in 1..8 {
+                        state[j] = state[8];
                     }
                 }
                 // todo: initialize the state at step i, given the current value (step i-1)
             },
         );
-        crate::utils::print_trace(&trace, 1, 0, 0..8);
-        crate::utils::print_trace(&trace, 1, 0, 120..130);
+        crate::utils::print_trace(&trace, 1, 0, 0..9);
+        //crate::utils::print_trace(&trace, 1, 0, 120..130);
         trace
     }
 }

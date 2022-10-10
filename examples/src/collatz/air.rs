@@ -18,7 +18,8 @@ const CYCLE_LENGTH: usize = 2;
 
 // TODO 1.2 Choose the right TRACE_WIDTH
 //pub(crate) const TRACE_WIDTH: usize = 2;
-pub(crate) const TRACE_WIDTH: usize = 130;
+//pub(crate) const TRACE_WIDTH: usize = 130;
+pub(crate) const TRACE_WIDTH: usize = 9;
 
 pub struct PublicInputs {
     pub input_value: BaseElement,
@@ -53,7 +54,7 @@ impl Air for CollatzAir {
         let mut degrees = vec![];
 
         // There are constraints for the 129 columns corresponding to the state value and the binary decomposition
-        for _ in 1..130 {
+        for _ in 1..9 {
             //for _ in 1..258 {
             //for _ in 1..131 {
             degrees.push(TransitionConstraintDegree::with_cycles(
@@ -69,7 +70,7 @@ impl Air for CollatzAir {
 
         assert_eq!(TRACE_WIDTH, trace_info.width());
         CollatzAir {
-            context: AirContext::new(trace_info, degrees, 2, options),
+            context: AirContext::new(trace_info, degrees, 3, options),
             input_value: pub_inputs.input_value,
             final_value: pub_inputs.final_value,
             sequence_length: pub_inputs.sequence_length,
@@ -112,11 +113,12 @@ impl Air for CollatzAir {
         // last term is matching the provided final_input.
         // todo: return a vector of assertions for the first and last step of the program
         let last_step = self.sequence_length - 1;
-        println!("sequence length {}", self.sequence_length);
+        //println!("sequence length {}", self.sequence_length);
 
         vec![
             Assertion::single(0, 0, self.input_value),
             Assertion::single(0, last_step, self.final_value),
+            Assertion::single(0, last_step - 1, self.final_value),
         ]
         //unimplemented!();
     }
@@ -154,14 +156,15 @@ fn apply_collatz<E: FieldElement + From<BaseElement>>(
     result.agg_constraint(0, flag, are_equal(left, right));
 
     // Checking that the decomposition columns contain binary elements only
-    for i in 1..129 {
+    //for i in 1..129 {
+    for i in 1..8 {
         result.agg_constraint(
             i,
             flag,
             are_equal(current[i] * (current[i] - E::ONE), BaseElement::ZERO.into()),
         );
     }
-    result.agg_constraint(129, flag, are_equal(current[129], next[129]));
+    result.agg_constraint(8, flag, are_equal(current[8], next[8]));
     // for i in 1..129 {
     //     result.agg_constraint(i+128, flag, are_equal(next[0].mul(E::from(BaseElement::ONE).sub(current[1])).add(BaseElement::ONE.into()), next[i]));
     // }
@@ -175,7 +178,8 @@ fn check_bin_decomp<E: FieldElement + From<BaseElement>>(
 ) {
     // We need to check whether the decomposition is correct. For this, we compute the value based on the binary decomposition from the next state and compare it to the value stored in the current state
     let mut initial = next[1];
-    for i in 1..128 {
+    //for i in 1..128 {
+    for i in 1..7 {
         initial += next[i + 1] * E::from(BaseElement::new((1 as u128) << i));
     }
 
@@ -183,7 +187,8 @@ fn check_bin_decomp<E: FieldElement + From<BaseElement>>(
     result.agg_constraint(0, flag, are_equal(initial, current[0]));
     // assert that next first value = current first value
     result.agg_constraint(1, flag, are_equal(current[0], next[0]));
-    for i in 1..129 {
-        result.agg_constraint(i + 1, flag, are_equal(current[i], current[129]));
+    //for i in 1..129 {
+    for i in 1..8 {
+        result.agg_constraint(i + 1, flag, are_equal(current[i], current[8]));
     }
 }
