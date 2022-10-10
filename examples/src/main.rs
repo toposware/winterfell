@@ -10,7 +10,7 @@ use std::time::Instant;
 use structopt::StructOpt;
 use winterfell::StarkProof;
 
-use examples::{fibonacci, collatz, vdf, rescue::*, rescue_raps, ExampleOptions, ExampleType};
+use examples::{collatz, fibonacci, rescue::*, rescue_raps, vdf, ExampleOptions, ExampleType};
 #[cfg(feature = "std")]
 use examples::{lamport, merkle};
 use std::env;
@@ -112,9 +112,10 @@ fn main() {
 
     // instantiate and prepare the example
     let example = match options.example {
-        ExampleType::Collatz { input_value, sequence_length } => {
-            collatz::get_example(options, input_value, sequence_length)
-        }
+        ExampleType::Collatz {
+            input_value,
+            sequence_length,
+        } => collatz::get_example(options, input_value, sequence_length),
         ExampleType::Fib { sequence_length } => {
             fibonacci::fib2::get_example(options, sequence_length)
         }
@@ -144,7 +145,6 @@ fn main() {
         ExampleType::LamportT { num_signers } => {
             lamport::threshold::get_example(options, num_signers)
         }
-
     };
 
     // generate proof

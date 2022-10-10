@@ -5,7 +5,6 @@
 
 use winterfell::math::FieldElement;
 
-
 use rand::Rng;
 
 use super::{
@@ -84,23 +83,23 @@ impl CollatzProver {
                 // Initialize with input value and bit representation of the input value (first step = binary decomposition)
                 state[0] = BaseElement::new(input_value as u128);
                 //for i in 1..128 {
-                let guess = state[0].to_repr();
-                for i in 1..129 {
-                    state[i] = BaseElement::new(guess>>(i-1) & (1 as u128));
+                //let guess = state[0].to_repr();
+                for i in 1..130 {
+                    //state[i] = BaseElement::new(guess>>(i-1) & (1 as u128));
+                    state[i] = BaseElement::ZERO;
                     //println!("state init n°{} {}", i, state[i]);
                 }
-                let mut rng = rand::thread_rng();
-                let init_random: u128 = rng.gen();
+                //let mut rng = rand::thread_rng();
+                //let init_random: u128 = rng.gen();
                 //state[129] = init_random.into();
-                state[129] = init_random.into();
                 println!("init state {}", state[0]);
             },
             |i, state| {
-                if i % 2 == 1 {
+                if i % 2 == 0 {
                     let guess = state[0].to_repr(); // get representation of the previous step as a u128
-                    // fill the binary representation
+                                                    // fill the binary representation
                     for j in 0..128 {
-                        state[j+1] = BaseElement::new(guess>>j & (1 as u128));
+                        state[j + 1] = BaseElement::new(guess >> j & (1 as u128));
                     }
                     let mut rng = rand::thread_rng();
                     let init_random: u128 = rng.gen();
@@ -109,7 +108,7 @@ impl CollatzProver {
                 } else {
                     // Collatz step
                     if state[1] == BaseElement::ZERO {
-                        state[0] = state[0]/BaseElement::new(2);
+                        state[0] = state[0] / BaseElement::new(2);
                     } else {
                         state[0] = BaseElement::new(3) * state[0] + BaseElement::new(1);
                     }
@@ -131,6 +130,8 @@ impl CollatzProver {
                 // todo: initialize the state at step i, given the current value (step i-1)
             },
         );
+        crate::utils::print_trace(&trace, 1, 0, 0..8);
+        crate::utils::print_trace(&trace, 1, 0, 120..130);
         trace
     }
 }
@@ -149,7 +150,7 @@ impl Prover for CollatzProver {
         println!("trace length {}", sequence_length);
         let final_value = BaseElement::from(compute_collatz_sequence(
             input_value.to_repr() as usize,
-            sequence_length/2+1,
+            sequence_length / 2,
         ) as u128);
 
         PublicInputs {

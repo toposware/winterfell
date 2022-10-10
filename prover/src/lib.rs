@@ -283,7 +283,7 @@ pub trait Prover {
         // mode only because this is a very expensive operation.
         #[cfg(debug_assertions)]
         trace.validate(&air, &aux_trace_segments, &aux_trace_rand_elements);
-        
+
         // 2 ----- evaluate constraints -----------------------------------------------------------
         // evaluate constraints specified by the AIR over the constraint evaluation domain, and
         // compute random linear combinations of these evaluations using coefficients drawn from

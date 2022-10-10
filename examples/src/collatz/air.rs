@@ -4,10 +4,10 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-
 use winterfell::{
     math::{fields::f128::BaseElement, FieldElement},
-    Air, AirContext, Assertion, ByteWriter, EvaluationFrame, ProofOptions, Serializable, TraceInfo, TransitionConstraintDegree,
+    Air, AirContext, Assertion, ByteWriter, EvaluationFrame, ProofOptions, Serializable, TraceInfo,
+    TransitionConstraintDegree,
 };
 
 use crate::utils::{are_equal, not, EvaluationResult};
@@ -54,13 +54,19 @@ impl Air for CollatzAir {
 
         // There are constraints for the 129 columns corresponding to the state value and the binary decomposition
         for _ in 1..130 {
-        //for _ in 1..258 {
-        //for _ in 1..131 {
-            degrees.push(TransitionConstraintDegree::with_cycles(2, vec![CYCLE_LENGTH]));
+            //for _ in 1..258 {
+            //for _ in 1..131 {
+            degrees.push(TransitionConstraintDegree::with_cycles(
+                2,
+                vec![CYCLE_LENGTH],
+            ));
         }
         //degrees.push(TransitionConstraintDegree::with_cycles(1, vec![CYCLE_LENGTH]));
-        degrees.push(TransitionConstraintDegree::with_cycles(1, vec![CYCLE_LENGTH]));
-        
+        degrees.push(TransitionConstraintDegree::with_cycles(
+            1,
+            vec![CYCLE_LENGTH],
+        ));
+
         assert_eq!(TRACE_WIDTH, trace_info.width());
         CollatzAir {
             context: AirContext::new(trace_info, degrees, 2, options),
@@ -105,9 +111,9 @@ impl Air for CollatzAir {
         // to the next power of two, we instead want to enforce that the
         // last term is matching the provided final_input.
         // todo: return a vector of assertions for the first and last step of the program
-        let last_step = self.sequence_length-1;
+        let last_step = self.sequence_length - 1;
         println!("sequence length {}", self.sequence_length);
-        
+
         vec![
             Assertion::single(0, 0, self.input_value),
             Assertion::single(0, last_step, self.final_value),
@@ -122,49 +128,62 @@ impl Air for CollatzAir {
     // receives as input a vector containing periodic_columns[1][i], ..., periodic_columns[n][i]. (Actually
     // 'i' can be any point on the "extended domain").
     fn get_periodic_column_values(&self) -> Vec<Vec<Self::BaseField>> {
-        vec![vec![BaseElement::ONE, BaseElement::ZERO]]
+        vec![vec![BaseElement::ZERO, BaseElement::ONE]]
         //unimplemented!();
     }
-    
 }
 
-fn apply_collatz<E: FieldElement + From<BaseElement>>(result: &mut [E], current: &[E], next: &[E], flag: E) {
+fn apply_collatz<E: FieldElement + From<BaseElement>>(
+    result: &mut [E],
+    current: &[E],
+    next: &[E],
+    flag: E,
+) {
     // The current state contains the current value as its first element, and the other columns are the binary representation. Check whether the next state's first element is the correct Collatz update.
     //result.agg_constraint(0, flag, are_equal(current[0].div(BaseElement::new(2).into()).mul(current[1].neg().add(BaseElement::new(1).into())).add(current[1].mul(current[0].mul(BaseElement::new(3).into()).add(BaseElement::new(1).into()))), next[0]));
-    let collatz1 = next[0].mul(BaseElement::new(2).into());
-    let collatz2 = E::from(BaseElement::new(3)).mul(current[0]).add(BaseElement::ONE.into());
-    let left1 = current[1].neg().add(BaseElement::ONE.into()).mul(collatz1);
-    let left2 = current[1].mul(collatz2);
-    let left = left1.add(left2);
-    let right1 = current[1].neg().add(BaseElement::ONE.into()).mul(current[0]);
-    let right2 = current[1].mul(next[0]);
-    let right = right1.add(right2);
-    
+    let collatz1 = (E::ONE - current[1]) * next[0] * BaseElement::new(2).into();
+    let collatz2 = current[1] * (E::from(BaseElement::new(3)) * current[0] + E::ONE);
+    //let left1 = (E::ONE - current[1]) * collatz1;
+    //let left2 = current[1] * collatz2;
+    //let left = left1 + left2;
+    let left = collatz1 + collatz2;
+    let right1 = (E::ONE - current[1]) * current[0];
+    let right2 = current[1] * next[0];
+    let right = right1 + right2;
+
     result.agg_constraint(0, flag, are_equal(left, right));
 
-
-    // Checking that the decomposition columns contain binary elements only 
+    // Checking that the decomposition columns contain binary elements only
     for i in 1..129 {
-        result.agg_constraint(i, flag, are_equal(current[i].mul(current[i].sub(BaseElement::ONE.into())), BaseElement::ZERO.into()));
-     }
+        result.agg_constraint(
+            i,
+            flag,
+            are_equal(current[i] * (current[i] - E::ONE), BaseElement::ZERO.into()),
+        );
+    }
     result.agg_constraint(129, flag, are_equal(current[129], next[129]));
     // for i in 1..129 {
     //     result.agg_constraint(i+128, flag, are_equal(next[0].mul(E::from(BaseElement::ONE).sub(current[1])).add(BaseElement::ONE.into()), next[i]));
     // }
 }
 
-fn check_bin_decomp<E: FieldElement + From<BaseElement>>(result: &mut [E], current: &[E], next: &[E], flag: E) {
+fn check_bin_decomp<E: FieldElement + From<BaseElement>>(
+    result: &mut [E],
+    current: &[E],
+    next: &[E],
+    flag: E,
+) {
     // We need to check whether the decomposition is correct. For this, we compute the value based on the binary decomposition from the next state and compare it to the value stored in the current state
     let mut initial = next[1];
     for i in 1..128 {
-        initial += next[i+1].mul(BaseElement::new((1 as u128) << i).into());
+        initial += next[i + 1] * E::from(BaseElement::new((1 as u128) << i));
     }
 
     // Check that the binary decomp in next state is correct
     result.agg_constraint(0, flag, are_equal(initial, current[0]));
     // assert that next first value = current first value
     result.agg_constraint(1, flag, are_equal(current[0], next[0]));
-    for i in 1..129{
-        result.agg_constraint(i+1, flag, are_equal(current[i], current[129]));
+    for i in 1..129 {
+        result.agg_constraint(i + 1, flag, are_equal(current[i], current[129]));
     }
 }
