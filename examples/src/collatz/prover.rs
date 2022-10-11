@@ -74,67 +74,48 @@ impl CollatzProver {
         );
 
         // We initialize the execution trace
-        let mut trace = TraceTable::new(TRACE_WIDTH, sequence_length);
-        println!("while sequence {}", sequence_length);
+        let mut trace = TraceTable::new(TRACE_WIDTH, 2 * sequence_length);
         trace.fill(
             |state| {
                 // todo: initialize the state at step 0
-
-                // Initialize with input value and bit representation of the input value (first step = binary decomposition)
                 state[0] = BaseElement::new(input_value as u128);
-                //for i in 1..128 {
-                //let guess = state[0].to_repr();
-                //for i in 1..130 {
-                for i in 1..9 {
-                    //state[i] = BaseElement::new(guess>>(i-1) & (1 as u128));
+                // Initialize with input value and bit representation of the input value (first step = binary decomposition)
+                //for i in 1..9 {
+                for i in 1..130 {
                     state[i] = BaseElement::ZERO;
-                    //println!("state init n°{} {}", i, state[i]);
                 }
-                //let mut rng = rand::thread_rng();
-                //let init_random: u128 = rng.gen();
-                //state[129] = init_random.into();
-                println!("init state {}", state[0]);
             },
             |i, state| {
                 if i % 2 == 0 {
+                    //if i % 2 == 1 {
                     let guess = state[0].to_repr(); // get representation of the previous step as a u128
                                                     // fill the binary representation
-                                                    //for j in 0..128 {
-                    for j in 0..7 {
+                    for j in 0..128 {
                         state[j + 1] = BaseElement::new(guess >> j & (1 as u128));
                     }
                     let mut rng = rand::thread_rng();
                     let init_random: u128 = rng.gen();
-                    //state[129] = init_random.into();
-                    state[8] = init_random.into();
+                    //state[8] = init_random.into();
+                    state[129] = init_random.into();
                 } else {
                     // Collatz step
                     if state[1] == BaseElement::ZERO {
                         state[0] = state[0] / BaseElement::new(2);
                     } else {
-                        state[0] = BaseElement::new(3) * state[0] + BaseElement::new(1);
+                        state[0] = BaseElement::new(3) * state[0] + BaseElement::ONE;
                     }
 
                     // If we set the intermediary values to 0 or keep them unchanged from the previous row, there is a high risk that there will be columns with only 0. So I added this as a way to prevent all-0 columns
-                    // for j in 2..129 {
-                    //     state[j] = state[0] * (BaseElement::ONE - state[1]) + BaseElement::ONE;
-                    // }
-                    // state[1] = state[0] * (BaseElement::ONE - state[1]) + BaseElement::ONE;
-                    // let mut rng = rand::thread_rng();
-                    // let random_nb: u128 = rng.gen();
-                    // for j in 1..130 {
-                    //     state[j] = random_nb.into();
-                    // }
-                    //for j in 1..129 {
-                    for j in 1..8 {
-                        state[j] = state[8];
+                    //for j in 1..9 {
+                    for j in 1..130 {
+                        //state[j] = state[8];
+                        state[j] = state[129];
                     }
                 }
                 // todo: initialize the state at step i, given the current value (step i-1)
             },
         );
-        crate::utils::print_trace(&trace, 1, 0, 0..9);
-        //crate::utils::print_trace(&trace, 1, 0, 120..130);
+        //crate::utils::print_trace(&trace, 1, 0, 0..130);
         trace
     }
 }
@@ -149,11 +130,10 @@ impl Prover for CollatzProver {
         // change the line below, which considers that you wrote the input value of the
         // Collatz sequence in step (row) 0, column 0.
         let input_value = trace.get(0, 0);
-        let sequence_length = trace.length();
-        println!("trace length {}", sequence_length);
+        let sequence_length = trace.length() / 2;
         let final_value = BaseElement::from(compute_collatz_sequence(
             input_value.to_repr() as usize,
-            sequence_length / 2,
+            sequence_length,
         ) as u128);
 
         PublicInputs {

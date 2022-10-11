@@ -18,8 +18,8 @@ const CYCLE_LENGTH: usize = 2;
 
 // TODO 1.2 Choose the right TRACE_WIDTH
 //pub(crate) const TRACE_WIDTH: usize = 2;
-//pub(crate) const TRACE_WIDTH: usize = 130;
-pub(crate) const TRACE_WIDTH: usize = 9;
+pub(crate) const TRACE_WIDTH: usize = 130;
+//pub(crate) const TRACE_WIDTH: usize = 9;
 
 pub struct PublicInputs {
     pub input_value: BaseElement,
@@ -53,16 +53,15 @@ impl Air for CollatzAir {
         // of your AIR program, based on what you did in TODO 3.
         let mut degrees = vec![];
 
-        // There are constraints for the 129 columns corresponding to the state value and the binary decomposition
-        for _ in 1..9 {
-            //for _ in 1..258 {
-            //for _ in 1..131 {
+        // There are constraints of degree 2 for the 8 columns corresponding to the state value and the binary decomposition
+        //for _ in 1..9 {
+        for _ in 1..130 {
             degrees.push(TransitionConstraintDegree::with_cycles(
                 2,
                 vec![CYCLE_LENGTH],
             ));
         }
-        //degrees.push(TransitionConstraintDegree::with_cycles(1, vec![CYCLE_LENGTH]));
+        // There is one additional constraint of degree 1, corresponding to the random value we added
         degrees.push(TransitionConstraintDegree::with_cycles(
             1,
             vec![CYCLE_LENGTH],
@@ -99,9 +98,9 @@ impl Air for CollatzAir {
 
         let collatz_flag = periodic_values[0];
         // If Collats step, check Collatz
-        apply_collatz(result, current, next, collatz_flag);
+        apply_collatz(result, &current, &next, collatz_flag);
         // Otherwise, check the binary decomposition
-        check_bin_decomp(result, current, next, not(collatz_flag));
+        check_bin_decomp(result, &current, &next, not(collatz_flag));
     }
 
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
@@ -112,15 +111,14 @@ impl Air for CollatzAir {
         // to the next power of two, we instead want to enforce that the
         // last term is matching the provided final_input.
         // todo: return a vector of assertions for the first and last step of the program
-        let last_step = self.sequence_length - 1;
-        //println!("sequence length {}", self.sequence_length);
+        let last_step = self.sequence_length * 2 - 1;
 
         vec![
             Assertion::single(0, 0, self.input_value),
+            // The last two steps have the final value in column 0
             Assertion::single(0, last_step, self.final_value),
             Assertion::single(0, last_step - 1, self.final_value),
         ]
-        //unimplemented!();
     }
     // TODO 2.2 In the evaluate_constraints function you don't have access to the step,
     // and hence is not clear how to know wether to enforce collatz or binary_decomp.
@@ -131,7 +129,6 @@ impl Air for CollatzAir {
     // 'i' can be any point on the "extended domain").
     fn get_periodic_column_values(&self) -> Vec<Vec<Self::BaseField>> {
         vec![vec![BaseElement::ZERO, BaseElement::ONE]]
-        //unimplemented!();
     }
 }
 
@@ -142,32 +139,26 @@ fn apply_collatz<E: FieldElement + From<BaseElement>>(
     flag: E,
 ) {
     // The current state contains the current value as its first element, and the other columns are the binary representation. Check whether the next state's first element is the correct Collatz update.
-    //result.agg_constraint(0, flag, are_equal(current[0].div(BaseElement::new(2).into()).mul(current[1].neg().add(BaseElement::new(1).into())).add(current[1].mul(current[0].mul(BaseElement::new(3).into()).add(BaseElement::new(1).into()))), next[0]));
-    let collatz1 = (E::ONE - current[1]) * next[0] * BaseElement::new(2).into();
-    let collatz2 = current[1] * (E::from(BaseElement::new(3)) * current[0] + E::ONE);
-    //let left1 = (E::ONE - current[1]) * collatz1;
-    //let left2 = current[1] * collatz2;
-    //let left = left1 + left2;
+    let collatz1 = (E::ONE - current[1]) * next[0] * BaseElement::new(2).into(); // If even (current[1] = 0), Collatz halves current value
+    let collatz2 = current[1] * (E::from(BaseElement::new(3)) * current[0] + E::ONE); // If odd (current[1] = 1), Collatz applies 3*n1 to current value n
     let left = collatz1 + collatz2;
-    let right1 = (E::ONE - current[1]) * current[0];
-    let right2 = current[1] * next[0];
+    let right1 = (E::ONE - current[1]) * current[0]; // If even, then the left hand-side is equal to the current value
+    let right2 = current[1] * next[0]; // If odd, the left hand-side is equal to the next value
     let right = right1 + right2;
 
-    result.agg_constraint(0, flag, are_equal(left, right));
+    result.agg_constraint(0, flag, are_equal(left, right)); // Add Collatz constraint
 
     // Checking that the decomposition columns contain binary elements only
-    //for i in 1..129 {
-    for i in 1..8 {
+    //for i in 1..8 {
+    for i in 1..129 {
         result.agg_constraint(
             i,
             flag,
-            are_equal(current[i] * (current[i] - E::ONE), BaseElement::ZERO.into()),
+            are_equal(current[i] * (current[i] - E::ONE), E::ZERO),
         );
     }
-    result.agg_constraint(8, flag, are_equal(current[8], next[8]));
-    // for i in 1..129 {
-    //     result.agg_constraint(i+128, flag, are_equal(next[0].mul(E::from(BaseElement::ONE).sub(current[1])).add(BaseElement::ONE.into()), next[i]));
-    // }
+    //result.agg_constraint(8, flag, are_equal(current[8], next[8])); // The current random value is equal to the one in next row
+    result.agg_constraint(129, flag, are_equal(current[129], next[129]));
 }
 
 fn check_bin_decomp<E: FieldElement + From<BaseElement>>(
@@ -178,8 +169,8 @@ fn check_bin_decomp<E: FieldElement + From<BaseElement>>(
 ) {
     // We need to check whether the decomposition is correct. For this, we compute the value based on the binary decomposition from the next state and compare it to the value stored in the current state
     let mut initial = next[1];
-    //for i in 1..128 {
-    for i in 1..7 {
+    //for i in 1..7 {
+    for i in 1..128 {
         initial += next[i + 1] * E::from(BaseElement::new((1 as u128) << i));
     }
 
@@ -187,8 +178,9 @@ fn check_bin_decomp<E: FieldElement + From<BaseElement>>(
     result.agg_constraint(0, flag, are_equal(initial, current[0]));
     // assert that next first value = current first value
     result.agg_constraint(1, flag, are_equal(current[0], next[0]));
-    //for i in 1..129 {
-    for i in 1..8 {
-        result.agg_constraint(i + 1, flag, are_equal(current[i], current[8]));
+    //for i in 1..8 {
+    for i in 1..129 {
+        //result.agg_constraint(i + 1, flag, are_equal(current[i], current[8]));
+        result.agg_constraint(i + 1, flag, are_equal(current[i], current[129]));
     }
 }
