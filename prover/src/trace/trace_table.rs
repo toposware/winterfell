@@ -118,7 +118,7 @@ impl<B: StarkField> TraceTable<B> {
             "execution trace length must be a power of 2"
         );
         assert!(
-            log2(length) as u32 <= B::TWO_ADICITY,
+            log2(length) <= B::TWO_ADICITY,
             "execution trace length cannot exceed 2^{} steps, but was 2^{}",
             B::TWO_ADICITY,
             log2(length)
@@ -169,7 +169,7 @@ impl<B: StarkField> TraceTable<B> {
             "execution trace length must be a power of 2"
         );
         assert!(
-            log2(trace_length) as u32 <= B::TWO_ADICITY,
+            log2(trace_length) <= B::TWO_ADICITY,
             "execution trace length cannot exceed 2^{} steps, but was 2^{}",
             B::TWO_ADICITY,
             log2(trace_length)
