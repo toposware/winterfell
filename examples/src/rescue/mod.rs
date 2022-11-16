@@ -5,4 +5,3 @@
 // LICENSE file in the root directory of this source tree.
 
 pub mod rescue_128;
-pub mod rescue_62;
