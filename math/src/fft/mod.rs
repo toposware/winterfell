@@ -436,8 +436,8 @@ where
         "multiplicative subgroup of size {} does not exist in the specified base field",
         values.len()
     );
-    FftInputs::fft_in_place(values, twiddles);
-    FftInputs::permute(values);
+    values.fft_in_place(twiddles);
+    values.permute();
 }
 
 // TWIDDLES
