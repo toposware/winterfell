@@ -123,7 +123,7 @@ impl Scalar {
     }
 
     /// Convert a little-endian bit sequence into a Scalar element
-    pub fn from_bits(bit_slice: &BitSlice<Lsb0, u8>) -> Scalar {
+    pub fn from_bits(bit_slice: &BitSlice<u8, Lsb0>) -> Scalar {
         Scalar(ScalarInner::from_bits(bit_slice))
     }
 

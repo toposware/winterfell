@@ -33,7 +33,7 @@ default = ["std"]
 std = ["utils/std"]
 
 [dependencies]
-bitvec = { version = "0.22", default-features = false }
+bitvec = { version = "1.0.1", default-features = false }
 cheetah = { git = "https://github.com/ToposWare/cheetah.git", branch = "main", default-features = false }
 rand_core = { version = "0.6", default-features = false }
 utils = { version = "0.4", path = "../utils/core", package = "winter-utils", default-features = false }
