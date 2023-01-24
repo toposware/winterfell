@@ -47,7 +47,7 @@ impl Debug for Scalar {
         let tmp = self.to_bytes();
         write!(f, "0x")?;
         for &b in tmp.iter().rev() {
-            write!(f, "{:02x}", b)?;
+            write!(f, "{b:02x}")?;
         }
         Ok(())
     }
@@ -55,7 +55,7 @@ impl Debug for Scalar {
 
 impl Display for Scalar {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 

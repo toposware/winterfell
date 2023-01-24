@@ -43,7 +43,7 @@ impl Default for AffinePoint {
 
 impl fmt::Display for AffinePoint {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -369,7 +369,7 @@ impl Default for ProjectivePoint {
 
 impl fmt::Display for ProjectivePoint {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
