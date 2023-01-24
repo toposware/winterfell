@@ -5,6 +5,7 @@
 // LICENSE file in the root directory of this source tree.
 
 use crate::{
+    fft::fft_inputs::FftInputs,
     field::{f128::BaseElement, StarkField},
     polynom,
     utils::{get_power_series, log2},
@@ -23,8 +24,8 @@ fn fft_in_place() {
     let domain = build_domain(n);
     let expected = polynom::eval_many(&p, &domain);
     let twiddles = super::get_twiddles::<BaseElement>(n);
-    super::serial::fft_in_place(&mut p, &twiddles, 1, 1, 0);
-    super::permute(&mut p);
+    p.fft_in_place(&twiddles);
+    p.permute();
     assert_eq!(expected, p);
 
     // degree 7
@@ -33,8 +34,8 @@ fn fft_in_place() {
     let domain = build_domain(n);
     let twiddles = super::get_twiddles::<BaseElement>(n);
     let expected = polynom::eval_many(&p, &domain);
-    super::serial::fft_in_place(&mut p, &twiddles, 1, 1, 0);
-    super::permute(&mut p);
+    p.fft_in_place(&twiddles);
+    p.permute();
     assert_eq!(expected, p);
 
     // degree 15
@@ -43,8 +44,8 @@ fn fft_in_place() {
     let domain = build_domain(n);
     let twiddles = super::get_twiddles::<BaseElement>(16);
     let expected = polynom::eval_many(&p, &domain);
-    super::serial::fft_in_place(&mut p, &twiddles, 1, 1, 0);
-    super::permute(&mut p);
+    p.fft_in_place(&twiddles);
+    p.permute();
     assert_eq!(expected, p);
 
     // degree 1023
@@ -53,8 +54,8 @@ fn fft_in_place() {
     let domain = build_domain(n);
     let expected = polynom::eval_many(&p, &domain);
     let twiddles = super::get_twiddles::<BaseElement>(n);
-    super::serial::fft_in_place(&mut p, &twiddles, 1, 1, 0);
-    super::permute(&mut p);
+    p.fft_in_place(&twiddles);
+    p.permute();
     assert_eq!(expected, p);
 }
 
@@ -64,7 +65,7 @@ fn fft_get_twiddles() {
     let g = BaseElement::get_root_of_unity(log2(n));
 
     let mut expected = get_power_series(g, n / 2);
-    super::permute(&mut expected);
+    expected.permute();
 
     let twiddles = super::get_twiddles::<BaseElement>(n);
     assert_eq!(expected, twiddles);

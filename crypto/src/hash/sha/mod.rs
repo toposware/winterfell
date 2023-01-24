@@ -20,6 +20,8 @@ pub struct Sha3_256<B: StarkField>(PhantomData<B>);
 impl<B: StarkField> Hasher for Sha3_256<B> {
     type Digest = ByteDigest<32>;
 
+    const COLLISION_RESISTANCE: u32 = 128;
+
     fn hash(bytes: &[u8]) -> Self::Digest {
         ByteDigest(sha3::Sha3_256::digest(bytes).into())
     }
@@ -32,7 +34,7 @@ impl<B: StarkField> Hasher for Sha3_256<B> {
         let mut data = [0; 40];
         data[..32].copy_from_slice(&seed.0);
         data[32..].copy_from_slice(&value.to_le_bytes());
-        ByteDigest(sha3::Sha3_256::digest(&data).into())
+        ByteDigest(sha3::Sha3_256::digest(data).into())
     }
 }
 
@@ -73,7 +75,7 @@ impl ShaHasher {
 
 impl ByteWriter for ShaHasher {
     fn write_u8(&mut self, value: u8) {
-        self.0.update(&[value]);
+        self.0.update([value]);
     }
 
     fn write_u8_slice(&mut self, values: &[u8]) {

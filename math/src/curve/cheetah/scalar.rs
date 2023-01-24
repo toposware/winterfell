@@ -1,3 +1,9 @@
+// Copyright (c) Facebook, Inc. and its affiliates.
+// Copyright (c) 2021-2023 Toposware, Inc.
+//
+// This source code is licensed under the MIT license found in the
+// LICENSE file in the root directory of this source tree.
+
 use core::{
     convert::{TryFrom, TryInto},
     fmt::{self, Debug, Display, Formatter},
@@ -47,7 +53,7 @@ impl Debug for Scalar {
         let tmp = self.to_bytes();
         write!(f, "0x")?;
         for &b in tmp.iter().rev() {
-            write!(f, "{:02x}", b)?;
+            write!(f, "{b:02x}")?;
         }
         Ok(())
     }
@@ -55,7 +61,7 @@ impl Debug for Scalar {
 
 impl Display for Scalar {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 

@@ -1,3 +1,9 @@
+// Copyright (c) Facebook, Inc. and its affiliates.
+// Copyright (c) 2021-2023 Toposware, Inc.
+//
+// This source code is licensed under the MIT license found in the
+// LICENSE file in the root directory of this source tree.
+
 use cheetah::Fp6;
 use cheetah::{AffinePoint as AffinePointInner, ProjectivePoint as ProjectivePointInner};
 use utils::{
@@ -43,7 +49,7 @@ impl Default for AffinePoint {
 
 impl fmt::Display for AffinePoint {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -369,7 +375,7 @@ impl Default for ProjectivePoint {
 
 impl fmt::Display for ProjectivePoint {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 

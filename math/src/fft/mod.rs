@@ -13,10 +13,12 @@
 //! `n` is the domain size.
 
 use crate::{
+    fft::fft_inputs::FftInputs,
     field::{FieldElement, StarkField},
     utils::{get_power_series, log2},
 };
 
+mod fft_inputs;
 mod serial;
 
 #[cfg(feature = "concurrent")]
@@ -434,8 +436,8 @@ where
         "multiplicative subgroup of size {} does not exist in the specified base field",
         values.len()
     );
-    serial::fft_in_place(values, twiddles, 1, 1, 0);
-    serial::permute(values);
+    values.fft_in_place(twiddles);
+    values.permute();
 }
 
 // TWIDDLES
@@ -472,8 +474,7 @@ where
     );
     assert!(
         log2(domain_size) <= B::TWO_ADICITY,
-        "multiplicative subgroup of size {} does not exist in the specified base field",
-        domain_size
+        "multiplicative subgroup of size {domain_size} does not exist in the specified base field"
     );
     let root = B::get_root_of_unity(log2(domain_size));
     let mut twiddles = get_power_series(root, domain_size / 2);
@@ -512,8 +513,7 @@ where
     );
     assert!(
         log2(domain_size) <= B::TWO_ADICITY,
-        "multiplicative subgroup of size {} does not exist in the specified base field",
-        domain_size
+        "multiplicative subgroup of size {domain_size} does not exist in the specified base field"
     );
     let root = B::get_root_of_unity(log2(domain_size));
     let inv_root = root.exp((domain_size as u32 - 1).into());
@@ -592,7 +592,7 @@ fn permute<E: FieldElement>(v: &mut [E]) {
         #[cfg(feature = "concurrent")]
         concurrent::permute(v);
     } else {
-        serial::permute(v);
+        FftInputs::permute(v);
     }
 }
 

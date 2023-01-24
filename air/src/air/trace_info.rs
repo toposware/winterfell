@@ -86,8 +86,7 @@ impl TraceInfo {
         );
         assert!(
             length.is_power_of_two(),
-            "trace length must be a power of two, but was {}",
-            length
+            "trace length must be a power of two, but was {length}"
         );
         assert!(
             meta.len() <= Self::MAX_META_LENGTH,
@@ -216,7 +215,7 @@ impl TraceLayout {
                 was_zero_width = true;
             }
             assert!(
-                num_rand_elements <= TraceInfo::MAX_RAND_SEGMENT_ELEMENTS as usize,
+                num_rand_elements <= TraceInfo::MAX_RAND_SEGMENT_ELEMENTS,
                 "number of random elements required by a segment cannot exceed {}, but was {}",
                 TraceInfo::MAX_RAND_SEGMENT_ELEMENTS,
                 num_rand_elements

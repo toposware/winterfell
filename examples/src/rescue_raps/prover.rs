@@ -1,25 +1,34 @@
 // Copyright (c) Facebook, Inc. and its affiliates.
+// Copyright (c) 2021-2023 Toposware, Inc.
 //
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
 use super::{
-    apply_rescue_round_parallel, BaseElement, FieldElement, ProofOptions, Prover, PublicInputs,
-    RapTraceTable, RescueRapsAir, Trace, CYCLE_LENGTH, NUM_HASH_ROUNDS, STATE_WIDTH,
+    apply_rescue_round_parallel, rescue::STATE_WIDTH, BaseElement, ElementHasher, FieldElement,
+    PhantomData, ProofOptions, Prover, PublicInputs, RapTraceTable, RescueRapsAir, Trace,
+    CYCLE_LENGTH, NUM_HASH_ROUNDS,
 };
 
 // RESCUE PROVER
 // ================================================================================================
-
-pub struct RescueRapsProver {
+/// This example constructs a proof for correct execution of 2 hash chains simultaneously.
+/// In order to demonstrate the power of RAPs, the two hash chains have seeds that are
+/// permutations of each other.
+pub struct RescueRapsProver<H: ElementHasher> {
     options: ProofOptions,
+    _hasher: PhantomData<H>,
 }
 
-impl RescueRapsProver {
+impl<H: ElementHasher> RescueRapsProver<H> {
     pub fn new(options: ProofOptions) -> Self {
-        Self { options }
+        Self {
+            options,
+            _hasher: PhantomData,
+        }
     }
-
+    /// The parameter `seeds` is the set of seeds for the first hash chain.
+    /// The parameter `permuted_seeds` is the set of seeds for the second hash chain.
     pub fn build_trace(
         &self,
         seeds: &[[BaseElement; 2]],
@@ -81,10 +90,14 @@ impl RescueRapsProver {
     }
 }
 
-impl Prover for RescueRapsProver {
+impl<H: ElementHasher> Prover for RescueRapsProver<H>
+where
+    H: ElementHasher<BaseField = BaseElement>,
+{
     type BaseField = BaseElement;
     type Air = RescueRapsAir;
     type Trace = RapTraceTable<BaseElement>;
+    type HashFn = H;
 
     fn get_pub_inputs(&self, trace: &Self::Trace) -> PublicInputs {
         let last_step = trace.length() - 1;

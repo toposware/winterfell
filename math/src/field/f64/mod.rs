@@ -49,9 +49,10 @@ const ELEMENT_BYTES: usize = core::mem::size_of::<u64>();
 // FIELD ELEMENT
 // ================================================================================================
 
-/// Represents base field element in the field.
+/// Represents base field element in the field using Montgomery representation.
 ///
-/// Internal values are stored in the range [0, 2^64). The backing type is `u64`.
+/// Internal values represent x * R mod M where R = 2^64 mod M and x in [0, M).
+/// The backing type is `u64` but the internal values are always in the range [0, M).
 #[derive(Copy, Clone, Debug, Default)]
 pub struct BaseElement(u64);
 impl BaseElement {
@@ -97,7 +98,7 @@ impl FieldElement for BaseElement {
     fn double(self) -> Self {
         let ret = (self.0 as u128) << 1;
         let (result, over) = (ret as u64, (ret >> 64) as u64);
-        Self(result.wrapping_sub(M * (over as u64)))
+        Self(result.wrapping_sub(M * over))
     }
 
     #[inline]
@@ -236,9 +237,16 @@ impl StarkField for BaseElement {
         M.to_le_bytes().to_vec()
     }
 
+    // Converts a field element in Montgomery form to canonical form. That is, given x, it computes
+    // x/2^64 modulo M. This is exactly what mont_red_cst does only that it does it more efficiently
+    // using the fact that a field element in Montgomery form is stored as a u64 and thus one can
+    // use this to simplify mont_red_cst in this case.
     #[inline]
     fn to_repr(&self) -> Self::Representation {
-        mont_red_cst(self.0 as u128)
+        let x = self.0;
+        let (r, c) = x.overflowing_add(x << 32);
+        let res = r.wrapping_sub(r >> 32).wrapping_sub(c as u64);
+        M - res
     }
 }
 
@@ -512,11 +520,10 @@ impl<'a> TryFrom<&'a [u8]> for BaseElement {
         let value = bytes
             .try_into()
             .map(u64::from_le_bytes)
-            .map_err(|error| DeserializationError::UnknownError(format!("{}", error)))?;
+            .map_err(|error| DeserializationError::UnknownError(format!("{error}")))?;
         if value >= M {
             return Err(DeserializationError::InvalidValue(format!(
-                "invalid field element: value {} is greater than or equal to the field modulus",
-                value
+                "invalid field element: value {value} is greater than or equal to the field modulus"
             )));
         }
         Ok(Self::new(value))
@@ -546,8 +553,7 @@ impl Deserializable for BaseElement {
         let value = source.read_u64()?;
         if value >= M {
             return Err(DeserializationError::InvalidValue(format!(
-                "invalid field element: value {} is greater than or equal to the field modulus",
-                value
+                "invalid field element: value {value} is greater than or equal to the field modulus"
             )));
         }
         Ok(Self::new(value))

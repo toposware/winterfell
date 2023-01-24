@@ -195,9 +195,7 @@ pub trait Trace: Sized {
             for (i, &evaluation) in main_evaluations.iter().enumerate() {
                 assert!(
                     evaluation == Self::BaseField::ZERO,
-                    "main transition constraint {} did not evaluate to ZERO at step {}",
-                    i,
-                    step
+                    "main transition constraint {i} did not evaluate to ZERO at step {step}"
                 );
             }
 
@@ -215,9 +213,7 @@ pub trait Trace: Sized {
                 for (i, &evaluation) in aux_evaluations.iter().enumerate() {
                     assert!(
                         evaluation == E::ZERO,
-                        "auxiliary transition constraint {} did not evaluate to ZERO at step {}",
-                        i,
-                        step
+                        "auxiliary transition constraint {i} did not evaluate to ZERO at step {step}"
                     );
                 }
             }

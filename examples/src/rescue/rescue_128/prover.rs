@@ -1,23 +1,28 @@
 // Copyright (c) Facebook, Inc. and its affiliates.
+// Copyright (c) 2021-2023 Toposware, Inc.
 //
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
 use super::{
-    rescue, BaseElement, FieldElement, ProofOptions, Prover, PublicInputs, RescueAir, Trace,
-    TraceTable, CYCLE_LENGTH, NUM_HASH_ROUNDS,
+    rescue, BaseElement, ElementHasher, FieldElement, PhantomData, ProofOptions, Prover,
+    PublicInputs, RescueAir, Trace, TraceTable, CYCLE_LENGTH, NUM_HASH_ROUNDS,
 };
 
 // RESCUE PROVER
 // ================================================================================================
 
-pub struct RescueProver {
+pub struct RescueProver<H: ElementHasher> {
     options: ProofOptions,
+    _hasher: PhantomData<H>,
 }
 
-impl RescueProver {
+impl<H: ElementHasher> RescueProver<H> {
     pub fn new(options: ProofOptions) -> Self {
-        Self { options }
+        Self {
+            options,
+            _hasher: PhantomData,
+        }
     }
 
     pub fn build_trace(
@@ -56,10 +61,14 @@ impl RescueProver {
     }
 }
 
-impl Prover for RescueProver {
+impl<H: ElementHasher> Prover for RescueProver<H>
+where
+    H: ElementHasher<BaseField = BaseElement>,
+{
     type BaseField = BaseElement;
     type Air = RescueAir;
     type Trace = TraceTable<BaseElement>;
+    type HashFn = H;
 
     fn get_pub_inputs(&self, trace: &Self::Trace) -> PublicInputs {
         let last_step = trace.length() - 1;

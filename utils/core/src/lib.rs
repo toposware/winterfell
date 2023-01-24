@@ -246,7 +246,7 @@ impl<'a> ByteReader for SliceReader<'a> {
         let result = u16::from_le_bytes(
             self.source[self.pos..end_pos]
                 .try_into()
-                .map_err(|err| DeserializationError::UnknownError(format!("{}", err)))?,
+                .map_err(|err| DeserializationError::UnknownError(format!("{err}")))?,
         );
 
         self.pos = end_pos;
@@ -262,7 +262,7 @@ impl<'a> ByteReader for SliceReader<'a> {
         let result = u32::from_le_bytes(
             self.source[self.pos..end_pos]
                 .try_into()
-                .map_err(|err| DeserializationError::UnknownError(format!("{}", err)))?,
+                .map_err(|err| DeserializationError::UnknownError(format!("{err}")))?,
         );
 
         self.pos = end_pos;
@@ -278,7 +278,7 @@ impl<'a> ByteReader for SliceReader<'a> {
         let result = u64::from_le_bytes(
             self.source[self.pos..end_pos]
                 .try_into()
-                .map_err(|err| DeserializationError::UnknownError(format!("{}", err)))?,
+                .map_err(|err| DeserializationError::UnknownError(format!("{err}")))?,
         );
 
         self.pos = end_pos;
@@ -294,7 +294,7 @@ impl<'a> ByteReader for SliceReader<'a> {
         let result = u128::from_le_bytes(
             self.source[self.pos..end_pos]
                 .try_into()
-                .map_err(|err| DeserializationError::UnknownError(format!("{}", err)))?,
+                .map_err(|err| DeserializationError::UnknownError(format!("{err}")))?,
         );
 
         self.pos = end_pos;
@@ -302,7 +302,7 @@ impl<'a> ByteReader for SliceReader<'a> {
     }
 
     fn read_u8_vec(&mut self, len: usize) -> Result<Vec<u8>, DeserializationError> {
-        let end_pos = self.pos + len as usize;
+        let end_pos = self.pos + len;
         if end_pos > self.source.len() {
             return Err(DeserializationError::UnexpectedEOF);
         }
@@ -493,8 +493,7 @@ pub fn group_slice_elements<T, const N: usize>(source: &[T]) -> &[[T; N]] {
     assert_eq!(
         source.len() % N,
         0,
-        "source length must be divisible by {}",
-        N
+        "source length must be divisible by {N}"
     );
     let p = source.as_ptr();
     let len = source.len() / N;

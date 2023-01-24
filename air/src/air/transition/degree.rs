@@ -1,4 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates.
+// Copyright (c) 2021-2023 Toposware, Inc.
 //
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
@@ -61,16 +62,11 @@ impl TransitionConstraintDegree {
         for (i, &cycle) in cycles.iter().enumerate() {
             assert!(
                 cycle >= MIN_CYCLE_LENGTH,
-                "cycle length must be at least {}, but was {} for cycle {}",
-                MIN_CYCLE_LENGTH,
-                cycle,
-                i
+                "cycle length must be at least {MIN_CYCLE_LENGTH}, but was {cycle} for cycle {i}"
             );
             assert!(
                 cycle.is_power_of_two(),
-                "cycle length must be a power of two, but was {} for cycle {}",
-                cycle,
-                i
+                "cycle length must be a power of two, but was {cycle} for cycle {i}"
             );
         }
         TransitionConstraintDegree {
