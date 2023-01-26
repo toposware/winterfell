@@ -368,7 +368,7 @@
 //! ```
 //! # use winterfell::{
 //! #    math::{fields::f128::BaseElement, FieldElement},
-//! #    Air, AirContext, Assertion, ByteWriter, EvaluationFrame, Serializable,
+//! #    Air, AirContext, Assertion, BlowupFactor, ByteWriter, EvaluationFrame, FriFoldingFactor, FriMaximumRemainderSize, Serializable,
 //! #    TraceInfo, TransitionConstraintDegree, TraceTable, FieldExtension,
 //! #    Prover, ProofOptions, StarkProof, Trace, crypto::hashers::Blake3_256,
 //! # };
@@ -490,7 +490,7 @@
 //!     FieldExtension::None,
 //!     FriFoldingFactor::Third,   // FRI folding factor
 //!     FriMaximumRemainderSize::Fourth, // FRI max remainder length
-//! );
+//! ).unwrap();
 //!
 //! // Instantiate the prover and generate the proof.
 //! let prover = WorkProver::new(options);
