@@ -741,10 +741,10 @@ mod tests {
 
     #[test]
     fn test_is_on_curve() {
-        assert!(bool::from(AffinePoint::identity().is_on_curve()));
-        assert!(bool::from(AffinePoint::generator().is_on_curve()));
-        assert!(bool::from(ProjectivePoint::identity().is_on_curve()));
-        assert!(bool::from(ProjectivePoint::generator().is_on_curve()));
+        assert!(AffinePoint::identity().is_on_curve());
+        assert!(AffinePoint::generator().is_on_curve());
+        assert!(ProjectivePoint::identity().is_on_curve());
+        assert!(ProjectivePoint::generator().is_on_curve());
 
         let z = Fp6::from_raw_unchecked([
             0x29eedd8f12973c87,
@@ -760,14 +760,13 @@ mod tests {
         coordinates[0..6].copy_from_slice(&(gen.0.get_x() * z).output_internal());
         coordinates[6..12].copy_from_slice(&(gen.0.get_y() * z).output_internal());
         coordinates[12..18].copy_from_slice(&z.output_internal());
-        let mut test =
-            ProjectivePoint::from_raw_coordinates(coordinates.map(|e| BaseElement::new(e)));
+        let mut test = ProjectivePoint::from_raw_coordinates(coordinates.map(BaseElement::new));
 
-        assert!(bool::from(test.is_on_curve()));
+        assert!(test.is_on_curve());
 
         coordinates[0..6].copy_from_slice(&z.output_internal());
-        test = ProjectivePoint::from_raw_coordinates(coordinates.map(|e| BaseElement::new(e)));
-        assert!(!bool::from(test.is_on_curve()));
+        test = ProjectivePoint::from_raw_coordinates(coordinates.map(BaseElement::new));
+        assert!(!test.is_on_curve());
     }
 
     #[test]
@@ -783,8 +782,8 @@ mod tests {
         assert!(a != b);
         assert!(b != a);
 
-        assert!(bool::from(b.is_identity()));
-        assert!(!bool::from(a.eq(&b)));
+        assert!(b.is_identity());
+        assert!(!a.eq(&b));
     }
 
     #[test]
@@ -800,8 +799,8 @@ mod tests {
         assert!(a != b);
         assert!(b != a);
 
-        assert!(bool::from(b.is_identity()));
-        assert!(!bool::from(a.eq(&b)));
+        assert!(b.is_identity());
+        assert!(!a.eq(&b));
 
         let z = Fp6::from_raw_unchecked([
             0x29eedd8f12973c87,
@@ -816,8 +815,8 @@ mod tests {
         coordinates[0..6].copy_from_slice(&(a.0.get_x() * z).output_internal());
         coordinates[6..12].copy_from_slice(&(a.0.get_y() * z).output_internal());
         coordinates[12..18].copy_from_slice(&z.output_internal());
-        let mut c = ProjectivePoint::from_raw_coordinates(coordinates.map(|e| BaseElement::new(e)));
-        assert!(bool::from(c.is_on_curve()));
+        let mut c = ProjectivePoint::from_raw_coordinates(coordinates.map(BaseElement::new));
+        assert!(c.is_on_curve());
 
         assert!(a == c);
         assert!(b != c);
@@ -825,8 +824,8 @@ mod tests {
         assert!(c != b);
 
         coordinates[6..12].copy_from_slice(&(-a.0.get_y() * z).output_internal());
-        c = ProjectivePoint::from_raw_coordinates(coordinates.map(|e| BaseElement::new(e)));
-        assert!(bool::from(c.is_on_curve()));
+        c = ProjectivePoint::from_raw_coordinates(coordinates.map(BaseElement::new));
+        assert!(c.is_on_curve());
 
         assert!(a != c);
         assert!(b != c);
@@ -835,8 +834,8 @@ mod tests {
 
         coordinates[0..6].copy_from_slice(&z.output_internal());
         coordinates[6..12].copy_from_slice(&(a.0.get_y() * z).output_internal());
-        c = ProjectivePoint::from_raw_coordinates(coordinates.map(|e| BaseElement::new(e)));
-        assert!(!bool::from(c.is_on_curve()));
+        c = ProjectivePoint::from_raw_coordinates(coordinates.map(BaseElement::new));
+        assert!(!c.is_on_curve());
         assert!(a != b);
         assert!(a != c);
         assert!(b != c);
@@ -847,10 +846,10 @@ mod tests {
         let a = ProjectivePoint::generator();
         let b = ProjectivePoint::identity();
 
-        assert!(bool::from(AffinePoint::from(a).is_on_curve()));
-        assert!(!bool::from(AffinePoint::from(a).is_identity()));
-        assert!(bool::from(AffinePoint::from(b).is_on_curve()));
-        assert!(bool::from(AffinePoint::from(b).is_identity()));
+        assert!(AffinePoint::from(a).is_on_curve());
+        assert!(!AffinePoint::from(a).is_identity());
+        assert!(AffinePoint::from(b).is_on_curve());
+        assert!(AffinePoint::from(b).is_identity());
 
         let z = Fp6::from_raw_unchecked([
             0x29eedd8f12973c87,
@@ -865,7 +864,7 @@ mod tests {
         coordinates[0..6].copy_from_slice(&(a.0.get_x() * z).output_internal());
         coordinates[6..12].copy_from_slice(&(a.0.get_y() * z).output_internal());
         coordinates[12..18].copy_from_slice(&z.output_internal());
-        let c = ProjectivePoint::from_raw_coordinates(coordinates.map(|e| BaseElement::new(e)));
+        let c = ProjectivePoint::from_raw_coordinates(coordinates.map(BaseElement::new));
 
         assert_eq!(AffinePoint::from(c), AffinePoint::generator());
     }
@@ -875,23 +874,23 @@ mod tests {
         let a = AffinePoint::generator();
         let b = AffinePoint::identity();
 
-        assert!(bool::from(ProjectivePoint::from(a).is_on_curve()));
-        assert!(!bool::from(ProjectivePoint::from(a).is_identity()));
-        assert!(bool::from(ProjectivePoint::from(b).is_on_curve()));
-        assert!(bool::from(ProjectivePoint::from(b).is_identity()));
+        assert!(ProjectivePoint::from(a).is_on_curve());
+        assert!(!ProjectivePoint::from(a).is_identity());
+        assert!(ProjectivePoint::from(b).is_on_curve());
+        assert!(ProjectivePoint::from(b).is_identity());
     }
 
     #[test]
     fn test_doubling() {
         {
             let tmp = ProjectivePoint::identity().double();
-            assert!(bool::from(tmp.is_identity()));
-            assert!(bool::from(tmp.is_on_curve()));
+            assert!(tmp.is_identity());
+            assert!(tmp.is_on_curve());
         }
         {
             let tmp = ProjectivePoint::generator().double();
-            assert!(!bool::from(tmp.is_identity()));
-            assert!(bool::from(tmp.is_on_curve()));
+            assert!(!tmp.is_identity());
+            assert!(tmp.is_on_curve());
 
             assert_eq!(
                 AffinePoint::from(tmp),
@@ -919,8 +918,8 @@ mod tests {
             let a = ProjectivePoint::identity();
             let b = ProjectivePoint::identity();
             let c = a + b;
-            assert!(bool::from(c.is_identity()));
-            assert!(bool::from(c.is_on_curve()));
+            assert!(c.is_identity());
+            assert!(c.is_on_curve());
         }
         {
             let a = ProjectivePoint::identity();
@@ -939,11 +938,11 @@ mod tests {
                 coordinates[0..6].copy_from_slice(&(b.0.get_x() * z).output_internal());
                 coordinates[6..12].copy_from_slice(&(b.0.get_y() * z).output_internal());
                 coordinates[12..18].copy_from_slice(&z.output_internal());
-                b = ProjectivePoint::from_raw_coordinates(coordinates.map(|e| BaseElement::new(e)));
+                b = ProjectivePoint::from_raw_coordinates(coordinates.map(BaseElement::new));
             }
             let c = a + b;
-            assert!(!bool::from(c.is_identity()));
-            assert!(bool::from(c.is_on_curve()));
+            assert!(!c.is_identity());
+            assert!(c.is_on_curve());
             assert!(c == ProjectivePoint::generator());
         }
         {
@@ -955,10 +954,10 @@ mod tests {
             for _ in 0..5 {
                 d += ProjectivePoint::generator();
             }
-            assert!(!bool::from(c.is_identity()));
-            assert!(bool::from(c.is_on_curve()));
-            assert!(!bool::from(d.is_identity()));
-            assert!(bool::from(d.is_on_curve()));
+            assert!(!c.is_identity());
+            assert!(c.is_on_curve());
+            assert!(!d.is_identity());
+            assert!(d.is_on_curve());
             assert_eq!(c, d);
         }
     }
@@ -969,8 +968,8 @@ mod tests {
             let a = AffinePoint::identity();
             let b = ProjectivePoint::identity();
             let c = a + b;
-            assert!(bool::from(c.is_identity()));
-            assert!(bool::from(c.is_on_curve()));
+            assert!(c.is_identity());
+            assert!(c.is_on_curve());
         }
         {
             let a = AffinePoint::identity();
@@ -989,11 +988,11 @@ mod tests {
                 coordinates[0..6].copy_from_slice(&(b.0.get_x() * z).output_internal());
                 coordinates[6..12].copy_from_slice(&(b.0.get_y() * z).output_internal());
                 coordinates[12..18].copy_from_slice(&z.output_internal());
-                b = ProjectivePoint::from_raw_coordinates(coordinates.map(|e| BaseElement::new(e)));
+                b = ProjectivePoint::from_raw_coordinates(coordinates.map(BaseElement::new));
             }
             let c = a + b;
-            assert!(!bool::from(c.is_identity()));
-            assert!(bool::from(c.is_on_curve()));
+            assert!(!c.is_identity());
+            assert!(c.is_on_curve());
             assert!(c == ProjectivePoint::generator());
         }
         {
@@ -1005,10 +1004,10 @@ mod tests {
             for _ in 0..5 {
                 d += AffinePoint::generator();
             }
-            assert!(!bool::from(c.is_identity()));
-            assert!(bool::from(c.is_on_curve()));
-            assert!(!bool::from(d.is_identity()));
-            assert!(bool::from(d.is_on_curve()));
+            assert!(!c.is_identity());
+            assert!(c.is_on_curve());
+            assert!(!d.is_identity());
+            assert!(d.is_on_curve());
             assert_eq!(c, d);
         }
     }
@@ -1076,7 +1075,7 @@ mod tests {
         ]);
         let c = a * b;
 
-        assert_eq!(AffinePoint::from(g * a) * b, g * c);
+        assert_eq!((g * a) * b, g * c);
 
         for _ in 0..100 {
             let a: Scalar = rand_value();
@@ -1091,9 +1090,9 @@ mod tests {
     fn test_clear_cofactor() {
         // the generator (and the identity) are always on the curve
         let generator = ProjectivePoint::generator();
-        assert!(bool::from(generator.clear_cofactor().is_on_curve()));
+        assert!(generator.clear_cofactor().is_on_curve());
         let id = ProjectivePoint::identity();
-        assert!(bool::from(id.clear_cofactor().is_on_curve()));
+        assert!(id.clear_cofactor().is_on_curve());
 
         let point = ProjectivePoint::from(&AffinePoint::from_raw_coordinates([
             BaseElement::new(0x9bfcd3244afcb637),
@@ -1113,7 +1112,7 @@ mod tests {
         assert!(point.is_on_curve());
         assert!(!AffinePoint::from(point).is_torsion_free());
         let cleared_point = point.clear_cofactor();
-        assert!(bool::from(cleared_point.is_on_curve()));
+        assert!(cleared_point.is_on_curve());
         assert!(AffinePoint::from(cleared_point).is_torsion_free());
     }
 
@@ -1134,10 +1133,10 @@ mod tests {
             BaseElement::new(0x5b8157814141a7a7),
         ]);
 
-        assert!(bool::from(a.is_on_curve()));
-        assert!(!bool::from(a.is_torsion_free()));
-        assert!(bool::from(AffinePoint::identity().is_torsion_free()));
-        assert!(bool::from(AffinePoint::generator().is_torsion_free()));
+        assert!(a.is_on_curve());
+        assert!(!a.is_torsion_free());
+        assert!(AffinePoint::identity().is_torsion_free());
+        assert!(AffinePoint::generator().is_torsion_free());
     }
 
     #[test]

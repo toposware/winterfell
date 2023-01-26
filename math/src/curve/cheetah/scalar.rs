@@ -460,7 +460,7 @@ mod tests {
         assert_eq!(Scalar::one(), Scalar::one());
 
         assert!(bool::from(Scalar::default().is_zero()));
-        assert!(!bool::from(Scalar::zero().eq(&Scalar::one())));
+        assert!(Scalar::zero().eq(&Scalar::one()));
 
         assert!(Scalar::zero() != Scalar::one());
     }
@@ -679,29 +679,23 @@ mod tests {
         );
 
         // M is invalid
-        assert!(bool::from(
-            Scalar::from_bytes(&[
-                207, 172, 212, 174, 62, 98, 67, 212, 34, 119, 21, 48, 35, 167, 122, 50, 181, 55,
-                10, 153, 15, 191, 63, 86, 208, 34, 63, 59, 155, 89, 242, 122
-            ])
-            .is_none()
-        ));
+        assert!(Scalar::from_bytes(&[
+            207, 172, 212, 174, 62, 98, 67, 212, 34, 119, 21, 48, 35, 167, 122, 50, 181, 55, 10,
+            153, 15, 191, 63, 86, 208, 34, 63, 59, 155, 89, 242, 122
+        ])
+        .is_none());
 
         // Anything larger than M is invalid
-        assert!(bool::from(
-            Scalar::from_bytes(&[
-                206, 173, 212, 174, 62, 98, 67, 212, 34, 119, 21, 48, 35, 167, 122, 50, 181, 55,
-                10, 153, 15, 191, 63, 86, 208, 34, 63, 59, 155, 89, 242, 122
-            ])
-            .is_none()
-        ));
-        assert!(bool::from(
-            Scalar::from_bytes(&[
-                0, 0, 0, 174, 62, 98, 67, 212, 34, 119, 21, 48, 35, 167, 122, 50, 181, 55, 10, 153,
-                15, 191, 63, 86, 208, 34, 63, 59, 155, 89, 242, 255
-            ])
-            .is_none()
-        ));
+        assert!(Scalar::from_bytes(&[
+            206, 173, 212, 174, 62, 98, 67, 212, 34, 119, 21, 48, 35, 167, 122, 50, 181, 55, 10,
+            153, 15, 191, 63, 86, 208, 34, 63, 59, 155, 89, 242, 122
+        ])
+        .is_none());
+        assert!(Scalar::from_bytes(&[
+            0, 0, 0, 174, 62, 98, 67, 212, 34, 119, 21, 48, 35, 167, 122, 50, 181, 55, 10, 153, 15,
+            191, 63, 86, 208, 34, 63, 59, 155, 89, 242, 255
+        ])
+        .is_none());
     }
 
     #[test]
@@ -743,8 +737,8 @@ mod tests {
         ]);
 
         assert_eq!(a.square(), b.square());
-        assert!(!bool::from(a.lexicographically_largest()));
-        assert!(bool::from(b.lexicographically_largest()));
+        assert!(!a.lexicographically_largest());
+        assert!(b.lexicographically_largest());
     }
 
     // INITIALIZATION
