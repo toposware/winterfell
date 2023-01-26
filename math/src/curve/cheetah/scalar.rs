@@ -460,7 +460,7 @@ mod tests {
         assert_eq!(Scalar::one(), Scalar::one());
 
         assert!(bool::from(Scalar::default().is_zero()));
-        assert!(Scalar::zero().eq(&Scalar::one()));
+        assert!(!Scalar::zero().eq(&Scalar::one()));
 
         assert!(Scalar::zero() != Scalar::one());
     }
